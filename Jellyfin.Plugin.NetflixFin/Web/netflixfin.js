@@ -1534,35 +1534,41 @@
         return panel;
     }
 
-    function openEpisodesPanel() {
+    function openEpisodesPanel(hovered) {
         if (!player) return;
         var client = api();
         var seriesId = player.seriesId;
         if (!client || !seriesId) return;
 
         var wasOpen = player.node.querySelector('.nf-p-panel-episodes');
+        // Hover only ever opens; a click still toggles.
+        if (wasOpen && hovered === true) return;
         closePanels();
         if (wasOpen) return;
 
         var panel = panelShell('Episodi', 'nf-p-panel-episodes');
+
+        // Netflix lets you move between seasons from inside this panel.
+        var picker = el('select', 'nf-p-season');
+        panel.querySelector('.nf-p-panel-head').appendChild(picker);
+
         var list = el('div', 'nf-p-panel-body');
         panel.appendChild(list);
         player.node.appendChild(panel);
 
-        // One season, never the whole series: without a season the endpoint
-        // returns every episode there is - 151 of them on the first run, which
-        // was enough to lock the renderer up.
-        var query = {
-            userId: client.getCurrentUserId(),
-            fields: 'Overview'
-        };
-        if (player.seasonId) query.seasonId = player.seasonId;
-        else query.limit = 60;
+        var render = function (seasonId) {
+            list.textContent = '';
+            // One season, never the whole series: without a season the endpoint
+            // returns every episode there is - 151 on the first run, enough to
+            // lock the renderer up.
+            var query = { userId: client.getCurrentUserId(), fields: 'Overview' };
+            if (seasonId) query.seasonId = seasonId;
+            else query.limit = 60;
 
-        client
-            .getJSON(client.getUrl('Shows/' + seriesId + '/Episodes', query))
-            .then(function (result) {
-                (result.Items || []).forEach(function (episode) {
+            client
+                .getJSON(client.getUrl('Shows/' + seriesId + '/Episodes', query))
+                .then(function (result) {
+                    (result.Items || []).forEach(function (episode) {
                     var row = el('div', 'nf-p-episode' + (episode.Id === player.itemId ? ' is-current' : ''));
                     row.appendChild(el('div', 'nf-p-episode-index', String(episode.IndexNumber || '')));
 
@@ -1577,25 +1583,59 @@
                     text.appendChild(el('p', null, (mins ? mins + 'm  ' : '') + (episode.Overview || '')));
                     row.appendChild(text);
 
-                    row.addEventListener('click', function () {
-                        closePanels();
-                        goToDetails(episode.Id, episode.ServerId, true);
-                    });
+                        row.addEventListener('click', function () {
+                            closePanels();
+                            goToDetails(episode.Id, episode.ServerId, true);
+                        });
 
-                    list.appendChild(row);
+                        list.appendChild(row);
+                    });
+                })
+                .catch(function (err) {
+                    log('episodes panel failed', err);
                 });
+        };
+
+        client
+            .getJSON(client.getUrl('Shows/' + seriesId + '/Seasons', {
+                userId: client.getCurrentUserId()
+            }))
+            .then(function (result) {
+                var seasons = result.Items || [];
+                seasons.forEach(function (season) {
+                    var option = el('option', null, season.Name);
+                    option.value = season.Id;
+                    picker.appendChild(option);
+                });
+                if (!seasons.length) {
+                    picker.remove();
+                    render(player.seasonId);
+                    return;
+                }
+                var start = player.seasonId && seasons.some(function (season) {
+                    return season.Id === player.seasonId;
+                })
+                    ? player.seasonId
+                    : seasons[0].Id;
+                picker.value = start;
+                picker.addEventListener('change', function () {
+                    render(picker.value);
+                });
+                render(start);
             })
-            .catch(function (err) {
-                log('episodes panel failed', err);
+            .catch(function () {
+                picker.remove();
+                render(player.seasonId);
             });
     }
 
-    function openTracksPanel() {
+    function openTracksPanel(hovered) {
         if (!player) return;
         var client = api();
         if (!client || !player.itemId) return;
 
         var wasOpen = player.node.querySelector('.nf-p-panel-tracks');
+        if (wasOpen && hovered === true) return;
         closePanels();
         if (wasOpen) return;
 
@@ -1774,8 +1814,25 @@
                 proxy('.videoOsdBottom .btnNextTrack');
             })
         );
-        right.appendChild(playerButton('episodes', 'Episodi', openEpisodesPanel));
-        right.appendChild(playerButton('subtitles', 'Sottotitoli e audio', openTracksPanel));
+        // Netflix opens these on hover, not on click.
+        var hoverPanel = function (button, open) {
+            var timer = null;
+            button.addEventListener('mouseenter', function () {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    open(true);
+                }, 120);
+            });
+            button.addEventListener('mouseleave', function () {
+                clearTimeout(timer);
+            });
+            return button;
+        };
+
+        right.appendChild(hoverPanel(playerButton('episodes', 'Episodi', openEpisodesPanel), openEpisodesPanel));
+        right.appendChild(
+            hoverPanel(playerButton('subtitles', 'Sottotitoli e audio', openTracksPanel), openTracksPanel)
+        );
         right.appendChild(
             playerButton('fullscreen', 'Schermo intero', function () {
                 if (document.fullscreenElement) document.exitFullscreen();
@@ -1792,6 +1849,18 @@
         document.body.appendChild(node);
 
         player = { node: node, video: video, range: range, remaining: remaining, title: centre, playBtn: playBtn, seriesId: null };
+
+        // A range input answers the wheel when the pointer is over it, so
+        // scrolling the page was dragging the volume and the playhead.
+        [range, volume].forEach(function (input) {
+            input.addEventListener(
+                'wheel',
+                function (event) {
+                    event.preventDefault();
+                },
+                { passive: false }
+            );
+        });
 
         var scrubbing = false;
         range.addEventListener('input', function () {

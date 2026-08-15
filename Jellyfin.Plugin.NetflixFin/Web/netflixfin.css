@@ -317,6 +317,13 @@ body.nf-scrolled .skinHeader {
     gap: 6px;
 }
 
+/* The account button is not an icon: Jellyfin paints the profile picture as its
+   background, so clearing backgrounds here erased it. */
+.headerRight .paper-icon-button-light:not(.headerUserButton),
+.headerRight .headerButton:not(.headerUserButton) {
+    background: transparent !important;
+}
+
 .headerRight .paper-icon-button-light,
 .headerRight .headerButton {
     color: var(--nf-text) !important;
@@ -324,8 +331,13 @@ body.nf-scrolled .skinHeader {
     height: 40px;
     padding: 0;
     border-radius: 4px;
-    background: transparent !important;
     transition: opacity 0.15s var(--nf-ease);
+}
+
+.headerRight .headerUserButton {
+    background-size: cover !important;
+    background-position: center !important;
+    border-radius: 4px;
 }
 
 .headerRight .paper-icon-button-light:hover,
@@ -2222,6 +2234,18 @@ body.nf-playing .videoOsdTop {
     font-size: 22px;
     font-weight: 500;
     margin: 0;
+}
+
+.nf-p-season {
+    background: #242424;
+    color: #fff;
+    border: 1px solid #6d6d6d;
+    border-radius: 2px;
+    padding: 7px 10px;
+    font-size: 15px;
+    font-family: var(--nf-font);
+    margin-left: auto;
+    margin-right: 12px;
 }
 
 .nf-p-panel-close {
