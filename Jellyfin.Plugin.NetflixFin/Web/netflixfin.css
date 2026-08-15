@@ -65,15 +65,35 @@ textarea {
     color: #fff;
 }
 
-/* Netflix keeps a single dark backdrop rather than a per-item blur. */
+/* Jellyfin paints the item backdrop on a fixed, full-viewport .backdropImage and
+   then covers it with .backgroundContainer. Netflix uses that artwork as the
+   detail page's hero and nowhere else, so the cover is removed and the image is
+   revealed only on a detail route (netflixfin.js sets body.nf-detail). */
 .backgroundContainer.withBackdrop {
-    opacity: 1;
-    background: var(--nf-bg) !important;
+    background: none !important;
 }
 
 .backdropImage {
-    opacity: 0.28;
+    opacity: 0;
     filter: saturate(1.05);
+    transition: opacity 0.5s var(--nf-ease);
+}
+
+body.nf-detail .backdropImage {
+    opacity: 1;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 36%, transparent 74%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 36%, transparent 74%);
+}
+
+/* Two scrims, same as the home hero: sideways for the copy, upward into the page. */
+body.nf-detail .backdropContainer::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(77deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.5) 38%, rgba(0, 0, 0, 0) 72%),
+        linear-gradient(0deg, var(--nf-bg) 3%, rgba(20, 20, 20, 0) 34%);
 }
 
 /* Thin, unobtrusive scrollbars. */
@@ -655,22 +675,49 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
     background: var(--nf-accent-hover) !important;
 }
 
-.mainDetailButtons .detailButton {
-    min-width: 8em;
-    padding: 0.5em 1.2em;
+.mainDetailButtons {
+    gap: 0.6rem;
+    align-items: center;
 }
 
+/* Jellyfin ships every action as a bare icon. Netflix labels the primary one, so
+   the button's own (already localised) title attribute is promoted to a label. */
+.mainDetailButtons .btnPlay,
+.mainDetailButtons .btnResume {
+    min-width: 9em;
+    padding: 0.55em 1.6em;
+    border-radius: 4px;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.mainDetailButtons .btnPlay .detailButton-content,
+.mainDetailButtons .btnResume .detailButton-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+}
+
+.mainDetailButtons .btnPlay .detailButton-content::after,
+.mainDetailButtons .btnResume .detailButton-content::after {
+    content: attr(data-nf-label);
+}
+
+/* The remaining actions stay as Netflix's outlined circles. */
 .mainDetailButtons .detailButton:not(.btnPlay):not(.btnResume) {
-    background: rgba(109, 109, 110, 0.7) !important;
+    background: rgba(42, 42, 42, 0.6) !important;
     color: #fff !important;
-}
-
-/* Circular icon buttons on the detail page. */
-.detailButton.detailButton-icon,
-.btnPlayTrailer,
-.btnUserRating {
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
     border-radius: 50% !important;
     min-width: 0 !important;
+    width: 2.6em;
+    height: 2.6em;
+    padding: 0;
+}
+
+.mainDetailButtons .detailButton:not(.btnPlay):not(.btnResume):hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: #fff !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -678,17 +725,61 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
    -------------------------------------------------------------------------- */
 
 .detailPageWrapperContainer,
-.detailPagePrimaryContainer {
+.detailPagePrimaryContainer,
+.detailPageSecondaryContainer {
     background: transparent;
 }
 
-.itemBackdrop {
-    background-position: center 15%;
-    box-shadow: none;
+.detailRibbon {
+    background: none;
 }
 
-.detailRibbon {
-    background: linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0) 100%);
+/* Netflix's detail view is the artwork with the copy sitting on top of it: no
+   poster, no card, title and actions low over the backdrop. Below ~1000px the
+   backdrop is too short for that, so Jellyfin's stacked layout is left alone. */
+@media (min-width: 1000px) {
+    body.nf-detail .detailImageContainer {
+        display: none !important;
+    }
+
+    body.nf-detail .itemBackdrop {
+        height: 0 !important;
+        min-height: 0 !important;
+    }
+
+    body.nf-detail .detailPagePrimaryContainer {
+        padding-top: 44vh;
+    }
+
+    body.nf-detail .detailRibbon,
+    body.nf-detail .detailPagePrimaryContent,
+    body.nf-detail .detailPageSecondaryContainer {
+        padding-left: var(--nf-gutter) !important;
+        padding-right: var(--nf-gutter) !important;
+    }
+
+    /* The logo is Jellyfin's, absolutely placed near the top centre. Netflix sets
+       it bottom-left, sized off the viewport height. */
+    body.nf-detail .detailLogo {
+        left: var(--nf-gutter);
+        right: auto;
+        top: auto;
+        bottom: 58vh;
+        width: min(30rem, 34vw);
+        height: 14vh;
+        background-position: left bottom;
+        background-size: contain;
+    }
+
+    /* With a logo on screen the text title is a duplicate. */
+    body.nf-detail-logo .detailPagePrimaryContent .itemName {
+        display: none;
+    }
+
+    body.nf-detail .detailPagePrimaryContent,
+    body.nf-detail .detailPageContent {
+        max-width: 56rem;
+    }
 }
 
 .itemName.infoText,

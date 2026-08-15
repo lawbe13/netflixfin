@@ -84,6 +84,34 @@
         });
     }
 
+    /* ------------------------------------------------------- detail page */
+
+    /* The stylesheet needs three things it cannot ask for itself: whether this is
+     * a detail route, whether the item has a logo (so the duplicate text title can
+     * go), and the localised label for the play button, which Jellyfin only puts
+     * in the button's title attribute. */
+    function decorateDetail() {
+        var onDetail = /#\/details/.test(window.location.hash);
+        document.body.classList.toggle('nf-detail', onDetail);
+        if (!onDetail) {
+            document.body.classList.remove('nf-detail-logo');
+            return;
+        }
+
+        var logo = document.querySelector('.detailLogo');
+        var hasLogo = !!logo && getComputedStyle(logo).backgroundImage !== 'none';
+        document.body.classList.toggle('nf-detail-logo', hasLogo);
+
+        document.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
+            .forEach(function (button) {
+                var content = button.querySelector('.detailButton-content');
+                var label = button.getAttribute('title');
+                if (content && label && content.getAttribute('data-nf-label') !== label) {
+                    content.setAttribute('data-nf-label', label);
+                }
+            });
+    }
+
     /* ------------------------------------------------------------- Top 10 */
 
     function decorateTop10() {
@@ -355,6 +383,7 @@
     function refresh() {
         applyBodyFlags();
         applyLogo();
+        decorateDetail();
         mountHero();
         decorateTop10();
         widenCards();
