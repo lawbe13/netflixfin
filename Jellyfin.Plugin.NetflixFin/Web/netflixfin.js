@@ -1564,22 +1564,35 @@
             centre.textContent = osdTitle.textContent.trim();
         }
 
+        var label = function (item) {
+            if (!item) return;
+            if (item.SeriesId) player.seriesId = item.SeriesId;
+            centre.textContent = item.SeriesName
+                ? item.SeriesName +
+                  '  ' +
+                  (item.ParentIndexNumber ? 'S' + item.ParentIndexNumber : '') +
+                  (item.IndexNumber ? ':E' + item.IndexNumber : '') +
+                  '  ' +
+                  item.Name
+                : item.Name;
+        };
+
         var client = api();
-        if (client && window.playbackManager && typeof window.playbackManager.currentItem === 'function') {
+        if (window.playbackManager && typeof window.playbackManager.currentItem === 'function') {
             try {
-                var item = window.playbackManager.currentItem();
-                if (item) {
-                    if (item.SeriesId) player.seriesId = item.SeriesId;
-                    centre.textContent = item.SeriesName
-                        ? item.SeriesName +
-                          ' ' +
-                          (item.ParentIndexNumber ? 'S' + item.ParentIndexNumber : '') +
-                          (item.IndexNumber ? ':E' + item.IndexNumber + '  ' : ' ') +
-                          item.Name
-                        : item.Name;
-                }
+                label(window.playbackManager.currentItem());
             } catch (err) {
                 log('currentItem unavailable', err);
+            }
+        }
+
+        // playbackManager is not always reachable from here, and Jellyfin's own
+        // title element is hidden with its OSD, so fall back to the item the
+        // route is already pointing at.
+        if (!centre.textContent && client) {
+            var match = window.location.hash.match(/[?&]id=([^&]+)/);
+            if (match) {
+                client.getItem(client.getCurrentUserId(), match[1]).then(label).catch(function () {});
             }
         }
     }

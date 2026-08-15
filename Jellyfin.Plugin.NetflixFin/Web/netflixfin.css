@@ -2081,17 +2081,10 @@ body.nf-playing .skinHeader {
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0)) !important;
 }
 
-body.nf-playing .nf-nav,
-body.nf-playing .headerTabs,
-body.nf-playing .headerRight,
-body.nf-playing .pageTitleWithDefaultLogo,
-body.nf-playing .mainDrawerButton {
+/* The component draws its own back arrow, so Jellyfin's entire header goes -
+   including the home button, which was still sitting beside ours. */
+body.nf-playing .skinHeader {
     display: none !important;
-}
-
-body.nf-playing .headerBackButton {
-    display: inline-flex !important;
-    color: #fff !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
