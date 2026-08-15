@@ -1360,6 +1360,242 @@
         osd.appendChild(shell);
     }
 
+    /* ------------------------------------------------- player component */
+
+    /* A player of our own, bound to the <video> element rather than to
+     * Jellyfin's OSD. Moving Jellyfin's controls around was tried twice and both
+     * times produced buttons that no longer responded - they carry behaviour
+     * that does not survive being re-parented. This owns its own markup and
+     * talks to playback directly, so nothing depends on their layout. */
+    var player = null;
+    var playerHideTimer = null;
+
+    function fmt(seconds) {
+        if (!isFinite(seconds) || seconds < 0) seconds = 0;
+        var h = Math.floor(seconds / 3600);
+        var m = Math.floor((seconds % 3600) / 60);
+        var s = Math.floor(seconds % 60);
+        return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(s).padStart(2, '0');
+    }
+
+    function playerButton(glyph, title, onClick, cls) {
+        var button = el('button', 'nf-p-btn' + (cls ? ' ' + cls : ''));
+        button.type = 'button';
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        button.appendChild(icon(glyph));
+        button.addEventListener('click', function (event) {
+            event.stopPropagation();
+            onClick();
+        });
+        return button;
+    }
+
+    /* Jellyfin drives seeking through its playback manager when transcoding;
+     * setting currentTime alone is only correct for direct play. Use theirs when
+     * it is reachable, ours otherwise. */
+    function seekTo(video, seconds) {
+        var pm = window.playbackManager;
+        if (pm && typeof pm.seekMs === 'function') {
+            try {
+                pm.seekMs(Math.max(0, seconds) * 1000);
+                return;
+            } catch (err) {
+                log('seekMs failed, falling back', err);
+            }
+        }
+        video.currentTime = Math.max(0, Math.min(seconds, video.duration || seconds));
+    }
+
+    function destroyPlayer() {
+        if (!player) return;
+        if (player.node.parentNode) player.node.parentNode.removeChild(player.node);
+        player = null;
+        document.body.classList.remove('nf-playing');
+    }
+
+    function showPlayerChrome() {
+        if (!player) return;
+        player.node.classList.remove('is-idle');
+        clearTimeout(playerHideTimer);
+        playerHideTimer = setTimeout(function () {
+            if (player && !player.video.paused) player.node.classList.add('is-idle');
+        }, 3000);
+    }
+
+    function buildPlayer(video) {
+        var node = el('div', 'nf-player');
+
+        var top = el('div', 'nf-p-top');
+        top.appendChild(
+            playerButton('arrow_back', 'Indietro', function () {
+                window.history.back();
+            }, 'nf-p-back')
+        );
+        node.appendChild(top);
+
+        var bottom = el('div', 'nf-p-bottom');
+
+        var scrubRow = el('div', 'nf-p-scrub');
+        var range = el('input', 'nf-p-range');
+        range.type = 'range';
+        range.min = '0';
+        range.max = '1000';
+        range.value = '0';
+        var remaining = el('span', 'nf-p-remaining', '0:00');
+        scrubRow.appendChild(range);
+        scrubRow.appendChild(remaining);
+        bottom.appendChild(scrubRow);
+
+        var row = el('div', 'nf-p-row');
+        var left = el('div', 'nf-p-group');
+        var centre = el('div', 'nf-p-title');
+        var right = el('div', 'nf-p-group');
+
+        var playBtn = playerButton('play_arrow', 'Riproduci', function () {
+            if (video.paused) video.play();
+            else video.pause();
+        });
+        left.appendChild(playBtn);
+        left.appendChild(
+            playerButton('replay_10', 'Indietro di 10 secondi', function () {
+                seekTo(video, video.currentTime - 10);
+            })
+        );
+        left.appendChild(
+            playerButton('forward_10', 'Avanti di 10 secondi', function () {
+                seekTo(video, video.currentTime + 10);
+            })
+        );
+
+        var volumeBtn = playerButton('volume_up', 'Audio', function () {
+            video.muted = !video.muted;
+        });
+        var volume = el('input', 'nf-p-volume');
+        volume.type = 'range';
+        volume.min = '0';
+        volume.max = '100';
+        volume.value = String(Math.round((video.volume || 1) * 100));
+        volume.addEventListener('input', function () {
+            video.volume = Number(volume.value) / 100;
+            video.muted = Number(volume.value) === 0;
+        });
+        var volumeWrap = el('div', 'nf-p-volume-wrap');
+        volumeWrap.appendChild(volumeBtn);
+        volumeWrap.appendChild(volume);
+        left.appendChild(volumeWrap);
+
+        // Right cluster mirrors Netflix: next episode, episode list, subtitles,
+        // fullscreen. The first three only make sense for an episode.
+        var proxy = function (selector) {
+            var target = document.querySelector(selector);
+            if (target) target.click();
+        };
+
+        right.appendChild(
+            playerButton('skip_next', 'Prossimo episodio', function () {
+                proxy('.videoOsdBottom .btnNextTrack');
+            })
+        );
+        right.appendChild(
+            playerButton('video_library', 'Episodi', function () {
+                var id = player && player.seriesId;
+                if (id) openModal(id);
+            })
+        );
+        right.appendChild(
+            playerButton('subtitles', 'Sottotitoli e audio', function () {
+                proxy('.videoOsdBottom .btnSubtitles');
+            })
+        );
+        right.appendChild(
+            playerButton('fullscreen', 'Schermo intero', function () {
+                if (document.fullscreenElement) document.exitFullscreen();
+                else (document.querySelector('.videoPlayerContainer') || document.body).requestFullscreen();
+            })
+        );
+
+        row.appendChild(left);
+        row.appendChild(centre);
+        row.appendChild(right);
+        bottom.appendChild(row);
+        node.appendChild(bottom);
+
+        document.body.appendChild(node);
+
+        player = { node: node, video: video, range: range, remaining: remaining, title: centre, playBtn: playBtn, seriesId: null };
+
+        var scrubbing = false;
+        range.addEventListener('input', function () {
+            scrubbing = true;
+        });
+        range.addEventListener('change', function () {
+            scrubbing = false;
+            var duration = video.duration || 0;
+            seekTo(video, (Number(range.value) / 1000) * duration);
+        });
+
+        var sync = function () {
+            var duration = video.duration || 0;
+            if (!scrubbing && duration) {
+                range.value = String(Math.round((video.currentTime / duration) * 1000));
+            }
+            remaining.textContent = '-' + fmt(duration - video.currentTime);
+            range.style.setProperty('--nf-progress', (Number(range.value) / 10).toFixed(2) + '%');
+            playBtn.replaceChildren(icon(video.paused ? 'play_arrow' : 'pause'));
+        };
+
+        video.addEventListener('timeupdate', sync);
+        video.addEventListener('loadedmetadata', sync);
+        video.addEventListener('play', sync);
+        video.addEventListener('pause', function () {
+            sync();
+            showPlayerChrome();
+        });
+        sync();
+
+        node.addEventListener('mousemove', showPlayerChrome);
+        document.addEventListener('mousemove', showPlayerChrome);
+        showPlayerChrome();
+
+        // The title Jellyfin already resolved for this stream.
+        var osdTitle = document.querySelector('.osdTitle, .videoOsdBottom .osdTextContainer');
+        if (osdTitle && osdTitle.textContent.trim()) {
+            centre.textContent = osdTitle.textContent.trim();
+        }
+
+        var client = api();
+        if (client && window.playbackManager && typeof window.playbackManager.currentItem === 'function') {
+            try {
+                var item = window.playbackManager.currentItem();
+                if (item) {
+                    if (item.SeriesId) player.seriesId = item.SeriesId;
+                    centre.textContent = item.SeriesName
+                        ? item.SeriesName +
+                          ' ' +
+                          (item.ParentIndexNumber ? 'S' + item.ParentIndexNumber : '') +
+                          (item.IndexNumber ? ':E' + item.IndexNumber + '  ' : ' ') +
+                          item.Name
+                        : item.Name;
+                }
+            } catch (err) {
+                log('currentItem unavailable', err);
+            }
+        }
+    }
+
+    function managePlayer() {
+        var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+        if (!video) {
+            destroyPlayer();
+            return;
+        }
+        if (player && player.video === video) return;
+        destroyPlayer();
+        document.body.classList.add('nf-playing');
+        buildPlayer(video);
+    }
+
     /* ------------------------------------------------------------ billboard */
 
     /* Netflix's billboard puts a play glyph on the primary button and nothing at
@@ -1535,6 +1771,7 @@
         mountHero();
         decorateTop10();
         decorateRows();
+        managePlayer();
         widenCards();
         reapplyThumbs();
     }

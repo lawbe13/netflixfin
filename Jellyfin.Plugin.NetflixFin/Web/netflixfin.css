@@ -1902,6 +1902,178 @@ body.nf-detail .backdropImage {
     color: var(--nf-text-meta);
 }
 
+/* --------------------------------------------------------------------------
+   11b. Player component
+   -------------------------------------------------------------------------- */
+
+/* Ours, not Jellyfin's: its OSD is hidden outright while this is up. */
+body.nf-playing .videoOsdBottom,
+body.nf-playing .videoOsdTop {
+    display: none !important;
+}
+
+.nf-player {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    pointer-events: none;
+    font-family: var(--nf-font);
+    color: #fff;
+    opacity: 1;
+    transition: opacity 0.35s var(--nf-ease);
+}
+
+.nf-player.is-idle {
+    opacity: 0;
+}
+
+.nf-p-top,
+.nf-p-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: auto;
+    padding: 24px var(--nf-gutter);
+}
+
+.nf-p-top {
+    top: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+}
+
+.nf-p-bottom {
+    bottom: 0;
+    padding-bottom: 28px;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.nf-p-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.12s var(--nf-ease);
+}
+
+.nf-p-btn:hover {
+    transform: scale(1.18);
+}
+
+.nf-p-btn .material-icons {
+    font-size: 32px;
+}
+
+.nf-p-back .material-icons {
+    font-size: 34px;
+}
+
+/* Scrubber: a red fill up to the playhead over a grey track, with a round knob
+   that grows on hover - the same shape Netflix uses. */
+.nf-p-scrub {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.nf-p-range {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to right,
+        var(--nf-accent) 0%,
+        var(--nf-accent) var(--nf-progress, 0%),
+        rgba(255, 255, 255, 0.35) var(--nf-progress, 0%),
+        rgba(255, 255, 255, 0.35) 100%
+    );
+    cursor: pointer;
+}
+
+.nf-p-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--nf-accent);
+    transition: transform 0.12s var(--nf-ease);
+}
+
+.nf-p-range:hover::-webkit-slider-thumb {
+    transform: scale(1.4);
+}
+
+.nf-p-remaining {
+    font-size: 15px;
+    font-weight: 500;
+    min-width: 4.5em;
+    text-align: right;
+}
+
+.nf-p-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nf-p-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nf-p-title {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 500;
+    padding: 0 1rem;
+}
+
+/* The volume slider slides out of the speaker, as on Netflix. */
+.nf-p-volume-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.nf-p-volume {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.35);
+    opacity: 0;
+    transition: width 0.2s var(--nf-ease), opacity 0.2s var(--nf-ease);
+    cursor: pointer;
+}
+
+.nf-p-volume-wrap:hover .nf-p-volume {
+    width: 90px;
+    opacity: 1;
+    margin-left: 6px;
+}
+
+.nf-p-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+}
+
 /* Netflix's player chrome is a back arrow and nothing else - no navigation, no
    logo, no account controls. Jellyfin keeps its whole header on top of the
    video, so it is stripped down while a video is playing. */
