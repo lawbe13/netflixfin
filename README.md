@@ -45,6 +45,24 @@ the service account, so **File Transformation is effectively required there**.
 If another plugin already renders a home-screen hero (Media Bar Enhanced, Jellyfin
 Enhanced), NetflixFin's own hero stands down rather than stacking a second one on top.
 
+### Restart properly after installing or updating
+
+Jellyfin's **Restart** button (and `POST /System/Restart`) rebuilds the host in the same
+process. File Transformation keeps its registrations in static state across that, so the
+old registration survives holding a service provider that has since been disposed, and
+every subsequent request for `index.html` fails:
+
+```
+System.ObjectDisposedException: Cannot access a disposed object.
+Object name: 'IServiceProvider'.
+   at Jellyfin.Plugin.FileTransformation.PluginInterface...RegisterTransformation
+```
+
+The web client then answers **500** until the process itself is restarted. This affects
+any plugin that injects through File Transformation, not just this one. After installing
+or updating one, quit Jellyfin from the tray (or restart the service) rather than using
+the in-app restart.
+
 ## Configuration
 
 **Dashboard → Plugins → NetflixFin**
