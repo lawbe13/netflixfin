@@ -232,11 +232,12 @@ body.nf-scrolled .skinHeader {
     min-width: 260px;
     max-height: 70vh;
     overflow-y: auto;
-    padding: 8px 0;
-    margin-top: 4px;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 2px;
+    padding: 12px 0;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     display: none;
     /* Above the billboard, which sits in its own stacking context. */
     z-index: 9999;
@@ -250,18 +251,34 @@ body.nf-scrolled .skinHeader {
     display: block;
 }
 
+/* Netflix hangs its menus off a small caret under the nav item. */
+.nf-nav-menu::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: 24px;
+    width: 12px;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.92);
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    transform: rotate(45deg);
+}
+
 .nf-nav-menu a {
     display: block;
-    padding: 8px 20px;
+    padding: 9px 22px;
     font-size: 14px;
-    color: #e5e5e5;
+    line-height: 1.4;
+    color: #b3b3b3;
     text-decoration: none;
     white-space: nowrap;
+    transition: color 0.15s var(--nf-ease);
 }
 
 .nf-nav-menu a:hover {
     color: #fff;
-    text-decoration: underline;
+    text-decoration: none;
 }
 
 .emby-tab-button {
@@ -466,6 +483,7 @@ body.nf-scrolled .skinHeader {
    library grid gets its track size from Jellyfin, and only the gap was missing. */
 #moviesPage .itemsContainer > .card,
 #tvshowsPage .itemsContainer > .card,
+#tvRecommendedPage .itemsContainer > .card,
 #itemsPage .itemsContainer > .card,
 #genresPage .itemsContainer > .card,
 .itemsContainer.nf-grid > .card {
@@ -554,11 +572,12 @@ body.nf-scrolled .skinHeader {
     transition: z-index 0s linear var(--nf-hover-delay);
 }
 
-/* A row the script converted to 16:9 thumbs; anything else keeps the shape
-   Jellyfin chose for it. */
-.itemsContainer.scrollSlider > .card.nf-thumb,
-.itemsContainer.scrollSlider > .card.overflowBackdropCard,
-.itemsContainer.scrollSlider > .card.backdropCard {
+/* Row sizing belongs to the home carousels only. Applied everywhere it also hit
+   library grids, where it sized some tiles and not others - the covers came out
+   at mixed widths with some touching and some not. */
+.homeSectionsContainer .itemsContainer.scrollSlider > .card.nf-thumb,
+.homeSectionsContainer .itemsContainer.scrollSlider > .card.overflowBackdropCard,
+.homeSectionsContainer .itemsContainer.scrollSlider > .card.backdropCard {
     width: calc(100% / var(--nf-tiles));
 }
 
