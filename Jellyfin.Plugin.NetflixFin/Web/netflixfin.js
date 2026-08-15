@@ -120,23 +120,31 @@
      * a proxy clicks the real one, so Jellyfin's routing is untouched. */
     var navViews = null;
 
+    function firstView(type) {
+        return (navViews || []).filter(function (view) {
+            return view.CollectionType === type;
+        })[0];
+    }
+
+    /* Netflix's nav is four items and never grows. A server split into twenty
+     * genre libraries would otherwise push a twenty-link bar into the account
+     * controls, so only the first film and series library are linked - the rest
+     * stay one click away in Jellyfin's own drawer. */
     function navTargets() {
-        var targets = [];
+        var tabs = document.querySelectorAll('.headerTabs .emby-tab-button');
+        if (!tabs.length) return [];
 
-        document.querySelectorAll('.headerTabs .emby-tab-button').forEach(function (tab) {
-            targets.push({
-                label: tab.textContent.trim(),
-                tab: tab
-            });
-        });
+        var targets = [{ label: tabs[0].textContent.trim(), tab: tabs[0], index: 0 }];
 
-        (navViews || []).forEach(function (view) {
-            if (view.CollectionType === 'tvshows') {
-                targets.splice(1, 0, { label: view.Name, hash: '#/tv?topParentId=' + view.Id });
-            } else if (view.CollectionType === 'movies') {
-                targets.splice(1, 0, { label: view.Name, hash: '#/movies?topParentId=' + view.Id });
-            }
-        });
+        var series = firstView('tvshows');
+        if (series) targets.push({ label: 'Serie TV', hash: '#/tv?topParentId=' + series.Id });
+
+        var movies = firstView('movies');
+        if (movies) targets.push({ label: 'Film', hash: '#/movies?topParentId=' + movies.Id });
+
+        for (var i = 1; i < tabs.length; i++) {
+            targets.push({ label: tabs[i].textContent.trim(), tab: tabs[i], index: i });
+        }
 
         return targets;
     }
@@ -202,7 +210,7 @@
             } else {
                 node = el('button', null, target.label);
                 node.type = 'button';
-                node.setAttribute('data-nf-tab', String(i));
+                node.setAttribute('data-nf-tab', String(target.index));
                 node.addEventListener('click', function () {
                     target.tab.click();
                     setTimeout(function () {
