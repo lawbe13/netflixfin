@@ -645,7 +645,26 @@
                             fields: 'Overview'
                         }))
                         .then(function (episodes) {
-                            (episodes.Items || []).forEach(function (episode, i) {
+                            var all = episodes.Items || [];
+
+                            // Netflix shows ten and hides the rest behind a
+                            // chevron at the foot of the list.
+                            if (all.length > 10) {
+                                var more = el('button', 'nf-episodes-more');
+                                more.type = 'button';
+                                more.setAttribute('aria-label', 'Mostra altri episodi');
+                                more.appendChild(icon('expand_more'));
+                                more.addEventListener('click', function () {
+                                    list.classList.remove('is-collapsed');
+                                    more.remove();
+                                });
+                                list.classList.add('is-collapsed');
+                                setTimeout(function () {
+                                    list.parentNode.insertBefore(more, list.nextSibling);
+                                }, 0);
+                            }
+
+                            all.forEach(function (episode, i) {
                                 var row = el('div', 'nf-episode');
                                 row.appendChild(el('div', 'nf-episode-index', String(episode.IndexNumber || i + 1)));
 
@@ -787,9 +806,14 @@
 
         var modal = el('div', 'nf-modal');
 
+        // An episode has no backdrop of its own - its artwork is the still, which
+        // Jellyfin files as Primary. Anything else without a backdrop falls back
+        // the same way rather than showing an empty header.
         var art = el('div', 'nf-modal-art');
+        var hasBackdrop = !!(item.BackdropImageTags && item.BackdropImageTags.length);
+        var artType = item.Type === 'Episode' || !hasBackdrop ? 'Primary' : 'Backdrop';
         art.style.backgroundImage =
-            'url("' + client.getImageUrl(item.Id, { type: 'Backdrop', maxWidth: 1280 }) + '")';
+            'url("' + client.getImageUrl(item.Id, { type: artType, maxWidth: 1280 }) + '")';
 
         var close = el('button', 'nf-modal-close');
         close.type = 'button';
