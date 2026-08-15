@@ -206,16 +206,12 @@ body.nf-scrolled .skinHeader {
     opacity: 1;
 }
 
-/* The scroller clips on both axes, so the row is given vertical slack via
-   padding and pulled back with a negative margin. Without this the cards are
-   sliced off when they scale on hover. */
-.emby-scroller,
-.itemsContainer.scrollSlider {
-    overflow-y: visible;
-}
-
-.emby-scroller[data-horizontal="true"],
-.itemsContainer.scrollSlider {
+/* A horizontal scroller clips whatever leaves its box, so a card that scales on
+   hover gets sliced. Rather than fight the overflow (which would kill the
+   horizontal scroll), the row is given vertical padding to grow into and pulled
+   back into place with an equal negative margin: same layout height, room to
+   spare inside. */
+.emby-scroller {
     padding-top: var(--nf-row-slack);
     padding-bottom: var(--nf-row-slack);
     margin-top: calc(var(--nf-row-slack) * -1);
