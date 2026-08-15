@@ -1546,18 +1546,44 @@
         closePanels();
         if (wasOpen) return;
 
-        var panel = panelShell('Episodi', 'nf-p-panel-episodes');
-
-        // Netflix lets you move between seasons from inside this panel.
-        var picker = el('select', 'nf-p-season');
-        panel.querySelector('.nf-p-panel-head').appendChild(picker);
+        // Netflix's header is a back arrow and the season name, and the arrow
+        // steps out to the list of seasons - not a dropdown.
+        var panel = el('div', 'nf-p-panel nf-p-panel-episodes');
+        var head = el('div', 'nf-p-panel-head');
+        var back = el('button', 'nf-p-btn nf-p-panel-back');
+        back.type = 'button';
+        back.appendChild(svgIcon('back'));
+        var heading = el('h3', null, 'Episodi');
+        head.appendChild(back);
+        head.appendChild(heading);
+        panel.appendChild(head);
 
         var list = el('div', 'nf-p-panel-body');
         panel.appendChild(list);
         player.node.appendChild(panel);
 
-        var render = function (seasonId) {
+        var allSeasons = [];
+
+        var showSeasons = function () {
+            heading.textContent = 'Stagioni';
+            back.style.visibility = 'hidden';
             list.textContent = '';
+            allSeasons.forEach(function (season) {
+                var row = el('div', 'nf-p-season-row');
+                row.appendChild(el('span', 'nf-p-season-name', season.Name));
+                row.addEventListener('click', function () {
+                    render(season.Id, season.Name);
+                });
+                list.appendChild(row);
+            });
+        };
+
+        back.addEventListener('click', showSeasons);
+
+        var render = function (seasonId, seasonName) {
+            list.textContent = '';
+            if (seasonName) heading.textContent = seasonName;
+            back.style.visibility = allSeasons.length > 1 ? 'visible' : 'hidden';
             // One season, never the whole series: without a season the endpoint
             // returns every episode there is - 151 on the first run, enough to
             // lock the renderer up.
@@ -1569,19 +1595,44 @@
                 .getJSON(client.getUrl('Shows/' + seriesId + '/Episodes', query))
                 .then(function (result) {
                     (result.Items || []).forEach(function (episode) {
-                    var row = el('div', 'nf-p-episode' + (episode.Id === player.itemId ? ' is-current' : ''));
-                    row.appendChild(el('div', 'nf-p-episode-index', String(episode.IndexNumber || '')));
+                        // Netflix keeps every row compact - number, title and a
+                        // red watched line - and expands only the one playing,
+                        // which grows a still and its synopsis.
+                        var current = episode.Id === player.itemId;
+                        var row = el('div', 'nf-p-episode' + (current ? ' is-current' : ''));
 
-                    var thumb = el('div', 'nf-p-episode-thumb');
-                    thumb.style.backgroundImage =
-                        'url("' + client.getImageUrl(episode.Id, { type: 'Primary', maxWidth: 280 }) + '")';
-                    row.appendChild(thumb);
+                        var head = el('div', 'nf-p-episode-head');
+                        head.appendChild(el('span', 'nf-p-episode-index', String(episode.IndexNumber || '')));
+                        head.appendChild(el('span', 'nf-p-episode-name', episode.Name));
 
-                    var text = el('div');
-                    text.appendChild(el('h4', null, episode.Name));
-                    var mins = minutes(episode.RunTimeTicks);
-                    text.appendChild(el('p', null, (mins ? mins + 'm  ' : '') + (episode.Overview || '')));
-                    row.appendChild(text);
+                        var track = el('span', 'nf-p-episode-track');
+                        var played = el('i');
+                        var data = episode.UserData || {};
+                        var pos = data.PlaybackPositionTicks;
+                        played.style.width =
+                            (data.Played
+                                ? 100
+                                : pos && episode.RunTimeTicks
+                                  ? Math.min(100, (pos / episode.RunTimeTicks) * 100)
+                                  : 0) + '%';
+                        track.appendChild(played);
+                        head.appendChild(track);
+                        row.appendChild(head);
+
+                        if (current) {
+                            var detail = el('div', 'nf-p-episode-detail');
+
+                            var thumb = el('div', 'nf-p-episode-thumb');
+                            thumb.style.backgroundImage =
+                                'url("' +
+                                client.getImageUrl(episode.Id, { type: 'Primary', maxWidth: 320 }) +
+                                '")';
+                            thumb.appendChild(el('span', 'nf-p-episode-now', 'In riproduzione'));
+                            detail.appendChild(thumb);
+
+                            detail.appendChild(el('p', null, episode.Overview || ''));
+                            row.appendChild(detail);
+                        }
 
                         row.addEventListener('click', function () {
                             closePanels();
@@ -1601,30 +1652,17 @@
                 userId: client.getCurrentUserId()
             }))
             .then(function (result) {
-                var seasons = result.Items || [];
-                seasons.forEach(function (season) {
-                    var option = el('option', null, season.Name);
-                    option.value = season.Id;
-                    picker.appendChild(option);
-                });
-                if (!seasons.length) {
-                    picker.remove();
+                allSeasons = result.Items || [];
+                if (!allSeasons.length) {
                     render(player.seasonId);
                     return;
                 }
-                var start = player.seasonId && seasons.some(function (season) {
+                var start = allSeasons.filter(function (season) {
                     return season.Id === player.seasonId;
-                })
-                    ? player.seasonId
-                    : seasons[0].Id;
-                picker.value = start;
-                picker.addEventListener('change', function () {
-                    render(picker.value);
-                });
-                render(start);
+                })[0] || allSeasons[0];
+                render(start.Id, start.Name);
             })
             .catch(function () {
-                picker.remove();
                 render(player.seasonId);
             });
     }
@@ -1639,7 +1677,9 @@
         closePanels();
         if (wasOpen) return;
 
-        var panel = panelShell('Audio e sottotitoli', 'nf-p-panel-tracks');
+        // No title bar and no close button here: Netflix shows two bare columns,
+        // "Audio" and "Sottotitoli", with a tick against the active track.
+        var panel = el('div', 'nf-p-panel nf-p-panel-tracks');
         var body = el('div', 'nf-p-panel-body nf-p-tracks');
         panel.appendChild(body);
         player.node.appendChild(panel);
@@ -1650,6 +1690,21 @@
                 var streams = item.MediaStreams || [];
                 var pm = window.playbackManager;
 
+                var activeOf = function (kind) {
+                    try {
+                        if (kind === 'Audio' && pm && pm.getAudioStreamIndex) return pm.getAudioStreamIndex();
+                        if (kind === 'Subtitle' && pm && pm.getSubtitleStreamIndex) {
+                            return pm.getSubtitleStreamIndex();
+                        }
+                    } catch (err) {
+                        log('active track unavailable', err);
+                    }
+                    var preset = streams.filter(function (stream) {
+                        return stream.Type === kind && stream.IsDefault;
+                    })[0];
+                    return preset ? preset.Index : kind === 'Subtitle' ? -1 : null;
+                };
+
                 var column = function (heading, kind, apply) {
                     var col = el('div', 'nf-p-track-col');
                     col.appendChild(el('h4', null, heading));
@@ -1659,19 +1714,26 @@
                     });
 
                     if (kind === 'Subtitle') {
-                        options = [{ Index: -1, DisplayTitle: 'Non attivi' }].concat(options);
+                        options = [{ Index: -1, DisplayTitle: 'Disattivati' }].concat(options);
                     }
 
+                    var active = activeOf(kind);
+
                     options.forEach(function (stream) {
-                        var button = el(
-                            'button',
-                            'nf-p-track',
-                            stream.DisplayTitle || stream.Language || 'Traccia ' + stream.Index
-                        );
+                        var button = el('button', 'nf-p-track');
                         button.type = 'button';
+                        button.appendChild(el('span', 'nf-p-tick'));
+                        button.appendChild(
+                            el(
+                                'span',
+                                null,
+                                stream.DisplayTitle || stream.Language || 'Traccia ' + stream.Index
+                            )
+                        );
+                        if (stream.Index === active) button.classList.add('is-active');
                         button.addEventListener('click', function () {
                             apply(stream.Index, pm);
-                            body.querySelectorAll('.nf-p-track').forEach(function (other) {
+                            col.querySelectorAll('.nf-p-track').forEach(function (other) {
                                 other.classList.remove('is-active');
                             });
                             button.classList.add('is-active');

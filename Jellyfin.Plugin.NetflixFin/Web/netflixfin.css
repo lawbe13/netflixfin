@@ -2207,35 +2207,61 @@ body.nf-playing .videoOsdTop {
 
 /* In-player panels: Netflix answers "episodes" and "audio & subtitles" over the
    picture instead of leaving the player. */
+/* Measured from the reference: the panel is inset from the top and bottom
+   rather than filling the side, and runs to the right edge. */
 .nf-p-panel {
     position: absolute;
-    top: 0;
+    top: 17%;
     right: 0;
-    bottom: 0;
-    width: min(520px, 46vw);
-    background: rgba(20, 20, 20, 0.94);
+    bottom: 10%;
+    width: 39%;
+    min-width: 420px;
+    background: #141414;
     pointer-events: auto;
     display: flex;
     flex-direction: column;
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
 }
 
 .nf-p-panel-tracks {
-    width: min(620px, 60vw);
+    top: 10%;
+    bottom: 10%;
+    width: 39%;
+    background: rgba(20, 20, 20, 0.95);
 }
 
 .nf-p-panel-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid #333;
+    gap: 10px;
+    padding: 18px 24px 10px;
 }
 
 .nf-p-panel-head h3 {
-    font-size: 22px;
-    font-weight: 500;
+    font-size: 26px;
+    font-weight: 700;
     margin: 0;
+}
+
+.nf-p-panel-back {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+}
+
+.nf-p-panel-back svg {
+    width: 26px;
+    height: 26px;
+}
+
+.nf-p-season-row {
+    padding: 16px 24px;
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.nf-p-season-row:hover {
+    background: #262626;
 }
 
 .nf-p-season {
@@ -2266,91 +2292,138 @@ body.nf-playing .videoOsdTop {
     padding: 8px 0;
 }
 
+/* Compact rows; only the one playing opens up. */
 .nf-p-episode {
-    display: grid;
-    grid-template-columns: 32px 132px 1fr;
-    gap: 14px;
-    align-items: center;
-    padding: 14px 24px;
+    padding: 4px 24px;
     cursor: pointer;
 }
 
-.nf-p-episode:hover {
-    background: #333;
-}
-
-.nf-p-episode.is-current {
-    background: #2a2a2a;
+.nf-p-episode-head {
+    display: grid;
+    grid-template-columns: 30px 1fr 130px;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 0;
 }
 
 .nf-p-episode-index {
-    font-size: 18px;
-    color: #d2d2d2;
+    font-size: 19px;
+    font-weight: 600;
+    color: #fff;
     text-align: center;
 }
 
-.nf-p-episode-thumb {
-    aspect-ratio: 16 / 9;
+.nf-p-episode-name {
+    font-size: 19px;
+    font-weight: 600;
+    color: #fff;
+}
+
+/* The watched line Netflix draws to the right of every title. */
+.nf-p-episode-track {
+    display: block;
+    height: 2px;
+    background: #4d4d4d;
+}
+
+.nf-p-episode-track i {
+    display: block;
+    height: 100%;
+    background: var(--nf-accent);
+}
+
+.nf-p-episode.is-current {
+    border: 2px solid #fff;
     border-radius: 4px;
+    padding: 4px 22px;
+}
+
+.nf-p-episode-detail {
+    display: grid;
+    grid-template-columns: 165px 1fr;
+    gap: 20px;
+    padding: 0 0 18px;
+}
+
+.nf-p-episode-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: 2px;
     background-size: cover;
     background-position: center;
     background-color: #2a2a2a;
 }
 
-.nf-p-episode h4 {
+.nf-p-episode-now {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     font-size: 15px;
-    font-weight: 500;
-    margin: 0 0 4px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
 }
 
-.nf-p-episode p {
-    font-size: 13px;
-    line-height: 18px;
-    color: #b3b3b3;
+.nf-p-episode-detail p {
+    font-size: 17px;
+    line-height: 24px;
+    color: #fff;
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 
 .nf-p-tracks {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 32px;
-    padding: 20px 24px;
+    gap: 40px;
+    padding: 28px 40px;
 }
 
 .nf-p-track-col h4 {
-    font-size: 16px;
-    font-weight: 500;
-    color: #b3b3b3;
-    margin: 0 0 12px;
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 20px;
 }
 
+/* The tick column is always reserved, so the labels stay aligned whichever
+   track is active. */
 .nf-p-track {
-    display: block;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    align-items: center;
     width: 100%;
     text-align: left;
-    padding: 9px 12px;
+    padding: 9px 0;
     background: none;
     border: 0;
-    border-radius: 4px;
-    color: #e5e5e5;
-    font-size: 15px;
+    color: #b3b3b3;
+    font-size: 24px;
     font-family: var(--nf-font);
     cursor: pointer;
 }
 
 .nf-p-track:hover {
-    background: #333;
     color: #fff;
 }
 
 .nf-p-track.is-active {
     color: #fff;
-    font-weight: 600;
+}
+
+.nf-p-tick {
+    width: 18px;
+    height: 18px;
+}
+
+.nf-p-track.is-active .nf-p-tick {
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/></svg>")
+        center / contain no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/></svg>")
+        center / contain no-repeat;
 }
 
 /* Netflix's player chrome is a back arrow and nothing else - no navigation, no
