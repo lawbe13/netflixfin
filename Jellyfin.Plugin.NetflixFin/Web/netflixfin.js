@@ -445,6 +445,282 @@
         });
     }
 
+    /* ------------------------------------------------------------- modal */
+
+    /* Netflix never leaves the page to show a title: details open in a modal over
+     * whatever you were browsing. Jellyfin routes to a details page instead, so
+     * clicks on a playable card are intercepted and answered with this. */
+    var modalScrim = null;
+
+    function closeModal() {
+        if (!modalScrim) return;
+        var node = modalScrim;
+        modalScrim = null;
+        node.classList.remove('is-open');
+        document.body.style.overflow = '';
+        setTimeout(function () {
+            if (node.parentNode) node.parentNode.removeChild(node);
+        }, 220);
+    }
+
+    function modalCircle(glyph, title, onClick) {
+        var button = el('button', 'nf-circle');
+        button.type = 'button';
+        button.title = title;
+        button.appendChild(icon(glyph));
+        button.addEventListener('click', onClick);
+        return button;
+    }
+
+    function factRow(label, value) {
+        if (!value) return null;
+        var row = el('div');
+        row.appendChild(el('dt', null, label + ':'));
+        row.appendChild(el('dd', null, value));
+        return row;
+    }
+
+    function buildEpisodes(item, client, mount) {
+        client
+            .getJSON(client.getUrl('Shows/' + item.Id + '/Seasons', {
+                userId: client.getCurrentUserId()
+            }))
+            .then(function (result) {
+                var seasons = result.Items || [];
+                if (!seasons.length) return;
+
+                var head = el('div', 'nf-modal-episodes-head');
+                head.appendChild(el('h3', null, 'Episodi'));
+
+                var select = el('select', 'nf-modal-season');
+                seasons.forEach(function (season) {
+                    var option = el('option', null, season.Name);
+                    option.value = season.Id;
+                    select.appendChild(option);
+                });
+                head.appendChild(select);
+                mount.appendChild(head);
+
+                var list = el('div');
+                mount.appendChild(list);
+
+                function loadSeason(seasonId) {
+                    list.textContent = '';
+                    client
+                        .getJSON(client.getUrl('Shows/' + item.Id + '/Episodes', {
+                            userId: client.getCurrentUserId(),
+                            seasonId: seasonId,
+                            fields: 'Overview'
+                        }))
+                        .then(function (episodes) {
+                            (episodes.Items || []).forEach(function (episode, i) {
+                                var row = el('div', 'nf-episode');
+                                row.appendChild(el('div', 'nf-episode-index', String(episode.IndexNumber || i + 1)));
+
+                                var thumb = el('div', 'nf-episode-thumb');
+                                thumb.style.backgroundImage =
+                                    'url("' +
+                                    client.getImageUrl(episode.Id, { type: 'Primary', maxWidth: 320 }) +
+                                    '")';
+                                row.appendChild(thumb);
+
+                                var text = el('div');
+                                text.appendChild(el('h4', 'nf-episode-title', episode.Name));
+                                text.appendChild(el('p', 'nf-episode-overview', episode.Overview || ''));
+                                row.appendChild(text);
+
+                                var mins = minutes(episode.RunTimeTicks);
+                                row.appendChild(el('div', 'nf-episode-duration', mins ? mins + 'm' : ''));
+
+                                row.addEventListener('click', function () {
+                                    closeModal();
+                                    goToDetails(episode.Id, episode.ServerId, true);
+                                });
+
+                                list.appendChild(row);
+                            });
+                        });
+                }
+
+                select.addEventListener('change', function () {
+                    loadSeason(select.value);
+                });
+                loadSeason(seasons[0].Id);
+            })
+            .catch(function (err) {
+                log('episodes failed', err);
+            });
+    }
+
+    function buildModal(item, client) {
+        var scrim = el('div', 'nf-modal-scrim');
+        scrim.addEventListener('click', function (event) {
+            if (event.target === scrim) closeModal();
+        });
+
+        var modal = el('div', 'nf-modal');
+
+        var art = el('div', 'nf-modal-art');
+        art.style.backgroundImage =
+            'url("' + client.getImageUrl(item.Id, { type: 'Backdrop', maxWidth: 1280 }) + '")';
+
+        var close = el('button', 'nf-modal-close');
+        close.type = 'button';
+        close.title = 'Chiudi';
+        close.appendChild(icon('close'));
+        close.addEventListener('click', closeModal);
+        art.appendChild(close);
+
+        var hero = el('div', 'nf-modal-hero');
+        if (item.ImageTags && item.ImageTags.Logo) {
+            var logo = el('img', 'nf-modal-logo');
+            logo.src = client.getImageUrl(item.Id, { type: 'Logo', maxWidth: 480 });
+            logo.alt = item.Name;
+            hero.appendChild(logo);
+        } else {
+            hero.appendChild(el('h2', 'nf-modal-title', item.Name));
+        }
+
+        var actions = el('div', 'nf-modal-actions');
+        var play = el('button', 'nf-btn nf-btn-primary');
+        play.type = 'button';
+        play.appendChild(icon('play_arrow'));
+        play.appendChild(el('span', null, 'Riproduci'));
+        play.addEventListener('click', function () {
+            closeModal();
+            goToDetails(item.Id, item.ServerId, true);
+        });
+        actions.appendChild(play);
+
+        var isFav = !!(item.UserData && item.UserData.IsFavorite);
+        var fav = modalCircle(isFav ? 'favorite' : 'add', 'Preferiti', function () {
+            client.updateFavoriteStatus(client.getCurrentUserId(), item.Id, !isFav).then(function () {
+                isFav = !isFav;
+                fav.replaceChildren(icon(isFav ? 'favorite' : 'add'));
+            });
+        });
+        actions.appendChild(fav);
+
+        actions.appendChild(
+            modalCircle('check', 'Segna come visto', function () {
+                client.markPlayed(client.getCurrentUserId(), item.Id, new Date());
+            })
+        );
+
+        hero.appendChild(actions);
+        art.appendChild(hero);
+        modal.appendChild(art);
+
+        var body = el('div', 'nf-modal-body');
+        var left = el('div');
+
+        var meta = el('div', 'nf-modal-meta');
+        if (item.CommunityRating) {
+            meta.appendChild(el('span', 'nf-match', Math.round(item.CommunityRating * 10) + '% consigliato'));
+        }
+        if (item.ProductionYear) meta.appendChild(el('span', null, String(item.ProductionYear)));
+        var runtime = runtimeLabel(item);
+        if (runtime) meta.appendChild(el('span', null, runtime));
+        meta.appendChild(el('span', 'nf-badge', 'HD'));
+        if (item.OfficialRating) meta.appendChild(el('span', 'nf-badge', item.OfficialRating));
+        left.appendChild(meta);
+
+        left.appendChild(el('p', 'nf-modal-overview', item.Overview || ''));
+        body.appendChild(left);
+
+        var facts = el('dl', 'nf-modal-facts');
+        var people = item.People || [];
+        var cast = people
+            .filter(function (person) {
+                return person.Type === 'Actor';
+            })
+            .slice(0, 4)
+            .map(function (person) {
+                return person.Name;
+            })
+            .join(', ');
+        var directors = people
+            .filter(function (person) {
+                return person.Type === 'Director';
+            })
+            .map(function (person) {
+                return person.Name;
+            })
+            .join(', ');
+
+        [
+            factRow('Cast', cast),
+            factRow('Regia', directors),
+            factRow('Generi', (item.Genres || []).join(', ')),
+            factRow('Tag', (item.Tags || []).slice(0, 5).join(', '))
+        ].forEach(function (row) {
+            if (row) facts.appendChild(row);
+        });
+        body.appendChild(facts);
+        modal.appendChild(body);
+
+        if (item.Type === 'Series') {
+            var episodes = el('div', 'nf-modal-episodes');
+            modal.appendChild(episodes);
+            buildEpisodes(item, client, episodes);
+        }
+
+        scrim.appendChild(modal);
+        document.body.appendChild(scrim);
+        document.body.style.overflow = 'hidden';
+
+        void scrim.offsetHeight;
+        scrim.classList.add('is-open');
+        modalScrim = scrim;
+    }
+
+    function openModal(id) {
+        var client = api();
+        if (!client || !id) return;
+
+        destroyPreview();
+        closeModal();
+
+        client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                buildModal(item, client);
+            })
+            .catch(function (err) {
+                log('modal failed', err);
+            });
+    }
+
+    var MODAL_TYPES = { Movie: 1, Series: 1, Season: 1, Episode: 1, Video: 1 };
+
+    function bindModal() {
+        if (document.body.dataset.nfModalBound) return;
+        document.body.dataset.nfModalBound = '1';
+
+        document.addEventListener(
+            'click',
+            function (event) {
+                if (!event.target.closest) return;
+
+                // Never swallow a click meant for one of Jellyfin's own controls.
+                if (event.target.closest('.cardOverlayButton, .nf-preview, .nf-modal')) return;
+
+                var card = event.target.closest('.card[data-id]');
+                if (!card) return;
+                if (!MODAL_TYPES[card.getAttribute('data-type')]) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                openModal(card.dataset.id);
+            },
+            true
+        );
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeModal();
+        });
+    }
+
     /* --------------------------------------------------- preview card */
 
     var preview = null;
@@ -498,7 +774,7 @@
         art.style.height = artHeight + 'px';
         art.addEventListener('click', function () {
             destroyPreview();
-            goToDetails(item.Id, item.ServerId, false);
+            openModal(item.Id);
         });
         panel.appendChild(art);
 
@@ -545,7 +821,7 @@
         expand.appendChild(icon('expand_more'));
         expand.addEventListener('click', function () {
             destroyPreview();
-            goToDetails(item.Id, item.ServerId, false);
+            openModal(item.Id);
         });
 
         actions.appendChild(play);
@@ -679,10 +955,12 @@
 
     /* ------------------------------------------------------------ billboard */
 
+    /* Netflix's billboard puts a play glyph on the primary button and nothing at
+       all on "Altre info". */
     function heroButton(label, glyph, cls) {
         var button = el('button', 'nf-btn ' + cls);
         button.type = 'button';
-        button.appendChild(icon(glyph));
+        if (glyph) button.appendChild(icon(glyph));
         button.appendChild(el('span', null, label));
         return button;
     }
@@ -713,14 +991,16 @@
         var logo = el('img', 'nf-hero-logo');
         logo.alt = '';
         var title = el('h1', 'nf-hero-title');
+        var meta = el('div', 'nf-hero-meta');
         var overview = el('p', 'nf-hero-overview');
         var buttons = el('div', 'nf-hero-buttons');
         var play = heroButton('Riproduci', 'play_arrow', 'nf-btn-primary');
-        var info = heroButton('Altre info', 'info_outline', 'nf-btn-secondary');
+        var info = heroButton('Altre info', null, 'nf-btn-secondary');
         buttons.appendChild(play);
         buttons.appendChild(info);
         content.appendChild(logo);
         content.appendChild(title);
+        content.appendChild(meta);
         content.appendChild(overview);
         content.appendChild(buttons);
         hero.appendChild(content);
@@ -747,6 +1027,20 @@
                 title.textContent = item.Name;
             }
 
+            // "Serie • Fantascienza • 2020 • 5 stagioni • 16+"
+            meta.textContent = '';
+            var bits = [];
+            bits.push(item.Type === 'Series' ? 'Serie' : 'Film');
+            if (item.Genres && item.Genres.length) bits.push(item.Genres[0]);
+            if (item.ProductionYear) bits.push(String(item.ProductionYear));
+            var runtime = runtimeLabel(item);
+            if (runtime) bits.push(runtime);
+            if (item.OfficialRating) bits.push(item.OfficialRating);
+            bits.forEach(function (bit, i) {
+                if (i) meta.appendChild(el('span', 'nf-dot', '●'));
+                meta.appendChild(el('span', null, bit));
+            });
+
             overview.textContent = item.Overview || '';
         }
 
@@ -754,7 +1048,7 @@
             goToDetails(items[current].Id, items[current].ServerId, true);
         });
         info.addEventListener('click', function () {
-            goToDetails(items[current].Id, items[current].ServerId, false);
+            openModal(items[current].Id);
         });
 
         if (heroTimer) clearInterval(heroTimer);
@@ -849,6 +1143,7 @@
         applyBodyFlags();
         bindScrollState();
         bindPreview();
+        bindModal();
         refresh();
 
         // Attributes are watched too: the lazy loader rewrites card backgrounds
