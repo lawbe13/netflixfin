@@ -731,10 +731,17 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
    7. Item detail page
    -------------------------------------------------------------------------- */
 
+/* Jellyfin gives the primary container a near-black fill that covers the whole
+   hero area, backdrop and logo included. */
 .detailPageWrapperContainer,
-.detailPagePrimaryContainer,
+.detailPagePrimaryContainer {
+    background: transparent !important;
+}
+
+/* Everything below the hero does sit on solid colour: the backdrop is fixed, so
+   without this the artwork would follow the page down past the fade. */
 .detailPageSecondaryContainer {
-    background: transparent;
+    background: var(--nf-bg);
 }
 
 .detailRibbon {
@@ -767,7 +774,10 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
 
     /* The logo is Jellyfin's, absolutely placed near the top centre. Netflix sets
        it bottom-left, sized off the viewport height. */
+    /* The logo precedes the content wrapper in the DOM, so it needs lifting or the
+       wrapper paints straight over it. */
     body.nf-detail .detailLogo {
+        z-index: 2;
         left: var(--nf-gutter);
         right: auto;
         top: auto;
@@ -779,6 +789,7 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
     }
 
     /* With a logo on screen the text title is a duplicate. */
+    body.nf-detail-logo .detailRibbon .itemName,
     body.nf-detail-logo .detailPagePrimaryContent .itemName {
         display: none;
     }
