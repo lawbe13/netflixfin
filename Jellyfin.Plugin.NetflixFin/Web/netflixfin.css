@@ -1799,13 +1799,22 @@ body.nf-detail .backdropImage {
     color: #fff;
 }
 
-/* Controls Netflix does not put on screen. The rating star and the "ends at"
-   line are Jellyfin's own; everything else here has no Netflix counterpart. */
+/* Controls Netflix does not put on screen: the rating star, the "ends at" line,
+   the bookmark, picture-in-picture, the settings gear, chapter and previous-track
+   skips, and the elapsed counter - Netflix shows only the time remaining. */
 .videoOsdBottom .btnRecord,
 .videoOsdBottom .btnUserRating,
 .videoOsdBottom .btnVideoOsdSettings,
 .videoOsdBottom .btnPictureInPicture,
-.videoOsdBottom .btnSyncPlay {
+.videoOsdBottom .btnSyncPlay,
+.videoOsdBottom .btnPreviousTrack,
+.videoOsdBottom .btnPreviousChapter,
+.videoOsdBottom .btnNextChapter,
+.videoOsdBottom .btnMarkForRemoval,
+.videoOsdBottom .btnBookmark,
+.videoOsdBottom .endsAtText,
+.videoOsdBottom .osdPositionText,
+.videoOsdBottom .osdTimeText {
     display: none !important;
 }
 

@@ -1265,21 +1265,42 @@
         shell.appendChild(scrub);
         shell.appendChild(row);
 
+        // One at a time, in the order Netflix places them - a selector list would
+        // move them in DOM order instead, which is how the transport came out as
+        // PiP/rewind/pause/forward.
         var move = function (selector, target) {
-            osd.querySelectorAll(selector).forEach(function (node) {
-                if (node && node.parentNode !== target) target.appendChild(node);
-            });
+            var node = osd.querySelector(selector);
+            if (node && node.parentNode !== target) target.appendChild(node);
+            return node;
         };
 
-        // The slider carries Jellyfin's seek wiring; it goes across as-is.
-        move('.sliderContainer, .osdProgressInner, .osdTimeText, .osdPositionText, .osdDurationText', scrub);
-
-        move('.btnPause, .btnPlay, .btnRewind, .btnFastForward, .buttonMute, .osdVolumeSliderContainer, .volumeButtons', left);
-        move('.osdTextContainer, .osdTitle, .osdMediaInfo', centre);
-        move(
-            '.btnNextTrack, .btnSubtitles, .btnAudio, .btnFullscreen, .btnToggleFullscreen, .btnScreenshot',
-            right
+        // The volume control is a .sliderContainer too, which is why two bars
+        // ended up side by side in the scrubber row. Take the seek slider by
+        // identity, not by class alone.
+        var sliders = Array.prototype.filter.call(
+            osd.querySelectorAll('.sliderContainer'),
+            function (node) {
+                return !node.closest('.volumeButtons, .osdVolumeSliderContainer');
+            }
         );
+        if (sliders[0]) scrub.appendChild(sliders[0]);
+        move('.osdDurationText', scrub);
+
+        move('.btnPause, .btnPlay', left);
+        move('.btnRewind', left);
+        move('.btnFastForward', left);
+        var volume = move('.volumeButtons', left);
+        if (!volume) {
+            move('.buttonMute', left);
+            move('.osdVolumeSliderContainer', left);
+        }
+
+        move('.osdTextContainer', centre) || move('.osdTitle', centre);
+
+        move('.btnNextTrack', right);
+        move('.btnSubtitles', right);
+        move('.btnAudio', right);
+        move('.btnFullscreen, .btnToggleFullscreen', right);
 
         osd.appendChild(shell);
     }
