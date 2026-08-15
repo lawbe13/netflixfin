@@ -1772,6 +1772,15 @@
         if (player.wheelGuard) {
             window.removeEventListener('wheel', player.wheelGuard, { capture: true });
         }
+        // Hand the element back exactly as it was found.
+        if (player.video) {
+            try {
+                delete player.video.volume;
+                delete player.video.nfVolume;
+            } catch (err) {
+                log('could not restore the volume property', err);
+            }
+        }
         if (player.node.parentNode) player.node.parentNode.removeChild(player.node);
         player = null;
         document.body.classList.remove('nf-playing');
@@ -1859,8 +1868,11 @@
         volume.max = '100';
         volume.value = String(Math.round((video.volume || 1) * 100));
         volume.addEventListener('input', function () {
-            video.volume = Number(volume.value) / 100;
-            video.muted = Number(volume.value) === 0;
+            var level = Number(volume.value) / 100;
+            // Straight past the wheel guard: this is a deliberate change.
+            if (video.nfVolume) video.nfVolume(level);
+            else video.volume = level;
+            video.muted = level === 0;
         });
         var volumeWrap = el('div', 'nf-p-volume-wrap');
         volumeWrap.appendChild(volumeBtn);
@@ -1923,8 +1935,35 @@
          * The wheel is swallowed for the whole window while the player is up
          * instead, before it reaches anyone. Netflix does nothing on scroll
          * either; the panels are the one place a wheel still has a job. */
+        /* Swallowing the event was not enough: jellyfin-web binds its own
+         * volume-on-wheel and its listener is registered before ours, so it has
+         * already run by the time we cancel anything - hence the volume overlay
+         * still appearing top right.
+         *
+         * The volume is therefore defended at the property instead. For a moment
+         * after each wheel, writes to video.volume are ignored no matter who
+         * makes them; our own controls set nfVolume, which passes through. */
+        var suppressUntil = 0;
+        var describe = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume');
+        if (describe && describe.set) {
+            Object.defineProperty(video, 'volume', {
+                configurable: true,
+                get: function () {
+                    return describe.get.call(this);
+                },
+                set: function (value) {
+                    if (Date.now() < suppressUntil) return;
+                    describe.set.call(this, value);
+                }
+            });
+            video.nfVolume = function (value) {
+                describe.set.call(video, value);
+            };
+        }
+
         player.wheelGuard = function (event) {
             if (event.target && event.target.closest && event.target.closest('.nf-p-panel')) return;
+            suppressUntil = Date.now() + 500;
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();

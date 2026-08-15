@@ -1981,6 +1981,16 @@ body.nf-playing .videoOsdTop {
     display: none !important;
 }
 
+/* Jellyfin's own volume overlay - the square that flashes top right on scroll.
+   Our controls live in .nf-player, so nothing of ours is caught here. */
+body.nf-playing #videoOsdPage [class*="olumeIndicator"],
+body.nf-playing #videoOsdPage [class*="olume-indicator"],
+body.nf-playing .videoPlayerContainer [class*="olumeIndicator"],
+body.nf-playing .osdVolumeIndicator,
+body.nf-playing .volumeIndicator {
+    display: none !important;
+}
+
 .nf-player {
     position: fixed;
     inset: 0;
