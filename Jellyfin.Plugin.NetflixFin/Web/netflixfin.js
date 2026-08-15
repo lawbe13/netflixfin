@@ -249,6 +249,37 @@
 
     /* ------------------------------------------------------- detail page */
 
+    /* Netflix's title card carries its own key art. Jellyfin paints the backdrop
+     * on a fixed, full-viewport layer instead, so the art is rebuilt inside the
+     * card - and the logo, which Jellyfin parks outside the container, is moved
+     * in so it can be positioned against it. */
+    function mountDetailArt() {
+        var container = document.querySelector('.detailPagePrimaryContainer');
+        if (!container) return;
+
+        var match = window.location.hash.match(/[?&]id=([^&]+)/);
+        if (!match) return;
+        var id = match[1];
+
+        var client = api();
+        if (!client) return;
+
+        var art = container.querySelector('.nf-detail-art');
+        if (!art || art.dataset.nfId !== id) {
+            if (art) art.remove();
+            art = el('div', 'nf-detail-art');
+            art.dataset.nfId = id;
+            art.style.backgroundImage =
+                'url("' + client.getImageUrl(id, { type: 'Backdrop', maxWidth: 1280 }) + '")';
+            container.insertBefore(art, container.firstChild);
+        }
+
+        var logo = document.querySelector('.detailLogo');
+        if (logo && logo.parentElement !== container) {
+            container.appendChild(logo);
+        }
+    }
+
     function decorateDetail() {
         var onDetail = /#\/details/.test(window.location.hash);
         document.body.classList.toggle('nf-detail', onDetail);
@@ -256,6 +287,8 @@
             document.body.classList.remove('nf-detail-logo');
             return;
         }
+
+        mountDetailArt();
 
         var logo = document.querySelector('.detailLogo');
         var hasLogo = !!logo && getComputedStyle(logo).backgroundImage !== 'none';
