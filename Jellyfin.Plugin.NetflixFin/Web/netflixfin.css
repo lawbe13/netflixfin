@@ -304,7 +304,13 @@ body.nf-scrolled .skinHeader {
     padding-right: 0 !important;
 }
 
+/* The row above reaches down into this one: its negative bottom margin (the
+   other half of the hover-slack trick) puts its padding box over the next row's
+   heading and paints on top of it, which is why headings looked like they only
+   existed on hover. Lifting the heading out of that overlap is the fix. */
 .sectionTitleContainer {
+    position: relative;
+    z-index: 3;
     padding-left: var(--nf-gutter) !important;
     padding-right: var(--nf-gutter) !important;
     margin: 0 0 0.5rem;
