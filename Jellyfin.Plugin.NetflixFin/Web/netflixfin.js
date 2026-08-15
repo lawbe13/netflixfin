@@ -533,9 +533,12 @@
         panel.style.left = Math.round(left) + 'px';
         panel.style.top = Math.round(top) + 'px';
 
-        requestAnimationFrame(function () {
-            panel.classList.add('is-open');
-        });
+        // Force a reflow so the opening transition has a start value, then flip
+        // the state synchronously. requestAnimationFrame would be tidier but it
+        // is throttled to a standstill in a background tab, which leaves the
+        // panel sitting at opacity 0 forever.
+        void panel.offsetHeight;
+        panel.classList.add('is-open');
 
         preview = panel;
         previewCard = card;
