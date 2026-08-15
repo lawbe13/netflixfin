@@ -768,7 +768,7 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
     }
 
     body.nf-detail .detailPagePrimaryContainer {
-        padding-top: 44vh;
+        padding-top: 44vh !important;
     }
 
     body.nf-detail .detailRibbon,
@@ -788,7 +788,7 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
         right: auto;
         /* Anchored from the top so it lands just above the ribbon regardless of
            how tall the page turns out to be. */
-        top: 25vh;
+        top: 19vh;
         bottom: auto;
         width: min(30rem, 34vw);
         height: 14vh;
@@ -802,8 +802,13 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
         display: none;
     }
 
-    body.nf-detail .detailPagePrimaryContent,
-    body.nf-detail .detailPageContent {
+    /* The solid fill has to span the full width or the fixed backdrop keeps
+       showing to the right of the copy; the reading measure is capped on the text
+       blocks themselves instead of on their container. */
+    body.nf-detail .detailPagePrimaryContent .detailSection,
+    body.nf-detail .detailPageContent .detailSection,
+    body.nf-detail .overview-text,
+    body.nf-detail .detail-clamp-text {
         max-width: 56rem;
     }
 
