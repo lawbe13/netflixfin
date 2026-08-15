@@ -228,9 +228,7 @@ body.nf-scrolled .skinHeader {
 }
 
 .nf-nav-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
+    position: fixed;
     min-width: 260px;
     max-height: 70vh;
     overflow-y: auto;
@@ -248,8 +246,7 @@ body.nf-scrolled .skinHeader {
     z-index: 1000;
 }
 
-.nf-nav-item:hover .nf-nav-menu,
-.nf-nav-menu:hover {
+.nf-nav-menu.is-open {
     display: block;
 }
 
@@ -1312,7 +1309,7 @@ body.nf-hover-preview .cardOverlayContainer {
    numeral column is sized in em instead. */
 .nf-top10 .itemsContainer.scrollSlider > .card {
     width: calc(100% / 5.6) !important;
-    padding-left: 11em !important;
+    padding-left: 11rem !important;
 }
 
 /* Netflix's Top 10 uses upright posters beside the numeral, not 16:9 art - a
@@ -1335,7 +1332,10 @@ body.nf-hover-preview .cardOverlayContainer {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 11em;
+    /* rem, not em: on this element em resolves against its own 181px font-size,
+       which made the box 1994px wide and pushed the digit into the middle of the
+       row where it sat behind the other posters. */
+    width: 11rem;
     display: flex;
     align-items: flex-end;
     justify-content: center;

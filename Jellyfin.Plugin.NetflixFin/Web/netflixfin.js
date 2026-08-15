@@ -262,15 +262,44 @@
                     var wrapper = el('div', 'nf-nav-item');
                     wrapper.appendChild(node);
 
+                    // The menu lives on <body>, not inside the header. Nesting it
+                    // there put it in the header's stacking context, and page
+                    // content painted straight over it however high its z-index
+                    // went - hit-testing under an open menu returned a card.
                     var menu = el('div', 'nf-nav-menu');
                     siblings.forEach(function (view) {
                         var link = el('a', null, view.Name);
                         link.href =
                             (view.CollectionType === 'tvshows' ? '#/tv?topParentId=' : '#/movies?topParentId=') +
                             view.Id;
+                        link.addEventListener('click', function () {
+                            menu.classList.remove('is-open');
+                        });
                         menu.appendChild(link);
                     });
-                    wrapper.appendChild(menu);
+                    document.body.appendChild(menu);
+
+                    var open = function () {
+                        var rect = node.getBoundingClientRect();
+                        menu.style.left = Math.round(rect.left) + 'px';
+                        menu.style.top = Math.round(rect.bottom + 4) + 'px';
+                        menu.classList.add('is-open');
+                    };
+                    var close = function () {
+                        setTimeout(function () {
+                            if (!wrapper.matches(':hover') && !menu.matches(':hover')) {
+                                menu.classList.remove('is-open');
+                            }
+                        }, 120);
+                    };
+
+                    wrapper.addEventListener('mouseenter', open);
+                    wrapper.addEventListener('mouseleave', close);
+                    menu.addEventListener('mouseenter', function () {
+                        menu.classList.add('is-open');
+                    });
+                    menu.addEventListener('mouseleave', close);
+
                     nav.appendChild(wrapper);
                     return;
                 }
