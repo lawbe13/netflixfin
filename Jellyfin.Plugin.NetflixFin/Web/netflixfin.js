@@ -195,8 +195,18 @@
         var targets = navTargets();
         if (!targets.length) return;
 
+        // Keyed by the labels themselves, not a count: the nav is first built
+        // before the library list has arrived, and every later pass has to notice
+        // that the contents changed and rebuild, whatever order things resolved
+        // in.
+        var signature = targets
+            .map(function (target) {
+                return target.label;
+            })
+            .join('|');
+
         var existing = left.querySelector('.nf-nav');
-        if (existing && existing.dataset.nfCount === String(targets.length) && existing.isConnected) {
+        if (existing && existing.dataset.nfSignature === signature && existing.isConnected) {
             markActive(existing);
             return;
         }
@@ -205,7 +215,7 @@
         });
 
         var nav = el('nav', 'nf-nav');
-        nav.dataset.nfCount = String(targets.length);
+        nav.dataset.nfSignature = signature;
 
         targets.forEach(function (target, i) {
             var node;
