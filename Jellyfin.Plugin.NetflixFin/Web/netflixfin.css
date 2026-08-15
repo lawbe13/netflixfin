@@ -239,8 +239,12 @@ body.nf-scrolled .skinHeader {
    1800px wide and the tile pitch is 256px (248 + 8). Jellyfin's own sizing gives
    four oversized ones at the same width. */
 @media (min-width: 1600px) {
+    /* .nf-wide is a portrait card whose artwork the script swapped for a 16:9
+       backdrop; it has to take the backdrop width too or it ends up a third
+       narrower than the rows around it. */
     .itemsContainer.scrollSlider > .card.overflowBackdropCard,
-    .itemsContainer.scrollSlider > .card.backdropCard {
+    .itemsContainer.scrollSlider > .card.backdropCard,
+    .itemsContainer.scrollSlider > .card.nf-wide {
         width: calc(100% / 7);
     }
 
@@ -257,7 +261,8 @@ body.nf-scrolled .skinHeader {
 
 @media (min-width: 1200px) and (max-width: 1599px) {
     .itemsContainer.scrollSlider > .card.overflowBackdropCard,
-    .itemsContainer.scrollSlider > .card.backdropCard {
+    .itemsContainer.scrollSlider > .card.backdropCard,
+    .itemsContainer.scrollSlider > .card.nf-wide {
         width: calc(100% / 5);
     }
 
