@@ -39,13 +39,14 @@
    1. Canvas
    -------------------------------------------------------------------------- */
 
-html,
-body {
+/* Jellyfin's backdrop container sits at z-index -1. A negative-z child paints
+   above the canvas but below its own parent's background, so the page colour has
+   to live on <html> alone - putting it on body as well buries the artwork. */
+html {
     background-color: var(--nf-bg) !important;
 }
 
-/* Jellyfin's backdrop container sits at z-index -1, so anything opaque on the
-   page stack hides it. The page keeps its colour from html/body instead. */
+body,
 .skinBody,
 .mainAnimatedPages,
 .backgroundContainer {
@@ -793,6 +794,10 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+        /* Jellyfin fixes the ribbon's height for its single-row layout. */
+        height: auto;
+        min-height: 0;
+        margin-bottom: 1.5rem;
     }
 
     body.nf-detail .mainDetailButtons {
