@@ -159,12 +159,15 @@
             .forEach(function (row) {
                 if (row.dataset.nfWide) return;
 
-                var cards = Array.prototype.filter.call(
-                    row.querySelectorAll('.card[data-id]'),
-                    function (card) {
-                        return PORTRAIT_CARD.test(card.className);
-                    }
-                );
+                // The row element exists before its cards are rendered into it.
+                // Marking it now would settle the decision against an empty row and
+                // it would never be revisited.
+                var all = row.querySelectorAll('.card[data-id]');
+                if (!all.length) return;
+
+                var cards = Array.prototype.filter.call(all, function (card) {
+                    return PORTRAIT_CARD.test(card.className);
+                });
 
                 if (!cards.length) {
                     row.dataset.nfWide = 'skip';
