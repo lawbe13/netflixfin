@@ -165,8 +165,44 @@ body.nf-scrolled .skinHeader {
     margin: 0 1.5rem 0 0;
 }
 
-/* Tabs are Netflix's nav links: pill on the active one, 70% white on the rest. */
-.headerTabs .emby-tab-button,
+/* Jellyfin centres its tab bar on its own row under the header. Netflix runs a
+   single row: logo, then links, hard left. netflixfin.js builds .nf-nav in the
+   header's left group and the original tab bar steps aside. */
+.headerTabs.sectionTabs {
+    display: none !important;
+}
+
+.nf-nav {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.nf-nav > * {
+    font-family: var(--nf-font);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--nf-text-dim);
+    background: transparent;
+    border: 0;
+    padding: 10px 16px;
+    border-radius: 24px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.2s var(--nf-ease), background-color 0.2s var(--nf-ease);
+}
+
+.nf-nav > *:hover {
+    color: var(--nf-text);
+}
+
+.nf-nav > .is-active {
+    color: var(--nf-text);
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .emby-tab-button {
     font-size: 16px !important;
     font-weight: 400 !important;

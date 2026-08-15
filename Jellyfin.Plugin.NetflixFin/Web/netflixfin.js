@@ -111,6 +111,112 @@
         });
     }
 
+    /* ---------------------------------------------------------------- nav */
+
+    /* Netflix's nav is one row: wordmark, then links, hard left. Jellyfin centres
+     * a two-tab bar on a row of its own and offers libraries only through the
+     * drawer, so the bar is replaced with a link list built from the user's
+     * actual libraries. Its own tab buttons are kept alive behind it - clicking
+     * a proxy clicks the real one, so Jellyfin's routing is untouched. */
+    var navViews = null;
+
+    function navTargets() {
+        var targets = [];
+
+        document.querySelectorAll('.headerTabs .emby-tab-button').forEach(function (tab) {
+            targets.push({
+                label: tab.textContent.trim(),
+                tab: tab
+            });
+        });
+
+        (navViews || []).forEach(function (view) {
+            if (view.CollectionType === 'tvshows') {
+                targets.splice(1, 0, { label: view.Name, hash: '#/tv?topParentId=' + view.Id });
+            } else if (view.CollectionType === 'movies') {
+                targets.splice(1, 0, { label: view.Name, hash: '#/movies?topParentId=' + view.Id });
+            }
+        });
+
+        return targets;
+    }
+
+    function markActive(nav) {
+        var hash = window.location.hash;
+        nav.querySelectorAll('[data-nf-hash]').forEach(function (node) {
+            var target = node.getAttribute('data-nf-hash');
+            node.classList.toggle('is-active', hash.indexOf(target.replace('#', '')) === 1);
+        });
+        nav.querySelectorAll('[data-nf-tab]').forEach(function (node) {
+            var index = Number(node.getAttribute('data-nf-tab'));
+            var tabs = document.querySelectorAll('.headerTabs .emby-tab-button');
+            var tab = tabs[index];
+            node.classList.toggle(
+                'is-active',
+                !!tab && tab.classList.contains('emby-tab-button-active') && !/#\/(tv|movies)\b/.test(hash)
+            );
+        });
+    }
+
+    function buildNav() {
+        var left = document.querySelector('.headerLeft');
+        if (!left) return;
+
+        var client = api();
+        if (!client) return;
+
+        if (navViews === null) {
+            navViews = [];
+            client
+                .getUserViews({}, client.getCurrentUserId())
+                .then(function (result) {
+                    navViews = result.Items || [];
+                    var stale = left.querySelector('.nf-nav');
+                    if (stale) stale.remove();
+                    buildNav();
+                })
+                .catch(function () {
+                    navViews = [];
+                });
+        }
+
+        var targets = navTargets();
+        if (!targets.length) return;
+
+        var existing = left.querySelector('.nf-nav');
+        if (existing && existing.dataset.nfCount === String(targets.length)) {
+            markActive(existing);
+            return;
+        }
+        if (existing) existing.remove();
+
+        var nav = el('nav', 'nf-nav');
+        nav.dataset.nfCount = String(targets.length);
+
+        targets.forEach(function (target, i) {
+            var node;
+            if (target.hash) {
+                node = el('a', null, target.label);
+                node.href = target.hash;
+                node.setAttribute('data-nf-hash', target.hash);
+            } else {
+                node = el('button', null, target.label);
+                node.type = 'button';
+                node.setAttribute('data-nf-tab', String(i));
+                node.addEventListener('click', function () {
+                    target.tab.click();
+                    setTimeout(function () {
+                        markActive(nav);
+                    }, 120);
+                });
+            }
+            nav.appendChild(node);
+        });
+
+        left.appendChild(nav);
+        markActive(nav);
+    }
+
     /* ------------------------------------------------------- detail page */
 
     function decorateDetail() {
@@ -644,6 +750,7 @@
     function refresh() {
         applyBodyFlags();
         applyLogo();
+        buildNav();
         decorateDetail();
         mountHero();
         decorateTop10();
