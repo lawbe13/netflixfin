@@ -7,14 +7,21 @@ namespace Jellyfin.Plugin.NetflixFin.Injection;
 
 /// <summary>
 /// Jellyfin has no supported hook for adding assets to the web client, so the theme is
-/// wired in by patching index.html at server start. The patch is delimited by comment
-/// markers, is re-applied after every jellyfin-web update, and is removed again on
-/// graceful shutdown so an uninstall leaves nothing behind.
+/// wired in one of two ways:
+///
+///   1. Through the File Transformation plugin, which rewrites index.html as it is
+///      served. Nothing is touched on disk, so this works on read-only web roots.
+///   2. By patching index.html directly, between comment markers, re-applied on every
+///      start and removed on graceful shutdown.
+///
+/// (1) is tried first and (2) is the fallback.
 /// </summary>
 public partial class InjectionService : IHostedService
 {
-    private const string StartMarker = "<!-- NetflixFin:start -->";
-    private const string EndMarker = "<!-- NetflixFin:end -->";
+    private const string StartMarker = HtmlBlock.Start;
+    private const string EndMarker = HtmlBlock.End;
+
+    private bool _usingFileTransformation;
 
     private readonly IApplicationPaths _appPaths;
     private readonly ILogger<InjectionService> _logger;
@@ -34,6 +41,16 @@ public partial class InjectionService : IHostedService
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        _usingFileTransformation = FileTransformationRegistrar.TryRegister(_logger);
+
+        if (_usingFileTransformation)
+        {
+            // A previous run may have left the on-disk block behind; drop it so the two
+            // strategies cannot both fire.
+            Patch(inject: false);
+            return Task.CompletedTask;
+        }
+
         Patch(inject: true);
         return Task.CompletedTask;
     }
@@ -41,18 +58,12 @@ public partial class InjectionService : IHostedService
     /// <inheritdoc />
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        Patch(inject: false);
-        return Task.CompletedTask;
-    }
+        if (!_usingFileTransformation)
+        {
+            Patch(inject: false);
+        }
 
-    private static string BuildBlock()
-    {
-        // Cache-bust on every start so a theme update is picked up without a hard reload.
-        var stamp = DateTime.UtcNow.Ticks.ToString("x", System.Globalization.CultureInfo.InvariantCulture);
-        return StartMarker
-            + $"<link rel=\"stylesheet\" href=\"/NetflixFin/netflixfin.css?v={stamp}\">"
-            + $"<script defer src=\"/NetflixFin/netflixfin.js?v={stamp}\"></script>"
-            + EndMarker;
+        return Task.CompletedTask;
     }
 
     private void Patch(bool inject)
@@ -80,7 +91,7 @@ public partial class InjectionService : IHostedService
                     return;
                 }
 
-                updated = stripped.Insert(closingBody, BuildBlock());
+                updated = stripped.Insert(closingBody, HtmlBlock.Build());
             }
 
             if (!string.Equals(updated, html, StringComparison.Ordinal))
@@ -89,12 +100,12 @@ public partial class InjectionService : IHostedService
                 _logger.LogInformation("NetflixFin: index.html {Action}", inject ? "patched" : "restored");
             }
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             _logger.LogError(
-                ex,
-                "NetflixFin: cannot write {Path}. The web root is read-only - see the plugin README for the "
-                + "custom-CSS fallback",
+                "NetflixFin: cannot write {Path} and the File Transformation plugin is not available. "
+                + "Install File Transformation (it needs no configuration) or grant the Jellyfin service "
+                + "write access to the web root",
                 indexPath);
         }
         catch (IOException ex)
