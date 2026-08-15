@@ -119,6 +119,7 @@
      * actual libraries. Its own tab buttons are kept alive behind it - clicking
      * a proxy clicks the real one, so Jellyfin's routing is untouched. */
     var navViews = null;
+    var navRetries = 0;
 
     function firstView(type) {
         return (navViews || []).filter(function (view) {
@@ -187,8 +188,13 @@
                     });
                     buildNav();
                 })
-                .catch(function () {
-                    navViews = [];
+                .catch(function (err) {
+                    // The first pass runs at DOMContentLoaded, which can be before
+                    // ApiClient holds a token - that 401 must not settle the nav
+                    // as "no libraries" for the rest of the session.
+                    log('library lookup failed', err);
+                    navViews = null;
+                    if (navRetries++ < 10) setTimeout(buildNav, 1000);
                 });
         }
 
