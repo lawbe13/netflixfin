@@ -1,7 +1,10 @@
 /* NetflixFin - behaviour layer.
  *
- * Everything here is progressive: if a selector disappears in a future
- * jellyfin-web release the CSS still applies and the page still works.
+ * The stylesheet carries the look. This file adds the four things CSS cannot
+ * express: the billboard, the hover preview card, the 16:9 artwork swap and the
+ * Top 10 numerals. Everything is progressive - if a selector disappears in a
+ * future jellyfin-web release the page still works, it just looks less Netflix.
+ *
  * window.NetflixFinConfig is written by the plugin immediately above this file.
  */
 (function () {
@@ -43,9 +46,25 @@
         return node;
     }
 
-    function ticksToMinutes(ticks) {
-        if (!ticks) return null;
-        return Math.round(ticks / 600000000);
+    function icon(name) {
+        var span = el('span', 'material-icons', name);
+        span.setAttribute('aria-hidden', 'true');
+        return span;
+    }
+
+    function minutes(ticks) {
+        return ticks ? Math.round(ticks / 600000000) : null;
+    }
+
+    function runtimeLabel(item) {
+        if (item.Type === 'Series') {
+            var n = item.ChildCount || item.SeasonCount;
+            if (!n) return null;
+            return n + (n === 1 ? ' stagione' : ' stagioni');
+        }
+        var mins = minutes(item.RunTimeTicks);
+        if (!mins) return null;
+        return mins >= 60 ? Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm' : mins + 'm';
     }
 
     function waitFor(selector, timeout, cb) {
@@ -58,6 +77,15 @@
         })();
     }
 
+    function goToDetails(id, serverId, autoplay) {
+        window.location.hash = '/details?id=' + id + '&serverId=' + serverId;
+        if (!autoplay) return;
+        // The details view builds asynchronously; press its own play button.
+        waitFor('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay', 6000, function (btn) {
+            if (btn) btn.click();
+        });
+    }
+
     /* ------------------------------------------------------------ body flags */
 
     function applyBodyFlags() {
@@ -65,7 +93,6 @@
         document.body.classList.toggle('nf-hide-card-text', !!cfg.hideCardText);
     }
 
-    /* The header is transparent over the hero and solid once the page moves. */
     function bindScrollState() {
         var update = function () {
             var scroller = document.querySelector('.mainAnimatedPages') || document.documentElement;
@@ -86,10 +113,6 @@
 
     /* ------------------------------------------------------- detail page */
 
-    /* The stylesheet needs three things it cannot ask for itself: whether this is
-     * a detail route, whether the item has a logo (so the duplicate text title can
-     * go), and the localised label for the play button, which Jellyfin only puts
-     * in the button's title attribute. */
     function decorateDetail() {
         var onDetail = /#\/details/.test(window.location.hash);
         document.body.classList.toggle('nf-detail', onDetail);
@@ -102,11 +125,9 @@
         var hasLogo = !!logo && getComputedStyle(logo).backgroundImage !== 'none';
         document.body.classList.toggle('nf-detail-logo', hasLogo);
 
-        // The logo is lazy-loaded into a background-image, which is not a DOM
-        // mutation, so the observer never sees it arrive.
-        if (logo && !hasLogo) {
-            setTimeout(decorateDetail, 700);
-        }
+        // The logo arrives as a lazy-loaded background-image, which is not a DOM
+        // mutation, so the observer never sees it land.
+        if (logo && !hasLogo) setTimeout(decorateDetail, 700);
 
         document.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
             .forEach(function (button) {
@@ -128,26 +149,29 @@
             section.classList.toggle('nf-top10', !!isTop10);
             if (!isTop10) return;
 
-            var cards = section.querySelectorAll('.itemsContainer > .card');
-            Array.prototype.forEach.call(cards, function (card, i) {
-                if (i >= 10) {
-                    card.style.display = 'none';
-                    return;
+            Array.prototype.forEach.call(
+                section.querySelectorAll('.itemsContainer > .card'),
+                function (card, i) {
+                    if (i >= 10) {
+                        card.style.display = 'none';
+                        return;
+                    }
+                    var box = card.querySelector('.cardBox');
+                    if (box) box.setAttribute('data-nf-rank', String(i + 1));
                 }
-                var box = card.querySelector('.cardBox');
-                if (box) box.setAttribute('data-nf-rank', String(i + 1));
-            });
+            );
         });
     }
 
-    /* ------------------------------------------------- 16:9 row thumbnails */
+    /* ------------------------------------------------- 16:9 row artwork */
 
     var PORTRAIT_CARD = /(\b|-)(overflowPortrait|portrait|overflowSquare|square)Card\b/;
 
-    /* Widening is decided per row, not per card. Mixing 16:9 and 2:3 tiles in one
-     * row makes it twice as tall as it needs to be and leaves a band of empty
-     * space, so a row is only converted when every item in it has a backdrop.
-     * One request per row answers that. */
+    /* Netflix rows show wide, purpose-made key art. Jellyfin's equivalent is the
+     * Thumb image - NOT the backdrop, which is a frame from the film and looks
+     * wrong as a tile. A row is converted only when every item in it has a Thumb,
+     * because a row of mixed shapes is twice as tall as it needs to be; rows
+     * without one keep the posters Jellyfin picked. One request answers a row. */
     function widenCards(root) {
         if (!cfg.useWideThumbnails) return;
 
@@ -157,11 +181,10 @@
         (root || document)
             .querySelectorAll('.homeSectionsContainer .itemsContainer.scrollSlider')
             .forEach(function (row) {
-                if (row.dataset.nfWide) return;
+                if (row.dataset.nfThumb) return;
 
-                // The row element exists before its cards are rendered into it.
-                // Marking it now would settle the decision against an empty row and
-                // it would never be revisited.
+                // The row exists before its cards are rendered into it; deciding
+                // now would settle the question against an empty row forever.
                 var all = row.querySelectorAll('.card[data-id]');
                 if (!all.length) return;
 
@@ -170,11 +193,11 @@
                 });
 
                 if (!cards.length) {
-                    row.dataset.nfWide = 'skip';
+                    row.dataset.nfThumb = 'skip';
                     return;
                 }
 
-                row.dataset.nfWide = 'pending';
+                row.dataset.nfThumb = 'pending';
                 var ids = cards.map(function (card) {
                     return card.dataset.id;
                 });
@@ -182,24 +205,19 @@
                 client
                     .getItems(client.getCurrentUserId(), {
                         Ids: ids.join(','),
-                        Fields: 'BackdropImageTags',
-                        EnableImageTypes: 'Backdrop',
+                        EnableImageTypes: 'Thumb',
                         EnableTotalRecordCount: false
                     })
                     .then(function (result) {
                         var tags = {};
                         (result.Items || []).forEach(function (item) {
-                            if (item.BackdropImageTags && item.BackdropImageTags.length) {
-                                tags[item.Id] = item.BackdropImageTags[0];
+                            if (item.ImageTags && item.ImageTags.Thumb) {
+                                tags[item.Id] = item.ImageTags.Thumb;
                             }
                         });
 
-                        var complete = ids.every(function (id) {
-                            return tags[id];
-                        });
-
-                        if (!complete) {
-                            row.dataset.nfWide = 'partial';
+                        if (!ids.every(function (id) { return tags[id]; })) {
+                            row.dataset.nfThumb = 'no-thumbs';
                             return;
                         }
 
@@ -208,76 +226,287 @@
                             if (!container) return;
 
                             var url = client.getImageUrl(card.dataset.id, {
-                                type: 'Backdrop',
+                                type: 'Thumb',
                                 maxWidth: 640,
                                 tag: tags[card.dataset.id]
                             });
 
-                            // Jellyfin clears its blurhash placeholder when its own
-                            // image loads. Ours is a different URL, so that never
-                            // happens and the blur stays on top of the artwork.
+                            // Jellyfin drops its blurhash when its own image loads.
+                            // Ours is a different URL, so that never fires.
                             var preload = new Image();
                             preload.onload = function () {
                                 container.classList.remove('blurhashed');
                             };
                             preload.src = url;
 
-                            container.dataset.nfWideUrl = url;
+                            container.dataset.nfThumbUrl = url;
                             container.style.backgroundImage = 'url("' + url + '")';
-                            card.classList.add('nf-wide');
+                            card.classList.add('nf-thumb');
                         });
 
-                        row.dataset.nfWide = 'yes';
-                        log('widened row of', cards.length);
+                        row.dataset.nfThumb = 'yes';
+                        log('thumbed row of', cards.length);
                     })
                     .catch(function (err) {
-                        row.dataset.nfWide = 'error';
-                        log('widen failed', err);
+                        row.dataset.nfThumb = 'error';
+                        log('thumb lookup failed', err);
                     });
             });
     }
 
-    /* Jellyfin lazy-loads a row's posters when it scrolls into view, which writes
-     * the Primary URL straight back over ours and restores the blurhash. Rather
-     * than fight for the write, the swap is simply re-applied whenever it is found
-     * undone. */
-    function reapplyWide() {
-        document.querySelectorAll('.card.nf-wide .cardImageContainer').forEach(function (container) {
-            var url = container.dataset.nfWideUrl;
+    /* Jellyfin re-loads a row's posters when it scrolls into view, writing the
+     * Primary URL straight back over ours. Rather than fight for the write, the
+     * swap is re-applied whenever it is found undone. */
+    function reapplyThumbs() {
+        document.querySelectorAll('.card.nf-thumb .cardImageContainer').forEach(function (container) {
+            var url = container.dataset.nfThumbUrl;
             if (!url) return;
-
             if ((container.style.backgroundImage || '').indexOf(url) === -1) {
                 container.style.backgroundImage = 'url("' + url + '")';
             }
-
             container.classList.remove('blurhashed');
         });
     }
 
-    /* ------------------------------------------------------------ hero banner */
+    /* --------------------------------------------------- preview card */
 
-    function heroButton(label, icon, cls) {
-        var button = el('button', 'nf-btn ' + cls);
-        if (icon) {
-            var glyph = el('span', 'material-icons', icon);
-            glyph.setAttribute('aria-hidden', 'true');
-            button.appendChild(glyph);
+    var preview = null;
+    var previewCard = null;
+    var openTimer = null;
+    var closeTimer = null;
+    var pointerInside = false;
+
+    function destroyPreview() {
+        if (!preview) return;
+        var node = preview;
+        preview = null;
+        previewCard = null;
+        node.classList.remove('is-open');
+        setTimeout(function () {
+            if (node.parentNode) node.parentNode.removeChild(node);
+        }, 200);
+    }
+
+    function scheduleClose() {
+        pointerInside = false;
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(function () {
+            if (!pointerInside) destroyPreview();
+        }, 140);
+    }
+
+    function keepOpen() {
+        pointerInside = true;
+        clearTimeout(closeTimer);
+    }
+
+    function buildPreview(card, item, client) {
+        var rect = card.getBoundingClientRect();
+        var width = Math.round(rect.width * 1.38);
+        var artHeight = Math.round((width * 9) / 16);
+
+        var panel = el('div', 'nf-preview');
+        panel.style.width = width + 'px';
+
+        var art = el('div', 'nf-preview-art');
+        var imageType = item.ImageTags && item.ImageTags.Thumb ? 'Thumb' : 'Primary';
+        art.style.backgroundImage =
+            'url("' +
+            client.getImageUrl(item.Id, {
+                type: imageType,
+                maxWidth: 640,
+                tag: item.ImageTags ? item.ImageTags[imageType] : undefined
+            }) +
+            '")';
+        art.style.height = artHeight + 'px';
+        art.addEventListener('click', function () {
+            destroyPreview();
+            goToDetails(item.Id, item.ServerId, false);
+        });
+        panel.appendChild(art);
+
+        var body = el('div', 'nf-preview-body');
+
+        var actions = el('div', 'nf-preview-actions');
+        var play = el('button', 'nf-circle nf-circle-play');
+        play.type = 'button';
+        play.title = 'Play';
+        play.appendChild(icon('play_arrow'));
+        play.addEventListener('click', function () {
+            destroyPreview();
+            goToDetails(item.Id, item.ServerId, true);
+        });
+
+        var fav = el('button', 'nf-circle');
+        fav.type = 'button';
+        fav.title = 'Preferiti';
+        var isFav = item.UserData && item.UserData.IsFavorite;
+        fav.appendChild(icon(isFav ? 'favorite' : 'add'));
+        fav.addEventListener('click', function () {
+            var userId = client.getCurrentUserId();
+            var call = isFav
+                ? client.updateFavoriteStatus(userId, item.Id, false)
+                : client.updateFavoriteStatus(userId, item.Id, true);
+            call.then(function () {
+                isFav = !isFav;
+                fav.replaceChildren(icon(isFav ? 'favorite' : 'add'));
+            });
+        });
+
+        var watched = el('button', 'nf-circle');
+        watched.type = 'button';
+        watched.title = 'Visto';
+        watched.appendChild(icon('check'));
+        watched.addEventListener('click', function () {
+            client.markPlayed(client.getCurrentUserId(), item.Id, new Date());
+            watched.style.borderColor = '#fff';
+        });
+
+        var expand = el('button', 'nf-circle');
+        expand.type = 'button';
+        expand.title = 'Altre info';
+        expand.appendChild(icon('expand_more'));
+        expand.addEventListener('click', function () {
+            destroyPreview();
+            goToDetails(item.Id, item.ServerId, false);
+        });
+
+        actions.appendChild(play);
+        actions.appendChild(fav);
+        actions.appendChild(watched);
+        actions.appendChild(el('span', 'nf-spacer'));
+        actions.appendChild(expand);
+        body.appendChild(actions);
+
+        var meta = el('div', 'nf-preview-meta');
+        if (item.CommunityRating) {
+            meta.appendChild(
+                el('span', 'nf-match', Math.round(item.CommunityRating * 10) + '% consigliato')
+            );
         }
+        if (item.OfficialRating) {
+            meta.appendChild(el('span', 'nf-badge', item.OfficialRating));
+        }
+        var runtime = runtimeLabel(item);
+        if (runtime) meta.appendChild(el('span', null, runtime));
+        if (item.MediaStreams || item.Width >= 1280) {
+            meta.appendChild(el('span', 'nf-badge', 'HD'));
+        }
+        body.appendChild(meta);
+
+        if (item.Genres && item.Genres.length) {
+            var genres = el('div', 'nf-preview-genres');
+            item.Genres.slice(0, 3).forEach(function (genre, i) {
+                if (i) genres.appendChild(el('span', 'nf-dot', '●'));
+                genres.appendChild(el('span', null, genre));
+            });
+            body.appendChild(genres);
+        }
+
+        panel.appendChild(body);
+        panel.addEventListener('mouseenter', keepOpen);
+        panel.addEventListener('mouseleave', scheduleClose);
+        document.body.appendChild(panel);
+
+        // Anchor over the tile, then keep the panel inside the viewport - a tile
+        // at either end of a row would otherwise open half off-screen.
+        var gutter = 16;
+        var left = rect.left + rect.width / 2 - width / 2;
+        left = Math.max(gutter, Math.min(left, window.innerWidth - width - gutter));
+        var top = rect.top - (artHeight - rect.height) / 2;
+        top = Math.max(gutter, Math.min(top, window.innerHeight - panel.offsetHeight - gutter));
+
+        panel.style.left = Math.round(left) + 'px';
+        panel.style.top = Math.round(top) + 'px';
+
+        requestAnimationFrame(function () {
+            panel.classList.add('is-open');
+        });
+
+        preview = panel;
+        previewCard = card;
+    }
+
+    function openPreview(card) {
+        var client = api();
+        if (!client) return;
+
+        var id = card.dataset.id;
+        if (!id) return;
+
+        client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                // The pointer may have left during the request.
+                if (!pointerInside) return;
+                destroyPreview();
+                buildPreview(card, item, client);
+            })
+            .catch(function (err) {
+                log('preview failed', err);
+            });
+    }
+
+    function bindPreview() {
+        if (document.body.dataset.nfPreviewBound) return;
+        document.body.dataset.nfPreviewBound = '1';
+
+        document.addEventListener(
+            'mouseover',
+            function (event) {
+                if (!cfg.enableHoverPreview) return;
+                if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+                var card = event.target.closest && event.target.closest('.card[data-id]');
+                if (!card || !card.closest('.itemsContainer')) return;
+                if (card === previewCard) {
+                    keepOpen();
+                    return;
+                }
+
+                keepOpen();
+                clearTimeout(openTimer);
+                openTimer = setTimeout(function () {
+                    openPreview(card);
+                }, 400);
+            },
+            true
+        );
+
+        document.addEventListener(
+            'mouseout',
+            function (event) {
+                var card = event.target.closest && event.target.closest('.card[data-id]');
+                if (!card) return;
+                var to = event.relatedTarget;
+                if (to && preview && preview.contains(to)) return;
+                clearTimeout(openTimer);
+                scheduleClose();
+            },
+            true
+        );
+
+        // A panel pinned to viewport coordinates has to go when the page moves.
+        window.addEventListener('scroll', destroyPreview, { passive: true, capture: true });
+        window.addEventListener('resize', destroyPreview, { passive: true });
+        window.addEventListener('hashchange', destroyPreview);
+    }
+
+    /* ------------------------------------------------------------ billboard */
+
+    function heroButton(label, glyph, cls) {
+        var button = el('button', 'nf-btn ' + cls);
+        button.type = 'button';
+        button.appendChild(icon(glyph));
         button.appendChild(el('span', null, label));
         return button;
     }
 
-    function goToDetails(item, autoplay) {
-        var url = '#/details?id=' + item.Id + '&serverId=' + item.ServerId;
-        window.location.hash = url.slice(1);
-        if (!autoplay) return;
-        // The details view builds asynchronously; press its own play button once it exists.
-        waitFor('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay', 6000, function (btn) {
-            if (btn) btn.click();
-        });
-    }
+    /* Another plugin's hero (Media Bar Enhanced and friends) wins if present:
+     * two stacked billboards are worse than either alone. */
+    var RIVAL_HERO = '#slides-container, #slideshow, .mediaBar, .jellyfin-enhanced-hero';
 
-    function buildHero(items) {
+    function buildHero(items, client) {
         var hero = el('div', 'nf-hero');
         hero.setAttribute('data-nf-hero', '1');
 
@@ -285,7 +514,7 @@
             var layer = el('div', 'nf-hero-media' + (i === 0 ? ' is-active' : ''));
             layer.style.backgroundImage =
                 'url("' +
-                window.ApiClient.getImageUrl(item.Id, {
+                client.getImageUrl(item.Id, {
                     type: 'Backdrop',
                     maxWidth: 1920,
                     tag: item.BackdropImageTags && item.BackdropImageTags[0]
@@ -299,22 +528,17 @@
         var logo = el('img', 'nf-hero-logo');
         logo.alt = '';
         var title = el('h1', 'nf-hero-title');
-        var meta = el('div', 'nf-hero-meta');
         var overview = el('p', 'nf-hero-overview');
         var buttons = el('div', 'nf-hero-buttons');
-        var play = heroButton('Play', 'play_arrow', 'nf-btn-primary');
-        var info = heroButton('More info', 'info', 'nf-btn-secondary');
+        var play = heroButton('Riproduci', 'play_arrow', 'nf-btn-primary');
+        var info = heroButton('Altre info', 'info_outline', 'nf-btn-secondary');
         buttons.appendChild(play);
         buttons.appendChild(info);
         content.appendChild(logo);
         content.appendChild(title);
-        content.appendChild(meta);
         content.appendChild(overview);
         content.appendChild(buttons);
         hero.appendChild(content);
-
-        var dots = el('div', 'nf-hero-dots');
-        hero.appendChild(dots);
 
         var current = 0;
 
@@ -328,60 +552,28 @@
 
             var hasLogo = item.ImageTags && item.ImageTags.Logo;
             if (hasLogo) {
-                logo.src = window.ApiClient.getImageUrl(item.Id, { type: 'Logo', maxWidth: 640 });
+                logo.src = client.getImageUrl(item.Id, { type: 'Logo', maxWidth: 640 });
                 logo.style.display = '';
-                title.style.display = 'none';
                 logo.alt = item.Name;
+                title.style.display = 'none';
             } else {
                 logo.style.display = 'none';
                 title.style.display = '';
                 title.textContent = item.Name;
             }
 
-            meta.textContent = '';
-            var bits = [];
-            if (item.ProductionYear) bits.push(String(item.ProductionYear));
-            if (item.OfficialRating) bits.push(item.OfficialRating);
-            if (item.Type === 'Series' && item.ChildCount) {
-                bits.push(item.ChildCount + (item.ChildCount === 1 ? ' season' : ' seasons'));
-            } else if (item.RunTimeTicks) {
-                var mins = ticksToMinutes(item.RunTimeTicks);
-                bits.push(Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm');
-            }
-            if (item.Genres && item.Genres.length) bits.push(item.Genres.slice(0, 2).join(', '));
-            bits.forEach(function (bit, i) {
-                if (i) meta.appendChild(el('span', 'nf-dot', '●'));
-                meta.appendChild(el('span', null, bit));
-            });
-
             overview.textContent = item.Overview || '';
-
-            Array.prototype.forEach.call(dots.children, function (dot, i) {
-                dot.classList.toggle('is-active', i === index);
-            });
         }
 
-        items.forEach(function (item, i) {
-            var dot = el('button');
-            dot.type = 'button';
-            dot.setAttribute('aria-label', item.Name);
-            dot.addEventListener('click', function () {
-                render(i);
-                restart();
-            });
-            dots.appendChild(dot);
-        });
-
         play.addEventListener('click', function () {
-            goToDetails(items[current], true);
+            goToDetails(items[current].Id, items[current].ServerId, true);
         });
         info.addEventListener('click', function () {
-            goToDetails(items[current], false);
+            goToDetails(items[current].Id, items[current].ServerId, false);
         });
 
-        function restart() {
-            if (heroTimer) clearInterval(heroTimer);
-            if (!cfg.heroAutoRotate || items.length < 2) return;
+        if (heroTimer) clearInterval(heroTimer);
+        if (cfg.heroAutoRotate && items.length > 1) {
             heroTimer = setInterval(function () {
                 if (!document.body.contains(hero)) {
                     clearInterval(heroTimer);
@@ -393,28 +585,22 @@
         }
 
         render(0);
-        restart();
         return hero;
-    }
-
-    /* Media Bar Enhanced and friends already put a hero on the home screen. Two of
-     * them stacked is worse than either alone, so theirs wins - it is the one the
-     * user configured. */
-    var RIVAL_HERO = '#slides-container, #slideshow, .mediaBar, .jellyfin-enhanced-hero';
-
-    function hasRivalHero() {
-        return !!document.querySelector(RIVAL_HERO);
     }
 
     function mountHero() {
         if (!cfg.enableHeroBanner) return;
-        if (hasRivalHero()) {
+
+        var onHome =
+            /#\/home/.test(window.location.hash) ||
+            window.location.hash === '' ||
+            window.location.hash === '#/';
+        if (!onHome) return;
+
+        if (document.querySelector(RIVAL_HERO)) {
             document.querySelectorAll('.nf-hero').forEach(function (node) {
                 node.remove();
             });
-            return;
-        }
-        if (!/#\/home/.test(window.location.hash) && window.location.hash !== '' && window.location.hash !== '#/') {
             return;
         }
 
@@ -424,7 +610,6 @@
         var client = api();
         if (!client) return;
 
-        container.dataset.nfHeroPending = '1';
         client
             .getItems(client.getCurrentUserId(), {
                 IncludeItemTypes: 'Movie,Series',
@@ -441,15 +626,14 @@
                     return item.BackdropImageTags && item.BackdropImageTags.length && item.Overview;
                 });
                 if (!items.length) return;
-                items = items.slice(0, 5);
 
                 var existing = document.querySelector('.homeSectionsContainer');
                 if (!existing || existing.querySelector('[data-nf-hero]')) return;
-                existing.insertBefore(buildHero(items), existing.firstChild);
-                log('hero mounted with', items.length, 'items');
+                existing.insertBefore(buildHero(items.slice(0, 5), client), existing.firstChild);
+                log('billboard mounted');
             })
             .catch(function (err) {
-                log('hero failed', err);
+                log('billboard failed', err);
             });
     }
 
@@ -464,7 +648,7 @@
         mountHero();
         decorateTop10();
         widenCards();
-        reapplyWide();
+        reapplyThumbs();
     }
 
     function schedule() {
@@ -478,9 +662,10 @@
     function start() {
         applyBodyFlags();
         bindScrollState();
+        bindPreview();
         refresh();
 
-        // Attributes are watched too: the lazy loader overwrites card backgrounds
+        // Attributes are watched too: the lazy loader rewrites card backgrounds
         // in place, which is not a childList change.
         new MutationObserver(schedule).observe(document.body, {
             childList: true,
@@ -488,6 +673,7 @@
             attributes: true,
             attributeFilter: ['style', 'class']
         });
+
         window.addEventListener('hashchange', function () {
             if (heroTimer) {
                 clearInterval(heroTimer);
