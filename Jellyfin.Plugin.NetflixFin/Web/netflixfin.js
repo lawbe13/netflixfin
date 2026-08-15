@@ -179,8 +179,12 @@
                 .getUserViews({}, client.getCurrentUserId())
                 .then(function (result) {
                     navViews = result.Items || [];
-                    var stale = left.querySelector('.nf-nav');
-                    if (stale) stale.remove();
+                    // Jellyfin may have re-rendered the header while the request
+                    // was in flight, so the captured element can be detached by
+                    // now; clear by document, not by the stale reference.
+                    document.querySelectorAll('.nf-nav').forEach(function (node) {
+                        node.remove();
+                    });
                     buildNav();
                 })
                 .catch(function () {
@@ -192,11 +196,13 @@
         if (!targets.length) return;
 
         var existing = left.querySelector('.nf-nav');
-        if (existing && existing.dataset.nfCount === String(targets.length)) {
+        if (existing && existing.dataset.nfCount === String(targets.length) && existing.isConnected) {
             markActive(existing);
             return;
         }
-        if (existing) existing.remove();
+        document.querySelectorAll('.nf-nav').forEach(function (node) {
+            node.remove();
+        });
 
         var nav = el('nav', 'nf-nav');
         nav.dataset.nfCount = String(targets.length);
