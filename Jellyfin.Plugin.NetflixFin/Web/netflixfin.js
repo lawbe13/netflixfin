@@ -138,10 +138,22 @@
         var targets = [{ label: tabs[0].textContent.trim(), tab: tabs[0], index: 0 }];
 
         var series = firstView('tvshows');
-        if (series) targets.push({ label: 'Serie TV', hash: '#/tv?topParentId=' + series.Id });
+        if (series) {
+            targets.push({
+                label: 'Serie TV',
+                hash: '#/tv?topParentId=' + series.Id,
+                collectionType: 'tvshows'
+            });
+        }
 
         var movies = firstView('movies');
-        if (movies) targets.push({ label: 'Film', hash: '#/movies?topParentId=' + movies.Id });
+        if (movies) {
+            targets.push({
+                label: 'Film',
+                hash: '#/movies?topParentId=' + movies.Id,
+                collectionType: 'movies'
+            });
+        }
 
         for (var i = 1; i < tabs.length; i++) {
             targets.push({ label: tabs[i].textContent.trim(), tab: tabs[i], index: i });
@@ -229,6 +241,30 @@
                 node = el('a', null, target.label);
                 node.href = target.hash;
                 node.setAttribute('data-nf-hash', target.hash);
+
+                // A server split by genre has many libraries of one type. They
+                // hang off the matching nav item as a dropdown instead of being
+                // dropped, so every catalogue page is one hover away.
+                var siblings = (navViews || []).filter(function (view) {
+                    return view.CollectionType === target.collectionType;
+                });
+
+                if (siblings.length > 1) {
+                    var wrapper = el('div', 'nf-nav-item');
+                    wrapper.appendChild(node);
+
+                    var menu = el('div', 'nf-nav-menu');
+                    siblings.forEach(function (view) {
+                        var link = el('a', null, view.Name);
+                        link.href =
+                            (view.CollectionType === 'tvshows' ? '#/tv?topParentId=' : '#/movies?topParentId=') +
+                            view.Id;
+                        menu.appendChild(link);
+                    });
+                    wrapper.appendChild(menu);
+                    nav.appendChild(wrapper);
+                    return;
+                }
             } else {
                 node = el('button', null, target.label);
                 node.type = 'button';
@@ -313,6 +349,100 @@
                 if (content && label && content.getAttribute('data-nf-label') !== label) {
                     content.setAttribute('data-nf-label', label);
                 }
+            });
+    }
+
+    /* ------------------------------------------------------- row controls */
+
+    /* Netflix gives every row two affordances Jellyfin has no equivalent for: an
+     * edge arrow on hover that pages the row by exactly one screenful, and a set
+     * of dashes on the heading line showing which page you are on. */
+    function decorateRows(root) {
+        (root || document)
+            .querySelectorAll('.itemsContainer.scrollSlider')
+            .forEach(function (slider) {
+                var section = slider.closest('.verticalSection') || slider.parentElement;
+                if (!section) return;
+
+                section.classList.add('nf-row');
+                if (getComputedStyle(section).position === 'static') {
+                    section.style.position = 'relative';
+                }
+
+                var prev = section.querySelector('.nf-row-arrow-prev');
+                var next = section.querySelector('.nf-row-arrow-next');
+
+                if (!prev) {
+                    prev = el('button', 'nf-row-arrow nf-row-arrow-prev');
+                    prev.type = 'button';
+                    prev.setAttribute('aria-label', 'Indietro');
+                    prev.appendChild(icon('chevron_left'));
+                    prev.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        slider.scrollBy({ left: -slider.clientWidth, behavior: 'smooth' });
+                    });
+                    section.appendChild(prev);
+                }
+
+                if (!next) {
+                    next = el('button', 'nf-row-arrow nf-row-arrow-next');
+                    next.type = 'button';
+                    next.setAttribute('aria-label', 'Avanti');
+                    next.appendChild(icon('chevron_right'));
+                    next.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        slider.scrollBy({ left: slider.clientWidth, behavior: 'smooth' });
+                    });
+                    section.appendChild(next);
+                }
+
+                var bar = section.querySelector('.sectionTitleContainer');
+                var dots = section.querySelector('.nf-row-dots');
+                if (bar && !dots) {
+                    dots = el('div', 'nf-row-dots');
+                    bar.appendChild(dots);
+                }
+
+                function update() {
+                    var card = slider.querySelector('.card');
+                    if (card) {
+                        // The arrows cover the tiles, not the row's padding.
+                        var cardRect = card.getBoundingClientRect();
+                        var sectionRect = section.getBoundingClientRect();
+                        var top = Math.round(cardRect.top - sectionRect.top);
+                        var height = Math.round(cardRect.height);
+                        [prev, next].forEach(function (arrow) {
+                            arrow.style.top = top + 'px';
+                            arrow.style.height = height + 'px';
+                        });
+                    }
+
+                    var pages = Math.max(1, Math.ceil(slider.scrollWidth / slider.clientWidth));
+                    var page = Math.round(slider.scrollLeft / slider.clientWidth);
+
+                    prev.classList.toggle('is-disabled', slider.scrollLeft < 8);
+                    next.classList.toggle(
+                        'is-disabled',
+                        slider.scrollLeft + slider.clientWidth >= slider.scrollWidth - 8
+                    );
+
+                    if (!dots) return;
+                    if (dots.children.length !== pages) {
+                        dots.textContent = '';
+                        for (var i = 0; i < pages; i++) dots.appendChild(el('span'));
+                    }
+                    Array.prototype.forEach.call(dots.children, function (dot, i) {
+                        dot.classList.toggle('is-active', i === page);
+                    });
+                }
+
+                if (!slider.dataset.nfRowBound) {
+                    slider.dataset.nfRowBound = '1';
+                    slider.addEventListener('scroll', update, { passive: true });
+                    window.addEventListener('resize', update, { passive: true });
+                }
+
+                update();
             });
     }
 
@@ -1133,6 +1263,7 @@
         decorateDetail();
         mountHero();
         decorateTop10();
+        decorateRows();
         widenCards();
         reapplyThumbs();
     }
