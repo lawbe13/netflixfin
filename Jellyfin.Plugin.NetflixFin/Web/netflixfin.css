@@ -193,7 +193,7 @@ body.nf-scrolled .skinHeader {
 
 .sectionTitle,
 .sectionTitle-cards {
-    font-size: 1.55rem;
+    font-size: 1.8rem;
     font-weight: 500;
     color: #e5e5e5;
     letter-spacing: 0;
@@ -235,12 +235,13 @@ body.nf-scrolled .skinHeader {
     display: none;
 }
 
-/* Netflix fits six 16:9 tiles across a desktop row. Jellyfin's own sizing gives
+/* Netflix fits seven 16:9 tiles across a desktop row: at 1920px the row is
+   1800px wide and the tile pitch is 256px (248 + 8). Jellyfin's own sizing gives
    four oversized ones at the same width. */
 @media (min-width: 1600px) {
     .itemsContainer.scrollSlider > .card.overflowBackdropCard,
     .itemsContainer.scrollSlider > .card.backdropCard {
-        width: calc(100% / 6);
+        width: calc(100% / 7);
     }
 
     .itemsContainer.scrollSlider > .card.overflowPortraitCard,
@@ -302,9 +303,12 @@ body.nf-scrolled .skinHeader {
     transition: z-index 0s linear var(--nf-hover-delay);
 }
 
+/* The gap between tiles is owned by .card's padding alone. Left to itself the
+   cardBox adds ~9px a side on top, which reads as a 26px gutter against
+   Netflix's 8. */
 .cardBox {
-    margin: 0;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
     background: none !important;
     border: 0 !important;
     box-shadow: none !important;
@@ -415,8 +419,10 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
     border-radius: 0;
 }
 
-.itemProgressBarForeground {
-    background-color: var(--nf-accent);
+/* Jellyfin's blue is the single loudest tell that this is not Netflix. */
+.itemProgressBarForeground,
+.itemProgressBarForeground-recordingactive {
+    background-color: var(--nf-accent) !important;
 }
 
 /* --------------------------------------------------------------------------
