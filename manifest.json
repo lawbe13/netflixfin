@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "b8e0f7c2-6b3a-4a4a-9e2f-1d5c7a9b3e41",
+    "name": "NetflixFin",
+    "description": "Restyles the Jellyfin web client after Netflix: cinematic hero banner, 16:9 rows with expanding hover previews, pill-shaped action buttons, Top 10 rank numerals and a gradient header.",
+    "overview": "Netflix-style skin for the Jellyfin web client.",
+    "owner": "lawbe13",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/lawbe13/netflixfin/main/docs/logo.png",
+    "versions": []
+  }
+]

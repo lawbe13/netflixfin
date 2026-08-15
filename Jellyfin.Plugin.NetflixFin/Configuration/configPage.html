@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>NetflixFin</title>
+</head>
+<body>
+<div id="NetflixFinConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="NetflixFinConfigForm">
+
+                <h2 class="sectionTitle">NetflixFin</h2>
+                <p class="fieldDescription">
+                    Changes take effect after a refresh of the web client (Ctrl+Shift+R).
+                </p>
+
+                <h3 class="checkboxListLabel">Layout</h3>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableHeroBanner" />
+                    <span>Hero banner on the home screen</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="HeroAutoRotate" />
+                    <span>Rotate through hero titles</span>
+                </label>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="HeroRotateSeconds" min="4" max="120"
+                           label="Seconds per hero title" />
+                </div>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableHoverPreview" />
+                    <span>Expand cards on hover</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="HideCardText" />
+                    <span>Hide titles under cards</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="UseWideThumbnails" />
+                    <span>Use 16:9 backdrops in home rows instead of posters</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableTop10" />
+                    <span>Rank numerals on rows named "Top 10"</span>
+                </label>
+
+                <h3 class="checkboxListLabel">Appearance</h3>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="AccentColor" label="Accent colour" />
+                    <div class="fieldDescription">Netflix red is #E50914.</div>
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="BackgroundColor" label="Background colour" />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="CardRadius" min="0" max="32"
+                           label="Card corner radius (px)" />
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="LogoUrl" label="Header logo URL" />
+                    <div class="fieldDescription">Leave empty to keep the Jellyfin logo.</div>
+                </div>
+
+                <h3 class="checkboxListLabel">Advanced</h3>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableCss" />
+                    <span>Serve the stylesheet</span>
+                </label>
+
+                <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableScript" />
+                    <span>Serve the behaviour script</span>
+                </label>
+
+                <div class="inputContainer">
+                    <textarea is="emby-textarea" id="CustomCss" rows="8"
+                              label="Extra CSS (appended after the theme)"></textarea>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = 'b8e0f7c2-6b3a-4a4a-9e2f-1d5c7a9b3e41';
+
+            var checkboxes = ['EnableHeroBanner', 'HeroAutoRotate', 'EnableHoverPreview',
+                'HideCardText', 'UseWideThumbnails', 'EnableTop10', 'EnableCss', 'EnableScript'];
+            var texts = ['AccentColor', 'BackgroundColor', 'LogoUrl', 'CustomCss'];
+            var numbers = ['HeroRotateSeconds', 'CardRadius'];
+
+            function view() {
+                return document.querySelector('#NetflixFinConfigPage');
+            }
+
+            function load(config) {
+                var page = view();
+                checkboxes.forEach(function (key) {
+                    page.querySelector('#' + key).checked = !!config[key];
+                });
+                texts.concat(numbers).forEach(function (key) {
+                    page.querySelector('#' + key).value = config[key] != null ? config[key] : '';
+                });
+            }
+
+            document.querySelector('#NetflixFinConfigPage')
+                .addEventListener('pageshow', function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        load(config);
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector('#NetflixFinConfigForm')
+                .addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+                    var page = view();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        checkboxes.forEach(function (key) {
+                            config[key] = page.querySelector('#' + key).checked;
+                        });
+                        texts.forEach(function (key) {
+                            config[key] = page.querySelector('#' + key).value;
+                        });
+                        numbers.forEach(function (key) {
+                            config[key] = parseInt(page.querySelector('#' + key).value, 10) || 0;
+                        });
+                        ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+                    return false;
+                });
+        })();
+    </script>
+</div>
+</body>
+</html>

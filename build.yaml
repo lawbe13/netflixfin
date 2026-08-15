@@ -1,0 +1,17 @@
+---
+name: "NetflixFin"
+guid: "b8e0f7c2-6b3a-4a4a-9e2f-1d5c7a9b3e41"
+version: "1.0.0.0"
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+owner: "lawbe13"
+overview: "Netflix-style skin for the Jellyfin web client."
+description: >
+  Restyles the Jellyfin web client after Netflix: cinematic hero banner, 16:9 rows with
+  expanding hover previews, pill-shaped action buttons, Top 10 rank numerals and a
+  gradient header. Ships as a plugin so the theme survives client updates and can be
+  configured from the dashboard.
+category: "General"
+artifacts:
+  - "Jellyfin.Plugin.NetflixFin.dll"
+changelog: "Initial release."
