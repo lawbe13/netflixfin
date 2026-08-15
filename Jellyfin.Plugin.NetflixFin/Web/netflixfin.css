@@ -1267,7 +1267,11 @@ body.nf-hover-preview .cardOverlayContainer {
 /* Netflix's rank numeral is as tall as the tile and sits beside it, inside the
    tile's own footprint - so the row needs real room reserved for it, not a
    sliver, or the digit is clipped by the row's own horizontal scroll. */
+/* The numeral shares the tile with the poster, so a Top 10 tile is wider than a
+   normal one - reserving the column inside a 1/7 tile just shrinks the artwork.
+   Netflix fits roughly four and a half of these across. */
 .nf-top10 .itemsContainer.scrollSlider > .card {
+    width: calc(100% / 4.4) !important;
     padding-left: 5.4em !important;
 }
 
