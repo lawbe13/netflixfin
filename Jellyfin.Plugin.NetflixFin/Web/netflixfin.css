@@ -317,11 +317,13 @@ body.nf-scrolled .skinHeader {
     gap: 6px;
 }
 
-/* The account button is not an icon: Jellyfin paints the profile picture as its
-   background, so clearing backgrounds here erased it. */
-.headerRight .paper-icon-button-light:not(.headerUserButton),
-.headerRight .headerButton:not(.headerUserButton) {
-    background: transparent !important;
+/* Only the colour, never the image: the profile picture is a background-image,
+   and it lives on a child div that also carries .headerButton - so excluding
+   the account button by class missed it. Clearing background-color alone leaves
+   every avatar untouched wherever it sits. */
+.headerRight .paper-icon-button-light,
+.headerRight .headerButton {
+    background-color: transparent !important;
 }
 
 .headerRight .paper-icon-button-light,
