@@ -451,6 +451,19 @@ body.nf-scrolled .skinHeader {
     display: none;
 }
 
+/* A library page reuses the carousel's container class but wraps onto several
+   lines. netflixfin.js marks those, so they keep Jellyfin's own tile sizing and
+   get real spacing instead of the row rules, which left posters touching. */
+.itemsContainer.nf-grid {
+    overflow: visible;
+    flex-wrap: wrap;
+}
+
+.itemsContainer.nf-grid > .card {
+    width: auto !important;
+    padding: 0 8px 20px !important;
+}
+
 /* Row arrows: 52px tall as the tiles, flush to the viewport edges (not to the
    gutter), revealed on row hover. */
 .nf-row-arrow {

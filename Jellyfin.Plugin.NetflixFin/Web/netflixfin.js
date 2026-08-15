@@ -141,10 +141,10 @@
      * controls, so only the first film and series library are linked - the rest
      * stay one click away in Jellyfin's own drawer. */
     function navTargets() {
-        var tabs = document.querySelectorAll('.headerTabs .emby-tab-button');
-        if (!tabs.length) return [];
-
-        var targets = [{ label: tabs[0].textContent.trim(), tab: tabs[0], index: 0 }];
+        // A fixed set of links, never the current page's tabs. Proxying those
+        // filled the bar with whatever Jellyfin showed for that route -
+        // Suggestions, Collections, Genres - as links that went nowhere.
+        var targets = [{ label: 'Home', hash: '#/home' }];
 
         var series = firstView('tvshows');
         if (series) {
@@ -162,10 +162,6 @@
                 hash: '#/movies?topParentId=' + movies.Id,
                 collectionType: 'movies'
             });
-        }
-
-        for (var i = 1; i < tabs.length; i++) {
-            targets.push({ label: tabs[i].textContent.trim(), tab: tabs[i], index: i });
         }
 
         return targets;
@@ -401,6 +397,20 @@
             .forEach(function (slider) {
                 var section = slider.closest('.verticalSection') || slider.parentElement;
                 if (!section) return;
+
+                // A library page uses the same container class as a carousel but
+                // wraps onto several lines. Treating it as a row applies
+                // row-width rules and leaves the posters touching, so it is
+                // marked and styled as the grid it is.
+                var cards = slider.querySelectorAll('.card');
+                if (cards.length > 1) {
+                    var firstTop = cards[0].getBoundingClientRect().top;
+                    var wrapped = Array.prototype.some.call(cards, function (card) {
+                        return Math.abs(card.getBoundingClientRect().top - firstTop) > 4;
+                    });
+                    slider.classList.toggle('nf-grid', wrapped);
+                    if (wrapped) return;
+                }
 
                 section.classList.add('nf-row');
                 if (getComputedStyle(section).position === 'static') {
