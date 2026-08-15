@@ -1049,38 +1049,157 @@ body.nf-detail .backdropImage {
    11. Player
    -------------------------------------------------------------------------- */
 
+/* Netflix's player: a tall bottom scrim, a full-width red scrubber with the
+   remaining time beside it, then one row of controls - transport hard left,
+   title centred, options hard right. Jellyfin ships the same buttons in a
+   single centred cluster, so they are re-ordered with flex rather than moved. */
 .videoOsdBottom {
     background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0) 100%);
-    padding-bottom: 1rem;
+    padding: 4rem var(--nf-gutter) 1.5rem;
 }
 
-.osdControls .sliderBubble {
+.videoOsdBottom .osdControls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Scrubber */
+.videoOsdBottom .sliderContainer {
+    margin: 0 0 0.5rem;
+}
+
+.videoOsdBottom .mdl-slider-background-flex,
+.videoOsdBottom .mdl-slider-background-upper {
+    background: rgba(255, 255, 255, 0.3) !important;
+    height: 4px;
+    border-radius: 0;
+}
+
+.videoOsdBottom .mdl-slider-background-lower {
+    background-color: var(--nf-accent) !important;
+    height: 4px;
+    border-radius: 0;
+}
+
+.videoOsdBottom input[type="range"]::-webkit-slider-thumb {
+    background: var(--nf-accent);
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    transition: transform 0.15s var(--nf-ease);
+}
+
+.videoOsdBottom .sliderContainer:hover input[type="range"]::-webkit-slider-thumb {
+    transform: scale(1.35);
+}
+
+.videoOsdBottom .sliderBubble {
     background: #fff;
     color: #000;
     border-radius: 2px;
+    font-weight: 500;
 }
 
-.sliderContainer .mdl-slider-background-lower,
-.videoOsdBottom .mdl-slider-background-lower {
-    background-color: var(--nf-accent) !important;
+/* Times sit at the ends of the bar, as Netflix places the remaining time. */
+.videoOsdBottom .osdTimeText,
+.videoOsdBottom .osdPositionText,
+.videoOsdBottom .osdDurationText {
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
 }
 
-.videoOsdBottom .mdl-slider::-webkit-slider-thumb {
-    background: var(--nf-accent);
+/* Control row */
+.videoOsdBottom .buttons,
+.videoOsdBottom .osdControls > .flex:last-child {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .videoOsdBottom .paper-icon-button-light {
     color: #fff !important;
+    width: 44px;
+    height: 44px;
+    transition: transform 0.12s var(--nf-ease), opacity 0.12s var(--nf-ease);
 }
 
 .videoOsdBottom .paper-icon-button-light:hover {
     color: #fff !important;
-    transform: scale(1.15);
+    transform: scale(1.18);
 }
 
-.osdTitle,
-.osdMediaInfo {
+.videoOsdBottom .paper-icon-button-light .material-icons {
+    font-size: 30px;
+}
+
+/* Netflix order: transport left, title centre, options right. */
+.videoOsdBottom .btnPause,
+.videoOsdBottom .btnPlay {
+    order: 1;
+}
+
+.videoOsdBottom .btnRewind {
+    order: 2;
+}
+
+.videoOsdBottom .btnFastForward {
+    order: 3;
+}
+
+.videoOsdBottom .buttonMute {
+    order: 4;
+}
+
+.videoOsdBottom .osdTextContainer,
+.videoOsdBottom .osdTitle {
+    order: 5;
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
     font-weight: 500;
+    color: #fff;
+}
+
+.videoOsdBottom .btnSubtitles {
+    order: 6;
+}
+
+.videoOsdBottom .btnAudio {
+    order: 7;
+}
+
+.videoOsdBottom .btnNextTrack {
+    order: 8;
+}
+
+.videoOsdBottom .btnVideoOsdSettings {
+    order: 9;
+}
+
+.videoOsdBottom .btnFullscreen,
+.videoOsdBottom .btnToggleFullscreen {
+    order: 10;
+}
+
+/* Netflix keeps no chapter or record controls on screen. */
+.videoOsdBottom .btnRecord,
+.videoOsdBottom .btnPreviousChapter,
+.videoOsdBottom .btnNextChapter,
+.videoOsdBottom .btnUserRating {
+    display: none !important;
+}
+
+.osdMediaInfo {
+    font-weight: 400;
+    color: var(--nf-text-meta);
+}
+
+/* The player's own header is a back arrow on a scrim, nothing more. */
+.videoPlayerContainer ~ .skinHeader,
+.osdHeader {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 100%) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
