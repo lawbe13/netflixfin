@@ -292,8 +292,23 @@
         return hero;
     }
 
+    /* Media Bar Enhanced and friends already put a hero on the home screen. Two of
+     * them stacked is worse than either alone, so theirs wins - it is the one the
+     * user configured. */
+    var RIVAL_HERO = '#slides-container, #slideshow, .mediaBar, .jellyfin-enhanced-hero';
+
+    function hasRivalHero() {
+        return !!document.querySelector(RIVAL_HERO);
+    }
+
     function mountHero() {
         if (!cfg.enableHeroBanner) return;
+        if (hasRivalHero()) {
+            document.querySelectorAll('.nf-hero').forEach(function (node) {
+                node.remove();
+            });
+            return;
+        }
         if (!/#\/home/.test(window.location.hash) && window.location.hash !== '' && window.location.hash !== '#/') {
             return;
         }

@@ -166,9 +166,7 @@ body.nf-scrolled .skinHeader {
    -------------------------------------------------------------------------- */
 
 .homeSectionsContainer,
-.itemsViewContainer,
-.pageWithAbsoluteTabs .padded-left,
-.view:not(.hide) > .padded-left {
+.itemsViewContainer {
     padding-left: 0;
     padding-right: 0;
 }
@@ -177,15 +175,25 @@ body.nf-scrolled .skinHeader {
     margin-bottom: 0.5rem;
 }
 
+/* One gutter, applied in one place. Jellyfin pads the scroller with its own
+   percentage-based `padded-left` (70px at 2133px wide); left alone it stacks with
+   ours and the rows end up indented twice as far as the row titles. */
+.emby-scroller,
+.emby-scroller-container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
 .sectionTitleContainer {
-    padding: 0 var(--nf-gutter);
+    padding-left: var(--nf-gutter) !important;
+    padding-right: var(--nf-gutter) !important;
     margin-bottom: 0.5rem;
     align-items: baseline;
 }
 
 .sectionTitle,
 .sectionTitle-cards {
-    font-size: 1.4rem;
+    font-size: 1.55rem;
     font-weight: 500;
     color: #e5e5e5;
     letter-spacing: 0;
@@ -206,21 +214,56 @@ body.nf-scrolled .skinHeader {
     opacity: 1;
 }
 
-/* A horizontal scroller clips whatever leaves its box, so a card that scales on
-   hover gets sliced. Rather than fight the overflow (which would kill the
-   horizontal scroll), the row is given vertical padding to grow into and pulled
-   back into place with an equal negative margin: same layout height, room to
-   spare inside. */
-.emby-scroller {
-    padding-top: var(--nf-row-slack);
-    padding-bottom: var(--nf-row-slack);
+/* The row is the scroll box. Jellyfin only adds its clipping `.scrollX` class on
+   some layouts, and rows built by the Home Screen Sections plugin never get it,
+   which lets a row's full width push the whole document sideways. Owning the
+   overflow here fixes that and gives the hover-scaled cards somewhere to grow:
+   the vertical padding is inside the scroll box, so a card that scales up stays
+   within the padding instead of being clipped, and the matching negative margin
+   keeps the row's layout height unchanged. */
+.itemsContainer.scrollSlider {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--nf-row-slack) var(--nf-gutter);
     margin-top: calc(var(--nf-row-slack) * -1);
     margin-bottom: calc(var(--nf-row-slack) * -1);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-.itemsContainer.scrollSlider {
-    padding-left: var(--nf-gutter);
-    padding-right: var(--nf-gutter);
+.itemsContainer.scrollSlider::-webkit-scrollbar {
+    display: none;
+}
+
+/* Netflix fits six 16:9 tiles across a desktop row. Jellyfin's own sizing gives
+   four oversized ones at the same width. */
+@media (min-width: 1600px) {
+    .itemsContainer.scrollSlider > .card.overflowBackdropCard,
+    .itemsContainer.scrollSlider > .card.backdropCard {
+        width: calc(100% / 6);
+    }
+
+    .itemsContainer.scrollSlider > .card.overflowPortraitCard,
+    .itemsContainer.scrollSlider > .card.portraitCard {
+        width: calc(100% / 9);
+    }
+
+    .itemsContainer.scrollSlider > .card.overflowSquareCard,
+    .itemsContainer.scrollSlider > .card.squareCard {
+        width: calc(100% / 8);
+    }
+}
+
+@media (min-width: 1200px) and (max-width: 1599px) {
+    .itemsContainer.scrollSlider > .card.overflowBackdropCard,
+    .itemsContainer.scrollSlider > .card.backdropCard {
+        width: calc(100% / 5);
+    }
+
+    .itemsContainer.scrollSlider > .card.overflowPortraitCard,
+    .itemsContainer.scrollSlider > .card.portraitCard {
+        width: calc(100% / 7);
+    }
 }
 
 /* Netflix rows sit flush; Jellyfin pads every card. */
