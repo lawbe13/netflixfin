@@ -274,9 +274,17 @@
             container.insertBefore(art, container.firstChild);
         }
 
+        // Logo and action row live on the art, so they have to be inside it -
+        // absolute offsets resolve against the nearest positioned ancestor, and
+        // the container wraps the whole card, copy included.
         var logo = document.querySelector('.detailLogo');
-        if (logo && logo.parentElement !== container) {
-            container.appendChild(logo);
+        if (logo && logo.parentElement !== art) {
+            art.appendChild(logo);
+        }
+
+        var ribbon = document.querySelector('.detailRibbon');
+        if (ribbon && ribbon.parentElement !== art) {
+            art.appendChild(ribbon);
         }
     }
 

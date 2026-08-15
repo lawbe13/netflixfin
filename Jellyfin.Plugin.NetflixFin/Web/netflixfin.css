@@ -776,17 +776,18 @@ body.nf-detail .backdropImage {
             rgba(24, 24, 24, 0.75) 85%,
             var(--nf-bg-elevated) 100%
         );
+        pointer-events: none;
     }
 
-    body.nf-detail .detailLogo {
+    body.nf-detail .nf-detail-art .detailLogo {
         position: absolute;
         z-index: 2;
         left: 44px;
         right: auto;
         top: auto;
-        bottom: 38%;
+        bottom: 34%;
         width: 42%;
-        height: 22%;
+        height: 24%;
         background-position: left bottom;
         background-size: contain;
     }
@@ -797,12 +798,12 @@ body.nf-detail .backdropImage {
     }
 
     /* The actions sit on the art, Netflix-style, not in a band below it. */
-    body.nf-detail .detailRibbon {
+    body.nf-detail .nf-detail-art .detailRibbon {
         position: absolute;
         z-index: 2;
         left: 44px;
         right: 44px;
-        bottom: 8%;
+        bottom: 7%;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
