@@ -203,14 +203,23 @@
                         cards.forEach(function (card) {
                             var container = card.querySelector('.cardImageContainer');
                             if (!container) return;
-                            container.style.backgroundImage =
-                                'url("' +
-                                client.getImageUrl(card.dataset.id, {
-                                    type: 'Backdrop',
-                                    maxWidth: 640,
-                                    tag: tags[card.dataset.id]
-                                }) +
-                                '")';
+
+                            var url = client.getImageUrl(card.dataset.id, {
+                                type: 'Backdrop',
+                                maxWidth: 640,
+                                tag: tags[card.dataset.id]
+                            });
+
+                            // Jellyfin clears its blurhash placeholder when its own
+                            // image loads. Ours is a different URL, so that never
+                            // happens and the blur stays on top of the artwork.
+                            var preload = new Image();
+                            preload.onload = function () {
+                                container.classList.remove('blurhashed');
+                            };
+                            preload.src = url;
+
+                            container.style.backgroundImage = 'url("' + url + '")';
                             card.classList.add('nf-wide');
                         });
 
