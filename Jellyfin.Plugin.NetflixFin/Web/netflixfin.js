@@ -691,7 +691,7 @@
         return row;
     }
 
-    function buildEpisodes(item, client, mount) {
+    function buildEpisodes(item, client, mount, focusSeasonId) {
         client
             .getJSON(client.getUrl('Shows/' + item.Id + '/Seasons', {
                 userId: client.getCurrentUserId()
@@ -775,7 +775,16 @@
                 select.addEventListener('change', function () {
                     loadSeason(select.value);
                 });
-                loadSeason(seasons[0].Id);
+
+                // Opened from an episode, the list starts on that episode's
+                // season rather than the first.
+                var start = focusSeasonId && seasons.some(function (season) {
+                    return season.Id === focusSeasonId;
+                })
+                    ? focusSeasonId
+                    : seasons[0].Id;
+                select.value = start;
+                loadSeason(start);
             })
             .catch(function (err) {
                 log('episodes failed', err);
@@ -877,7 +886,7 @@
         return section;
     }
 
-    function buildModal(item, client) {
+    function buildModal(item, client, episode) {
         var scrim = el('div', 'nf-modal-scrim');
         scrim.addEventListener('click', function (event) {
             if (event.target === scrim) closeModal();
@@ -888,11 +897,13 @@
         // An episode has no backdrop of its own - its artwork is the still, which
         // Jellyfin files as Primary. Anything else without a backdrop falls back
         // the same way rather than showing an empty header.
+        // Headed by the episode's own still when there is one.
         var art = el('div', 'nf-modal-art');
         var hasBackdrop = !!(item.BackdropImageTags && item.BackdropImageTags.length);
-        var artType = item.Type === 'Episode' || !hasBackdrop ? 'Primary' : 'Backdrop';
+        var artSource = episode || item;
+        var artType = episode || !hasBackdrop ? 'Primary' : 'Backdrop';
         art.style.backgroundImage =
-            'url("' + client.getImageUrl(item.Id, { type: artType, maxWidth: 1280 }) + '")';
+            'url("' + client.getImageUrl(artSource.Id, { type: artType, maxWidth: 1280 }) + '")';
 
         var close = el('button', 'nf-modal-close');
         close.type = 'button';
@@ -911,14 +922,28 @@
             hero.appendChild(el('h2', 'nf-modal-title', item.Name));
         }
 
+        // The resume bar Netflix draws over the art: "17 di 44min".
+        var resumeOf = episode || item;
+        var position = resumeOf.UserData && resumeOf.UserData.PlaybackPositionTicks;
+        if (position && resumeOf.RunTimeTicks) {
+            var bar = el('div', 'nf-modal-resume');
+            var fill = el('span');
+            fill.style.width = Math.min(100, (position / resumeOf.RunTimeTicks) * 100) + '%';
+            bar.appendChild(fill);
+            var done = minutes(position);
+            var total = minutes(resumeOf.RunTimeTicks);
+            bar.appendChild(el('em', null, done + ' di ' + total + 'min'));
+            hero.appendChild(bar);
+        }
+
         var actions = el('div', 'nf-modal-actions');
         var play = el('button', 'nf-btn nf-btn-primary');
         play.type = 'button';
         play.appendChild(icon('play_arrow'));
-        play.appendChild(el('span', null, 'Riproduci'));
+        play.appendChild(el('span', null, position ? 'Riprendi' : 'Riproduci'));
         play.addEventListener('click', function () {
             closeModal();
-            goToDetails(item.Id, item.ServerId, true);
+            goToDetails(resumeOf.Id, resumeOf.ServerId, true);
         });
         actions.appendChild(play);
 
@@ -955,7 +980,16 @@
         if (item.OfficialRating) meta.appendChild(el('span', 'nf-badge', item.OfficialRating));
         left.appendChild(meta);
 
-        left.appendChild(el('p', 'nf-modal-overview', item.Overview || ''));
+        // With an episode in focus its title and synopsis lead, as Netflix shows
+        // S4:E8 "Episodio 8" above the episode's own description.
+        if (episode) {
+            var heading =
+                'S' + (episode.ParentIndexNumber || 1) + ':E' + (episode.IndexNumber || 1) +
+                ' "' + episode.Name + '"';
+            left.appendChild(el('h3', 'nf-modal-episode-heading', heading));
+        }
+
+        left.appendChild(el('p', 'nf-modal-overview', (episode || item).Overview || ''));
         body.appendChild(left);
 
         var facts = el('dl', 'nf-modal-facts');
@@ -994,7 +1028,7 @@
         if (item.Type === 'Series') {
             var episodes = el('div', 'nf-modal-section nf-modal-episodes');
             modal.appendChild(episodes);
-            buildEpisodes(item, client, episodes);
+            buildEpisodes(item, client, episodes, episode ? episode.SeasonId : null);
         }
 
         var similar = el('div', 'nf-modal-section');
@@ -1012,6 +1046,9 @@
         modalScrim = scrim;
     }
 
+    /* Netflix has no separate modal for an episode: it opens the series, headed
+     * by that episode - its still, its S:E title and synopsis, its resume bar -
+     * with the episode list already on the right season. */
     function openModal(id) {
         var client = api();
         if (!client || !id) return;
@@ -1022,7 +1059,15 @@
         client
             .getItem(client.getCurrentUserId(), id)
             .then(function (item) {
-                buildModal(item, client);
+                if (item.Type !== 'Episode' || !item.SeriesId) {
+                    buildModal(item, client);
+                    return;
+                }
+                return client
+                    .getItem(client.getCurrentUserId(), item.SeriesId)
+                    .then(function (series) {
+                        buildModal(series, client, item);
+                    });
             })
             .catch(function (err) {
                 log('modal failed', err);

@@ -338,10 +338,19 @@ body.nf-scrolled .skinHeader {
     font-size: 24px;
 }
 
+/* Emptying the span is not enough: the icon font draws the glyph from a ::before
+   rule keyed on the class, so the Material mark stayed beside the drawn one. */
 .headerRight .nf-header-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: 0 !important;
+}
+
+.headerRight .nf-header-icon::before,
+.headerRight .nf-header-icon::after {
+    content: none !important;
+    display: none !important;
 }
 
 .headerRight .nf-header-icon svg {
@@ -1051,6 +1060,40 @@ body.nf-hover-preview .cardOverlayContainer {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Resume bar over the art: a red fill with the elapsed reading beside it. */
+.nf-modal-resume {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nf-modal-resume span {
+    display: block;
+    height: 4px;
+    background: var(--nf-accent);
+    max-width: 42%;
+    min-width: 8px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+}
+
+.nf-modal-resume::before {
+    content: "";
+    order: -1;
+}
+
+.nf-modal-resume em {
+    font-style: normal;
+    font-size: 15px;
+    color: #d2d2d2;
+}
+
+.nf-modal-episode-heading {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 10px;
 }
 
 .nf-modal-body {
