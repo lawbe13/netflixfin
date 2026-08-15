@@ -248,13 +248,13 @@ body.nf-scrolled .skinHeader {
         width: calc(100% / 7);
     }
 
-    .itemsContainer.scrollSlider > .card.overflowPortraitCard,
-    .itemsContainer.scrollSlider > .card.portraitCard {
+    .itemsContainer.scrollSlider > .card.overflowPortraitCard:not(.nf-wide),
+    .itemsContainer.scrollSlider > .card.portraitCard:not(.nf-wide) {
         width: calc(100% / 9);
     }
 
-    .itemsContainer.scrollSlider > .card.overflowSquareCard,
-    .itemsContainer.scrollSlider > .card.squareCard {
+    .itemsContainer.scrollSlider > .card.overflowSquareCard:not(.nf-wide),
+    .itemsContainer.scrollSlider > .card.squareCard:not(.nf-wide) {
         width: calc(100% / 8);
     }
 }
@@ -266,8 +266,8 @@ body.nf-scrolled .skinHeader {
         width: calc(100% / 5);
     }
 
-    .itemsContainer.scrollSlider > .card.overflowPortraitCard,
-    .itemsContainer.scrollSlider > .card.portraitCard {
+    .itemsContainer.scrollSlider > .card.overflowPortraitCard:not(.nf-wide),
+    .itemsContainer.scrollSlider > .card.portraitCard:not(.nf-wide) {
         width: calc(100% / 7);
     }
 }
