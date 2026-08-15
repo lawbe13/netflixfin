@@ -34,7 +34,6 @@
     --nf-hover-delay: 0.4s;
     --nf-ease: cubic-bezier(0.4, 0, 0.2, 1);
     --nf-font: "Netflix Sans", "Helvetica Neue", "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
-    --nf-row-slack: 5em;
 }
 
 @media (max-width: 1400px) {
@@ -275,11 +274,42 @@ body.nf-scrolled .skinHeader {
     display: none !important;
 }
 
+/* Netflix's bar icons: white, 24px glyphs in a 40px hit area, evenly spaced,
+   no Material ripple or tint. */
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .headerRight .paper-icon-button-light,
 .headerRight .headerButton {
     color: var(--nf-text) !important;
     width: 40px;
     height: 40px;
+    padding: 0;
+    border-radius: 4px;
+    background: transparent !important;
+    transition: opacity 0.15s var(--nf-ease);
+}
+
+.headerRight .paper-icon-button-light:hover,
+.headerRight .headerButton:hover {
+    opacity: 0.75;
+    color: var(--nf-text) !important;
+}
+
+.headerRight .material-icons {
+    font-size: 24px;
+}
+
+/* The account button is Netflix's square avatar. */
+.headerRight .headerUserButton img,
+.headerRight .headerUserButton .material-icons {
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    font-size: 32px;
 }
 
 /* --------------------------------------------------------------------------
@@ -375,9 +405,11 @@ body.nf-scrolled .skinHeader {
 .itemsContainer.scrollSlider {
     overflow-x: auto;
     overflow-y: hidden;
-    padding: var(--nf-row-slack) var(--nf-gutter);
-    margin-top: calc(var(--nf-row-slack) * -1);
-    margin-bottom: calc(var(--nf-row-slack) * -1);
+    /* No vertical slack any more: the hover preview is a fixed-position panel
+       outside the row, so nothing needs room to grow into. The padding/negative
+       margin pair this replaces was pulling each row's tiles up over its own
+       heading, which is why some titles looked missing. */
+    padding: 0 var(--nf-gutter);
     scrollbar-width: none;
     -ms-overflow-style: none;
     scroll-behavior: smooth;
@@ -988,8 +1020,94 @@ body.nf-hover-preview .cardOverlayContainer {
     margin-top: 10px;
 }
 
-.nf-modal-episodes {
+.nf-modal-section {
     padding: 0 44px 32px;
+}
+
+.nf-modal-section > h3 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 16px;
+}
+
+/* "Altri titoli simili": a three-across grid of cards, artwork over a short
+   metadata line and synopsis. */
+.nf-similar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.nf-similar-card {
+    background: #2f2f2f;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background-color 0.15s var(--nf-ease);
+}
+
+.nf-similar-card:hover {
+    background: #3a3a3a;
+}
+
+.nf-similar-art {
+    aspect-ratio: 16 / 9;
+    background-size: cover;
+    background-position: center;
+    background-color: #2a2a2a;
+}
+
+.nf-similar-body {
+    padding: 12px;
+}
+
+.nf-similar-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--nf-text-meta);
+    margin-bottom: 8px;
+}
+
+.nf-similar-meta .nf-match {
+    color: #46d369;
+    font-weight: 700;
+}
+
+.nf-similar-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 0 6px;
+}
+
+.nf-similar-overview {
+    font-size: 12px;
+    line-height: 18px;
+    color: #d2d2d2;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* "Informazioni su <titolo>" - the long-form credits block. */
+.nf-modal-about div {
+    font-size: 14px;
+    line-height: 22px;
+    margin-bottom: 10px;
+}
+
+.nf-modal-about .nf-label {
+    color: #777;
+}
+
+@media (max-width: 820px) {
+    .nf-similar {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .nf-modal-episodes-head {

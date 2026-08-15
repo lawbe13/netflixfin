@@ -24,7 +24,9 @@
         window.NetflixFinConfig || {}
     );
 
-    var TOP10_RE = /top\s*-?\s*10/i;
+    /* Netflix's row is "I 10 titoli più visti oggi", not literally "Top 10", so
+       both spellings count. */
+    var TOP10_RE = /top\s*-?\s*10|\b10\s+(titoli|piu|più)\b/i;
     var heroTimer = null;
 
     /* ---------------------------------------------------------------- utils */
@@ -682,6 +684,97 @@
             });
     }
 
+    /* "Altri titoli simili" - the suggestions grid both Netflix modals carry. */
+    function buildSimilar(item, client, mount) {
+        client
+            .getJSON(client.getUrl('Items/' + item.Id + '/Similar', {
+                userId: client.getCurrentUserId(),
+                limit: 9,
+                fields: 'Overview,Genres,ProductionYear,OfficialRating'
+            }))
+            .then(function (result) {
+                var items = result.Items || [];
+                if (!items.length) return;
+
+                mount.appendChild(el('h3', null, 'Altri titoli simili'));
+                var grid = el('div', 'nf-similar');
+
+                items.forEach(function (similar) {
+                    var card = el('div', 'nf-similar-card');
+
+                    var art = el('div', 'nf-similar-art');
+                    var type = similar.ImageTags && similar.ImageTags.Thumb ? 'Thumb' : 'Primary';
+                    art.style.backgroundImage =
+                        'url("' + client.getImageUrl(similar.Id, { type: type, maxWidth: 400 }) + '")';
+                    card.appendChild(art);
+
+                    var body = el('div', 'nf-similar-body');
+                    var meta = el('div', 'nf-similar-meta');
+                    if (similar.CommunityRating) {
+                        meta.appendChild(
+                            el('span', 'nf-match', Math.round(similar.CommunityRating * 10) + '%')
+                        );
+                    }
+                    if (similar.ProductionYear) {
+                        meta.appendChild(el('span', null, String(similar.ProductionYear)));
+                    }
+                    var runtime = runtimeLabel(similar);
+                    if (runtime) meta.appendChild(el('span', null, runtime));
+                    body.appendChild(meta);
+
+                    body.appendChild(el('h4', 'nf-similar-name', similar.Name));
+                    body.appendChild(el('p', 'nf-similar-overview', similar.Overview || ''));
+                    card.appendChild(body);
+
+                    card.addEventListener('click', function () {
+                        openModal(similar.Id);
+                    });
+
+                    grid.appendChild(card);
+                });
+
+                mount.appendChild(grid);
+            })
+            .catch(function (err) {
+                log('similar failed', err);
+            });
+    }
+
+    /* "Informazioni su <titolo>" - the long-form credits Netflix puts last. */
+    function buildAbout(item) {
+        var section = el('div', 'nf-modal-section nf-modal-about');
+        section.appendChild(el('h3', null, 'Informazioni su ' + item.Name));
+
+        var people = item.People || [];
+        var byType = function (type) {
+            return people
+                .filter(function (person) {
+                    return person.Type === type;
+                })
+                .map(function (person) {
+                    return person.Name;
+                })
+                .join(', ');
+        };
+
+        [
+            ['Regia', byType('Director')],
+            ['Cast', byType('Actor')],
+            ['Sceneggiatura', byType('Writer')],
+            ['Generi', (item.Genres || []).join(', ')],
+            ['Questo titolo è', (item.Tags || []).slice(0, 6).join(', ')],
+            ['Classificazione', item.OfficialRating]
+        ].forEach(function (pair) {
+            if (!pair[1]) return;
+            var row = el('div');
+            row.appendChild(el('span', 'nf-label', pair[0] + ': '));
+            row.appendChild(el('span', null, pair[1]));
+            section.appendChild(row);
+        });
+
+        return section;
+    }
+
     function buildModal(item, client) {
         var scrim = el('div', 'nf-modal-scrim');
         scrim.addEventListener('click', function (event) {
@@ -789,11 +882,19 @@
         body.appendChild(facts);
         modal.appendChild(body);
 
+        // Only a series gets the episode block; a film goes straight to the
+        // suggestions, which is the difference between Netflix's two modals.
         if (item.Type === 'Series') {
-            var episodes = el('div', 'nf-modal-episodes');
+            var episodes = el('div', 'nf-modal-section nf-modal-episodes');
             modal.appendChild(episodes);
             buildEpisodes(item, client, episodes);
         }
+
+        var similar = el('div', 'nf-modal-section');
+        modal.appendChild(similar);
+        buildSimilar(item, client, similar);
+
+        modal.appendChild(buildAbout(item));
 
         scrim.appendChild(modal);
         document.body.appendChild(scrim);
