@@ -25,10 +25,6 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Resolve version
         id: v
         run: |
@@ -37,39 +33,79 @@ jobs:
           else
             V="${GITHUB_REF_NAME#v}"
           fi
-          # Jellyfin wants a four-part version
+          # Jellyfin expects a four-part version.
           case "$(echo "$V" | awk -F. '{print NF}')" in
             3) V="$V.0" ;;
             2) V="$V.0.0" ;;
           esac
           echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=v$V" >> "$GITHUB_OUTPUT"
 
-      - name: Install jprm
-        run: python -m pip install --upgrade jprm
-
-      - name: Build plugin package
-        id: build
+      - name: Build
         run: |
-          ZIP=$(jprm --verbosity=debug plugin build . \
-            --output ./artifacts --version "${{ steps.v.outputs.version }}")
-          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          dotnet publish Jellyfin.Plugin.NetflixFin/Jellyfin.Plugin.NetflixFin.csproj \
+            -c Release -o publish \
+            -p:AssemblyVersion=${{ steps.v.outputs.version }} \
+            -p:FileVersion=${{ steps.v.outputs.version }}
 
-      - name: Update repository manifest
+      - name: Package
+        id: pkg
         run: |
-          jprm repo add --url \
-            "https://github.com/${{ github.repository }}/releases/download/v${{ steps.v.outputs.version }}" \
-            ./manifest.json "${{ steps.build.outputs.zip }}"
+          mkdir -p artifacts
+          NAME="netflixfin_${{ steps.v.outputs.version }}.zip"
+          (cd publish && zip -q -r "../artifacts/$NAME" Jellyfin.Plugin.NetflixFin.dll)
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "path=artifacts/$NAME" >> "$GITHUB_OUTPUT"
+          echo "checksum=$(md5sum "artifacts/$NAME" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ steps.v.outputs.version }}" \
-            --title "NetflixFin ${{ steps.v.outputs.version }}" \
-            --generate-notes \
-            "${{ steps.build.outputs.zip }}" || \
-          gh release upload "v${{ steps.v.outputs.version }}" \
-            "${{ steps.build.outputs.zip }}" --clobber
+          if gh release view "${{ steps.v.outputs.tag }}" >/dev/null 2>&1; then
+            gh release upload "${{ steps.v.outputs.tag }}" "${{ steps.pkg.outputs.path }}" --clobber
+          else
+            gh release create "${{ steps.v.outputs.tag }}" \
+              --title "NetflixFin ${{ steps.v.outputs.version }}" \
+              --generate-notes "${{ steps.pkg.outputs.path }}"
+          fi
+
+      - name: Update manifest
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          CHECKSUM: ${{ steps.pkg.outputs.checksum }}
+          ASSET: ${{ steps.pkg.outputs.name }}
+          TAG: ${{ steps.v.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json, os, datetime
+
+          version  = os.environ['VERSION']
+          entry = {
+              'version':   version,
+              'changelog': f'See https://github.com/{os.environ["REPO"]}/releases/tag/{os.environ["TAG"]}',
+              'targetAbi': '10.11.0.0',
+              'sourceUrl': (
+                  f'https://github.com/{os.environ["REPO"]}/releases/download/'
+                  f'{os.environ["TAG"]}/{os.environ["ASSET"]}'
+              ),
+              'checksum':  os.environ['CHECKSUM'],
+              'timestamp': datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ'),
+          }
+
+          with open('manifest.json') as fh:
+              manifest = json.load(fh)
+
+          versions = manifest[0].setdefault('versions', [])
+          versions = [v for v in versions if v.get('version') != version]
+          versions.insert(0, entry)
+          manifest[0]['versions'] = versions
+
+          with open('manifest.json', 'w') as fh:
+              json.dump(manifest, fh, indent=2)
+              fh.write('\n')
+          PY
 
       - name: Commit manifest
         run: |
