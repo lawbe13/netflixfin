@@ -102,6 +102,12 @@
         var hasLogo = !!logo && getComputedStyle(logo).backgroundImage !== 'none';
         document.body.classList.toggle('nf-detail-logo', hasLogo);
 
+        // The logo is lazy-loaded into a background-image, which is not a DOM
+        // mutation, so the observer never sees it arrive.
+        if (logo && !hasLogo) {
+            setTimeout(decorateDetail, 700);
+        }
+
         document.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
             .forEach(function (button) {
                 var content = button.querySelector('.detailButton-content');

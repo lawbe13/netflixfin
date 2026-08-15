@@ -40,11 +40,16 @@
    -------------------------------------------------------------------------- */
 
 html,
-body,
+body {
+    background-color: var(--nf-bg) !important;
+}
+
+/* Jellyfin's backdrop container sits at z-index -1, so anything opaque on the
+   page stack hides it. The page keeps its colour from html/body instead. */
 .skinBody,
 .mainAnimatedPages,
 .backgroundContainer {
-    background-color: var(--nf-bg) !important;
+    background-color: transparent !important;
 }
 
 body,
@@ -694,6 +699,7 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
 .mainDetailButtons .btnPlay .detailButton-content,
 .mainDetailButtons .btnResume .detailButton-content {
     display: inline-flex;
+    flex-direction: row;
     align-items: center;
     gap: 0.45em;
 }
@@ -779,6 +785,18 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
     body.nf-detail .detailPagePrimaryContent,
     body.nf-detail .detailPageContent {
         max-width: 56rem;
+    }
+
+    /* Jellyfin's ribbon is a row with the title left and the actions pushed to the
+       far right. Netflix stacks title, metadata and actions on the left edge. */
+    body.nf-detail .detailRibbon {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    body.nf-detail .mainDetailButtons {
+        margin: 0;
     }
 }
 
