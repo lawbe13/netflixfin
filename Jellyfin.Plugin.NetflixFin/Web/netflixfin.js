@@ -687,10 +687,12 @@
     /* "Altri titoli simili" - the suggestions grid both Netflix modals carry. */
     function buildSimilar(item, client, mount) {
         client
+            // Jellyfin's query parameters are PascalCase; a lowercase "limit" is
+            // ignored and the server returns its own default count.
             .getJSON(client.getUrl('Items/' + item.Id + '/Similar', {
-                userId: client.getCurrentUserId(),
-                limit: 9,
-                fields: 'Overview,Genres,ProductionYear,OfficialRating'
+                UserId: client.getCurrentUserId(),
+                Limit: 9,
+                Fields: 'Overview,Genres,ProductionYear,OfficialRating'
             }))
             .then(function (result) {
                 var items = result.Items || [];
