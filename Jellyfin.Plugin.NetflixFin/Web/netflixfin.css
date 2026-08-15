@@ -219,6 +219,14 @@ body.nf-scrolled .skinHeader {
     align-items: center;
 }
 
+/* The header clips its own overflow, so an absolutely positioned dropdown was
+   being cut off at the header's edge rather than hanging below it. */
+.skinHeader,
+.skinHeader .headerTop,
+.skinHeader .headerLeft {
+    overflow: visible !important;
+}
+
 .nf-nav-menu {
     position: absolute;
     top: 100%;
@@ -1294,6 +1302,12 @@ body.nf-hover-preview .cardOverlayContainer {
 .nf-top10 .itemsContainer.scrollSlider > .card {
     width: calc(100% / 4.4) !important;
     padding-left: 5.4em !important;
+}
+
+/* Netflix's Top 10 uses upright posters beside the numeral, not 16:9 art - a
+   wide thumb leaves the digit nowhere to sit. */
+.nf-top10 .cardPadder {
+    padding-bottom: 150% !important;
 }
 
 .nf-top10 .itemsContainer.scrollSlider > .card > .cardBox {

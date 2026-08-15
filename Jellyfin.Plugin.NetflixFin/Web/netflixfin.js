@@ -499,6 +499,13 @@
             .forEach(function (row) {
                 if (row.dataset.nfThumb) return;
 
+                // A Top 10 row keeps its upright posters: the rank numeral sits
+                // beside the artwork and a 16:9 thumb leaves it nowhere to go.
+                if (row.closest('.nf-top10')) {
+                    row.dataset.nfThumb = 'top10';
+                    return;
+                }
+
                 // The row exists before its cards are rendered into it; deciding
                 // now would settle the question against an empty row forever.
                 var all = row.querySelectorAll('.card[data-id]');
