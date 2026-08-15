@@ -592,8 +592,13 @@
             function (event) {
                 var card = event.target.closest && event.target.closest('.card[data-id]');
                 if (!card) return;
+
+                // mouseout fires for every hop between the tile's own children.
+                // Only a pointer that has actually left both the tile and the
+                // panel should close anything.
                 var to = event.relatedTarget;
-                if (to && preview && preview.contains(to)) return;
+                if (to && (card.contains(to) || (preview && preview.contains(to)))) return;
+
                 clearTimeout(openTimer);
                 scheduleClose();
             },
