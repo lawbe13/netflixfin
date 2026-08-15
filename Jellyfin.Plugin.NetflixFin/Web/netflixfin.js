@@ -142,45 +142,86 @@
 
     /* ------------------------------------------------- 16:9 row thumbnails */
 
-    var PORTRAIT_CARD = /(\b|\-)(overflowPortrait|portrait|overflowSquare|square)Card\b/;
+    var PORTRAIT_CARD = /(\b|-)(overflowPortrait|portrait|overflowSquare|square)Card\b/;
 
+    /* Widening is decided per row, not per card. Mixing 16:9 and 2:3 tiles in one
+     * row makes it twice as tall as it needs to be and leaves a band of empty
+     * space, so a row is only converted when every item in it has a backdrop.
+     * One request per row answers that. */
     function widenCards(root) {
         if (!cfg.useWideThumbnails) return;
-        var scope = root || document;
-        scope.querySelectorAll('.homeSectionsContainer .card[data-id]').forEach(function (card) {
-            if (card.dataset.nfWide === '1') return;
-            if (!PORTRAIT_CARD.test(card.className)) return;
 
-            var container = card.querySelector('.cardImageContainer');
-            if (!container) return;
+        var client = api();
+        if (!client) return;
 
-            var bg = container.style.backgroundImage || '';
-            var match = bg.match(/url\(["']?([^"')]+)["']?\)/);
-            if (!match) return;
+        (root || document)
+            .querySelectorAll('.homeSectionsContainer .itemsContainer.scrollSlider')
+            .forEach(function (row) {
+                if (row.dataset.nfWide) return;
 
-            // Only swap when the server actually holds a wide image for the item;
-            // a missing Thumb would otherwise render as a grey box.
-            var url = match[1];
-            if (!/\/Images\/Primary/.test(url)) return;
+                var cards = Array.prototype.filter.call(
+                    row.querySelectorAll('.card[data-id]'),
+                    function (card) {
+                        return PORTRAIT_CARD.test(card.className);
+                    }
+                );
 
-            var wide = url
-                .replace('/Images/Primary', '/Images/Backdrop/0')
-                .replace(/([?&])fillHeight=\d+/, '$1fillWidth=640');
+                if (!cards.length) {
+                    row.dataset.nfWide = 'skip';
+                    return;
+                }
 
-            var probe = new Image();
-            probe.onload = function () {
-                container.style.backgroundImage = 'url("' + wide + '")';
-                card.dataset.nfWide = '1';
-                var padder = card.querySelector('.cardPadder');
-                if (padder) padder.style.paddingBottom = '56.25%';
-                container.style.paddingBottom = '';
-                card.classList.add('nf-wide');
-            };
-            probe.onerror = function () {
-                card.dataset.nfWide = '0';
-            };
-            probe.src = wide;
-        });
+                row.dataset.nfWide = 'pending';
+                var ids = cards.map(function (card) {
+                    return card.dataset.id;
+                });
+
+                client
+                    .getItems(client.getCurrentUserId(), {
+                        Ids: ids.join(','),
+                        Fields: 'BackdropImageTags',
+                        EnableImageTypes: 'Backdrop',
+                        EnableTotalRecordCount: false
+                    })
+                    .then(function (result) {
+                        var tags = {};
+                        (result.Items || []).forEach(function (item) {
+                            if (item.BackdropImageTags && item.BackdropImageTags.length) {
+                                tags[item.Id] = item.BackdropImageTags[0];
+                            }
+                        });
+
+                        var complete = ids.every(function (id) {
+                            return tags[id];
+                        });
+
+                        if (!complete) {
+                            row.dataset.nfWide = 'partial';
+                            return;
+                        }
+
+                        cards.forEach(function (card) {
+                            var container = card.querySelector('.cardImageContainer');
+                            if (!container) return;
+                            container.style.backgroundImage =
+                                'url("' +
+                                client.getImageUrl(card.dataset.id, {
+                                    type: 'Backdrop',
+                                    maxWidth: 640,
+                                    tag: tags[card.dataset.id]
+                                }) +
+                                '")';
+                            card.classList.add('nf-wide');
+                        });
+
+                        row.dataset.nfWide = 'yes';
+                        log('widened row of', cards.length);
+                    })
+                    .catch(function (err) {
+                        row.dataset.nfWide = 'error';
+                        log('widen failed', err);
+                    });
+            });
     }
 
     /* ------------------------------------------------------------ hero banner */

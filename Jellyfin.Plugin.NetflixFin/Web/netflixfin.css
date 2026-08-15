@@ -377,6 +377,12 @@ body.nf-scrolled .skinHeader {
     border-radius: var(--nf-card-radius);
 }
 
+/* A card the script converted from poster to backdrop: the padder is what holds
+   the aspect ratio open. */
+.card.nf-wide .cardPadder {
+    padding-bottom: 56.25% !important;
+}
+
 /* Text under the poster is what makes Jellyfin read as a file browser.
    It moves into the hover overlay instead. */
 body.nf-hide-card-text .cardFooter:not(.innerCardFooter),
