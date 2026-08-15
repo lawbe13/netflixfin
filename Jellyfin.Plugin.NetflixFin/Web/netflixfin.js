@@ -113,6 +113,23 @@
         update();
     }
 
+    /* The header's search and notification glyphs come from the Material set,
+     * which reads as a different product beside everything else here. Swapped
+     * for the drawn shapes; anything without a Netflix counterpart is left as
+     * Jellyfin drew it. */
+    var HEADER_GLYPHS = { search: 'search', notifications: 'bell', notifications_none: 'bell' };
+
+    function netflixHeaderIcons() {
+        document.querySelectorAll('.headerRight .material-icons').forEach(function (glyph) {
+            var name = HEADER_GLYPHS[(glyph.textContent || '').trim()];
+            if (!name || glyph.dataset.nfSwapped) return;
+            glyph.dataset.nfSwapped = '1';
+            glyph.textContent = '';
+            glyph.classList.add('nf-header-icon');
+            glyph.appendChild(svgIcon(name));
+        });
+    }
+
     function applyLogo() {
         if (!cfg.logoUrl) return;
         document.querySelectorAll('.pageTitleWithDefaultLogo, .pageTitleWithLogo').forEach(function (node) {
@@ -1396,7 +1413,10 @@
         subtitles:
             'M3 3h18a2 2 0 012 2v12a2 2 0 01-2 2H7l-5 4V5a2 2 0 011-2zm3 6v2h6V9H6zm8 0v2h4V9h-4zM6 13v2h4v-2H6zm6 0v2h6v-2h-6z',
         fullscreen: 'M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 0h2v7h-7v-2h5v-5z',
-        back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z'
+        back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z',
+        close: 'M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z',
+        search: 'M10 2a8 8 0 105 14.3l5.3 5.3 1.4-1.4-5.3-5.3A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z',
+        bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z'
     };
 
     function svgIcon(name) {
@@ -1436,6 +1456,154 @@
             }
         }
         video.currentTime = Math.max(0, Math.min(seconds, video.duration || seconds));
+    }
+
+    /* Netflix answers "episodes" and "audio & subtitles" inside the player, not
+     * by leaving it. Both are panels over the picture; only one is open at a
+     * time. */
+    function closePanels() {
+        if (!player) return;
+        player.node.querySelectorAll('.nf-p-panel').forEach(function (panel) {
+            panel.remove();
+        });
+    }
+
+    function panelShell(title, cls) {
+        var panel = el('div', 'nf-p-panel ' + cls);
+        var head = el('div', 'nf-p-panel-head');
+        head.appendChild(el('h3', null, title));
+        var close = el('button', 'nf-p-btn nf-p-panel-close');
+        close.type = 'button';
+        close.appendChild(svgIcon('close'));
+        close.addEventListener('click', closePanels);
+        head.appendChild(close);
+        panel.appendChild(head);
+        return panel;
+    }
+
+    function openEpisodesPanel() {
+        if (!player) return;
+        var client = api();
+        var seriesId = player.seriesId;
+        if (!client || !seriesId) return;
+
+        var wasOpen = player.node.querySelector('.nf-p-panel-episodes');
+        closePanels();
+        if (wasOpen) return;
+
+        var panel = panelShell('Episodi', 'nf-p-panel-episodes');
+        var list = el('div', 'nf-p-panel-body');
+        panel.appendChild(list);
+        player.node.appendChild(panel);
+
+        client
+            .getJSON(client.getUrl('Shows/' + seriesId + '/Episodes', {
+                userId: client.getCurrentUserId(),
+                seasonId: player.seasonId || undefined,
+                fields: 'Overview'
+            }))
+            .then(function (result) {
+                (result.Items || []).forEach(function (episode) {
+                    var row = el('div', 'nf-p-episode' + (episode.Id === player.itemId ? ' is-current' : ''));
+                    row.appendChild(el('div', 'nf-p-episode-index', String(episode.IndexNumber || '')));
+
+                    var thumb = el('div', 'nf-p-episode-thumb');
+                    thumb.style.backgroundImage =
+                        'url("' + client.getImageUrl(episode.Id, { type: 'Primary', maxWidth: 280 }) + '")';
+                    row.appendChild(thumb);
+
+                    var text = el('div');
+                    text.appendChild(el('h4', null, episode.Name));
+                    var mins = minutes(episode.RunTimeTicks);
+                    text.appendChild(el('p', null, (mins ? mins + 'm  ' : '') + (episode.Overview || '')));
+                    row.appendChild(text);
+
+                    row.addEventListener('click', function () {
+                        closePanels();
+                        goToDetails(episode.Id, episode.ServerId, true);
+                    });
+
+                    list.appendChild(row);
+                });
+            })
+            .catch(function (err) {
+                log('episodes panel failed', err);
+            });
+    }
+
+    function openTracksPanel() {
+        if (!player) return;
+        var client = api();
+        if (!client || !player.itemId) return;
+
+        var wasOpen = player.node.querySelector('.nf-p-panel-tracks');
+        closePanels();
+        if (wasOpen) return;
+
+        var panel = panelShell('Audio e sottotitoli', 'nf-p-panel-tracks');
+        var body = el('div', 'nf-p-panel-body nf-p-tracks');
+        panel.appendChild(body);
+        player.node.appendChild(panel);
+
+        client
+            .getItem(client.getCurrentUserId(), player.itemId)
+            .then(function (item) {
+                var streams = item.MediaStreams || [];
+                var pm = window.playbackManager;
+
+                var column = function (heading, kind, apply) {
+                    var col = el('div', 'nf-p-track-col');
+                    col.appendChild(el('h4', null, heading));
+
+                    var options = streams.filter(function (stream) {
+                        return stream.Type === kind;
+                    });
+
+                    if (kind === 'Subtitle') {
+                        options = [{ Index: -1, DisplayTitle: 'Non attivi' }].concat(options);
+                    }
+
+                    options.forEach(function (stream) {
+                        var button = el(
+                            'button',
+                            'nf-p-track',
+                            stream.DisplayTitle || stream.Language || 'Traccia ' + stream.Index
+                        );
+                        button.type = 'button';
+                        button.addEventListener('click', function () {
+                            apply(stream.Index, pm);
+                            body.querySelectorAll('.nf-p-track').forEach(function (other) {
+                                other.classList.remove('is-active');
+                            });
+                            button.classList.add('is-active');
+                        });
+                        col.appendChild(button);
+                    });
+
+                    return col;
+                };
+
+                body.appendChild(
+                    column('Audio', 'Audio', function (index, pm2) {
+                        if (pm2 && pm2.setAudioStreamIndex) pm2.setAudioStreamIndex(index);
+                        else proxyClick('.videoOsdBottom .btnAudio');
+                    })
+                );
+                body.appendChild(
+                    column('Sottotitoli', 'Subtitle', function (index, pm2) {
+                        if (pm2 && pm2.setSubtitleStreamIndex) pm2.setSubtitleStreamIndex(index);
+                        else proxyClick('.videoOsdBottom .btnSubtitles');
+                    })
+                );
+            })
+            .catch(function (err) {
+                log('tracks panel failed', err);
+            });
+    }
+
+    function proxyClick(selector) {
+        var target = document.querySelector(selector);
+        if (target) target.click();
     }
 
     function destroyPlayer() {
@@ -1547,17 +1715,8 @@
                 proxy('.videoOsdBottom .btnNextTrack');
             })
         );
-        right.appendChild(
-            playerButton('episodes', 'Episodi', function () {
-                var id = player && player.seriesId;
-                if (id) openModal(id);
-            })
-        );
-        right.appendChild(
-            playerButton('subtitles', 'Sottotitoli e audio', function () {
-                proxy('.videoOsdBottom .btnSubtitles');
-            })
-        );
+        right.appendChild(playerButton('episodes', 'Episodi', openEpisodesPanel));
+        right.appendChild(playerButton('subtitles', 'Sottotitoli e audio', openTracksPanel));
         right.appendChild(
             playerButton('fullscreen', 'Schermo intero', function () {
                 if (document.fullscreenElement) document.exitFullscreen();
@@ -1616,7 +1775,9 @@
 
         var label = function (item) {
             if (!item) return;
+            player.itemId = item.Id;
             if (item.SeriesId) player.seriesId = item.SeriesId;
+            if (item.SeasonId) player.seasonId = item.SeasonId;
             centre.textContent = item.SeriesName
                 ? item.SeriesName +
                   '  ' +
@@ -1829,6 +1990,7 @@
     function refresh() {
         applyBodyFlags();
         applyLogo();
+        netflixHeaderIcons();
         buildNav();
         decorateDetail();
         mountHero();
