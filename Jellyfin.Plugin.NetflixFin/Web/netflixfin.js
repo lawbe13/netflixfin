@@ -222,6 +222,7 @@
                             };
                             preload.src = url;
 
+                            container.dataset.nfWideUrl = url;
                             container.style.backgroundImage = 'url("' + url + '")';
                             card.classList.add('nf-wide');
                         });
@@ -234,6 +235,23 @@
                         log('widen failed', err);
                     });
             });
+    }
+
+    /* Jellyfin lazy-loads a row's posters when it scrolls into view, which writes
+     * the Primary URL straight back over ours and restores the blurhash. Rather
+     * than fight for the write, the swap is simply re-applied whenever it is found
+     * undone. */
+    function reapplyWide() {
+        document.querySelectorAll('.card.nf-wide .cardImageContainer').forEach(function (container) {
+            var url = container.dataset.nfWideUrl;
+            if (!url) return;
+
+            if ((container.style.backgroundImage || '').indexOf(url) === -1) {
+                container.style.backgroundImage = 'url("' + url + '")';
+            }
+
+            container.classList.remove('blurhashed');
+        });
     }
 
     /* ------------------------------------------------------------ hero banner */
@@ -446,6 +464,7 @@
         mountHero();
         decorateTop10();
         widenCards();
+        reapplyWide();
     }
 
     function schedule() {
@@ -461,7 +480,14 @@
         bindScrollState();
         refresh();
 
-        new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+        // Attributes are watched too: the lazy loader overwrites card backgrounds
+        // in place, which is not a childList change.
+        new MutationObserver(schedule).observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
         window.addEventListener('hashchange', function () {
             if (heroTimer) {
                 clearInterval(heroTimer);
