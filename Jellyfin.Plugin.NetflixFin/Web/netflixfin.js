@@ -1769,6 +1769,9 @@
 
     function destroyPlayer() {
         if (!player) return;
+        if (player.wheelGuard) {
+            window.removeEventListener('wheel', player.wheelGuard, { capture: true });
+        }
         if (player.node.parentNode) player.node.parentNode.removeChild(player.node);
         player = null;
         document.body.classList.remove('nf-playing');
@@ -1912,17 +1915,21 @@
 
         player = { node: node, video: video, range: range, remaining: remaining, title: centre, playBtn: playBtn, seriesId: null };
 
-        // A range input answers the wheel when the pointer is over it, so
-        // scrolling the page was dragging the volume and the playhead.
-        [range, volume].forEach(function (input) {
-            input.addEventListener(
-                'wheel',
-                function (event) {
-                    event.preventDefault();
-                },
-                { passive: false }
-            );
-        });
+        /* Scrolling was still moving the volume after guarding the two range
+         * inputs, and no synthetic wheel on the video, the container, the OSD or
+         * either slider reproduced it - so the listener wants a trusted event and
+         * chasing which element owns it is guesswork.
+         *
+         * The wheel is swallowed for the whole window while the player is up
+         * instead, before it reaches anyone. Netflix does nothing on scroll
+         * either; the panels are the one place a wheel still has a job. */
+        player.wheelGuard = function (event) {
+            if (event.target && event.target.closest && event.target.closest('.nf-p-panel')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+        };
+        window.addEventListener('wheel', player.wheelGuard, { capture: true, passive: false });
 
         var scrubbing = false;
         range.addEventListener('input', function () {
