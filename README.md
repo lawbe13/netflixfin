@@ -34,6 +34,17 @@ Then install **NetflixFin** from the catalogue and restart Jellyfin.
 Remove any other theme from **Dashboard → General → Custom CSS** first — NetflixFin is a
 complete skin and will fight with ElegantFin, JellySkin, Ultrachromic and friends.
 
+## Living with other plugins
+
+NetflixFin injects through the
+[File Transformation](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation)
+plugin when it is installed, and falls back to patching `index.html` otherwise. On a
+default Windows install the web root is under `C:\Program Files` and is not writable by
+the service account, so **File Transformation is effectively required there**.
+
+If another plugin already renders a home-screen hero (Media Bar Enhanced, Jellyfin
+Enhanced), NetflixFin's own hero stands down rather than stacking a second one on top.
+
 ## Configuration
 
 **Dashboard → Plugins → NetflixFin**
