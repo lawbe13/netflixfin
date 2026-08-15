@@ -459,9 +459,23 @@ body.nf-scrolled .skinHeader {
     flex-wrap: wrap;
 }
 
+/* Keyed off the page rather than the container: a library view reuses the
+   carousel's own classes, so there is nothing in the class list to tell them
+   apart, and measuring the wrap at load proved unreliable. */
+#moviesPage .itemsContainer > .card,
+#tvshowsPage .itemsContainer > .card,
+#itemsPage .itemsContainer > .card,
+#genresPage .itemsContainer > .card,
 .itemsContainer.nf-grid > .card {
     width: auto !important;
-    padding: 0 8px 20px !important;
+    padding: 0 8px 22px !important;
+}
+
+#moviesPage .itemsContainer,
+#tvshowsPage .itemsContainer,
+#itemsPage .itemsContainer {
+    overflow: visible;
+    flex-wrap: wrap;
 }
 
 /* Row arrows: 52px tall as the tiles, flush to the viewport edges (not to the
