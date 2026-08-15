@@ -240,7 +240,12 @@ body.nf-scrolled .skinHeader {
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 2px;
     display: none;
-    z-index: 90;
+    /* Above the billboard, which sits in its own stacking context. */
+    z-index: 9999;
+}
+
+.skinHeader {
+    z-index: 1000;
 }
 
 .nf-nav-item:hover .nf-nav-menu,
@@ -1299,9 +1304,11 @@ body.nf-hover-preview .cardOverlayContainer {
 /* The numeral shares the tile with the poster, so a Top 10 tile is wider than a
    normal one - reserving the column inside a 1/7 tile just shrinks the artwork.
    Netflix fits roughly four and a half of these across. */
+/* Six upright tiles across, each preceded by its numeral - the 4.4 that came
+   before made the posters enormous. */
 .nf-top10 .itemsContainer.scrollSlider > .card {
-    width: calc(100% / 4.4) !important;
-    padding-left: 5.4em !important;
+    width: calc(100% / 6) !important;
+    padding-left: 3.6em !important;
 }
 
 /* Netflix's Top 10 uses upright posters beside the numeral, not 16:9 art - a
@@ -1310,11 +1317,15 @@ body.nf-hover-preview .cardOverlayContainer {
     padding-bottom: 150% !important;
 }
 
+/* The numeral hangs outside the artwork, so nothing in its chain may clip - the
+   overflow added for rounded corners is exactly what was swallowing it. */
+.nf-top10 .itemsContainer.scrollSlider > .card,
 .nf-top10 .itemsContainer.scrollSlider > .card > .cardBox {
     position: relative;
+    overflow: visible !important;
 }
 
-.nf-top10 .itemsContainer.scrollSlider > .card > .cardBox::before {
+.nf-top10 .itemsContainer.scrollSlider > .card::before {
     content: attr(data-nf-rank);
     position: absolute;
     left: -0.55em;

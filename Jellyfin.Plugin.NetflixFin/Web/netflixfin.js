@@ -472,8 +472,9 @@
                         card.style.display = 'none';
                         return;
                     }
-                    var box = card.querySelector('.cardBox');
-                    if (box) box.setAttribute('data-nf-rank', String(i + 1));
+                    // On the card itself: the box clips its own overflow for the
+                    // rounded corners, which swallowed the numeral.
+                    card.setAttribute('data-nf-rank', String(i + 1));
                 }
             );
         });
@@ -1244,7 +1245,15 @@
      * the real elements keeps every behaviour attached to them. An earlier
      * attempt to rearrange the same controls with flex order instead tore the
      * layout apart, because the OSD is not one flex row to begin with. */
-    function layoutPlayer() {
+    /* DISABLED. Relocating Jellyfin's controls produced a player that looked
+     * closer to Netflix but whose buttons no longer responded - twice. The OSD
+     * carries behaviour that does not survive being re-parented, and a player
+     * that cannot be operated is worse than one that is merely styled. It is
+     * kept here as a record of the approach, not called.
+     *
+     * Doing this properly means driving playback ourselves rather than moving
+     * Jellyfin's widgets, which is a much larger piece of work. */
+    function layoutPlayerDisabled() {
         var osd = document.querySelector('.videoOsdBottom');
         if (!osd) return;
         if (osd.querySelector('.nf-osd')) return;
@@ -1487,7 +1496,6 @@
         mountHero();
         decorateTop10();
         decorateRows();
-        layoutPlayer();
         widenCards();
         reapplyThumbs();
     }
