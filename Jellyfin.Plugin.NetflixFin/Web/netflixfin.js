@@ -697,7 +697,12 @@
         if (document.body.dataset.nfModalBound) return;
         document.body.dataset.nfModalBound = '1';
 
-        document.addEventListener(
+        // Bound on window, not document: capture runs outermost-first, and
+        // Jellyfin's own card handler is already on document, so a document-level
+        // listener registered later still fires second and the route change goes
+        // through underneath the modal. stopImmediatePropagation is what actually
+        // keeps it from navigating.
+        window.addEventListener(
             'click',
             function (event) {
                 if (!event.target.closest) return;
@@ -711,6 +716,7 @@
 
                 event.preventDefault();
                 event.stopPropagation();
+                event.stopImmediatePropagation();
                 openModal(card.dataset.id);
             },
             true
