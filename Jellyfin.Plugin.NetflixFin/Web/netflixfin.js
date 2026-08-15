@@ -121,7 +121,15 @@
 
     function netflixHeaderIcons() {
         document.querySelectorAll('.headerRight .material-icons').forEach(function (glyph) {
-            var name = HEADER_GLYPHS[(glyph.textContent || '').trim()];
+            // Jellyfin names the glyph in the class list, not as ligature text,
+            // so reading textContent found nothing to swap.
+            var key = (glyph.textContent || '').trim();
+            if (!HEADER_GLYPHS[key]) {
+                key = Object.keys(HEADER_GLYPHS).filter(function (candidate) {
+                    return glyph.classList.contains(candidate);
+                })[0];
+            }
+            var name = HEADER_GLYPHS[key];
             if (!name || glyph.dataset.nfSwapped) return;
             glyph.dataset.nfSwapped = '1';
             glyph.textContent = '';
@@ -1496,12 +1504,18 @@
         panel.appendChild(list);
         player.node.appendChild(panel);
 
+        // One season, never the whole series: without a season the endpoint
+        // returns every episode there is - 151 of them on the first run, which
+        // was enough to lock the renderer up.
+        var query = {
+            userId: client.getCurrentUserId(),
+            fields: 'Overview'
+        };
+        if (player.seasonId) query.seasonId = player.seasonId;
+        else query.limit = 60;
+
         client
-            .getJSON(client.getUrl('Shows/' + seriesId + '/Episodes', {
-                userId: client.getCurrentUserId(),
-                seasonId: player.seasonId || undefined,
-                fields: 'Overview'
-            }))
+            .getJSON(client.getUrl('Shows/' + seriesId + '/Episodes', query))
             .then(function (result) {
                 (result.Items || []).forEach(function (episode) {
                     var row = el('div', 'nf-p-episode' + (episode.Id === player.itemId ? ' is-current' : ''));
