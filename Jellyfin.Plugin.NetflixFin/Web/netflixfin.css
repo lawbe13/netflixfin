@@ -25,7 +25,8 @@
     --nf-text: #fff;
     --nf-text-dim: rgba(255, 255, 255, 0.7);
     --nf-text-meta: #bcbcbc;
-    --nf-card-radius: 4px;
+    /* Netflix rounds a 248px tile by 12px - just under 5% of its width. */
+    --nf-card-radius: 10px;
     --nf-gutter: 60px;
     --nf-row-gap: 8px;
     --nf-tiles: 7;
@@ -346,7 +347,10 @@ body.nf-scrolled .skinHeader {
    existed on hover. Lifting the heading out of that overlap is the fix. */
 .sectionTitleContainer {
     position: relative;
-    z-index: 3;
+    /* Above the row arrows (20) and anything a neighbouring section paints into
+       this band: measured, the heading sits correctly at y=402 with its own tiles
+       at y=469, yet another section's artwork was landing on top of it. */
+    z-index: 50;
     padding-left: var(--nf-gutter) !important;
     padding-right: var(--nf-gutter) !important;
     margin: 0 0 0.5rem;
@@ -1789,10 +1793,24 @@ body.nf-detail .backdropImage {
     color: var(--nf-text-meta);
 }
 
-/* The player's own header is a back arrow on a scrim, nothing more. */
-.videoPlayerContainer ~ .skinHeader,
-.osdHeader {
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 100%) !important;
+/* Netflix's player chrome is a back arrow and nothing else - no navigation, no
+   logo, no account controls. Jellyfin keeps its whole header on top of the
+   video, so it is stripped down while a video is playing. */
+body.nf-playing .skinHeader {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0)) !important;
+}
+
+body.nf-playing .nf-nav,
+body.nf-playing .headerTabs,
+body.nf-playing .headerRight,
+body.nf-playing .pageTitleWithDefaultLogo,
+body.nf-playing .mainDrawerButton {
+    display: none !important;
+}
+
+body.nf-playing .headerBackButton {
+    display: inline-flex !important;
+    color: #fff !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

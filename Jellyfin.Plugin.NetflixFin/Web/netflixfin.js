@@ -93,6 +93,13 @@
     function applyBodyFlags() {
         document.body.classList.toggle('nf-hover-preview', !!cfg.enableHoverPreview);
         document.body.classList.toggle('nf-hide-card-text', !!cfg.hideCardText);
+
+        // Netflix's player chrome is a back arrow and nothing else, so the rest of
+        // the header steps aside whenever a video is on screen.
+        document.body.classList.toggle(
+            'nf-playing',
+            !!document.querySelector('.videoPlayerContainer video, .videoOsdBottom')
+        );
     }
 
     function bindScrollState() {
