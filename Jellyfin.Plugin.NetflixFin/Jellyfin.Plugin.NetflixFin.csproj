@@ -11,9 +11,14 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- Pinned to the lowest release of the 10.11 line on purpose. Jellyfin resolves the
+       shared libraries from the running server, so a plugin compiled against a *newer*
+       Controller than the host refuses to load ("references an incompatible version of
+       one of the shared libraries"). Building against the floor makes the plugin load on
+       every 10.11.x. -->
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.11" />
-    <PackageReference Include="Jellyfin.Model" Version="10.11.11" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.0" />
+    <PackageReference Include="Jellyfin.Model" Version="10.11.0" />
   </ItemGroup>
 
   <ItemGroup>
