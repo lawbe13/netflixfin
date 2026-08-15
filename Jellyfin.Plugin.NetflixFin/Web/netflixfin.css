@@ -1923,8 +1923,60 @@ body.nf-playing .videoOsdTop {
     transition: opacity 0.35s var(--nf-ease);
 }
 
+/* Invisible must also mean intangible: at opacity 0 the bar still caught the
+   pointer, so clicks landed on controls that were not on screen. That is the
+   "hard to press" feeling - the click hit a hidden button instead of the one
+   that appeared when the mouse moved. */
 .nf-player.is-idle {
     opacity: 0;
+}
+
+.nf-player.is-idle .nf-p-top,
+.nf-player.is-idle .nf-p-bottom {
+    pointer-events: none;
+}
+
+/* Netflix's transient glyph: a large mark flashed in the middle of the picture
+   on play, pause and each skip. */
+.nf-p-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background: rgba(20, 20, 20, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.nf-p-flash svg {
+    width: 46px;
+    height: 46px;
+    fill: #fff;
+}
+
+.nf-p-flash.is-on {
+    animation: nf-flash 0.6s var(--nf-ease);
+}
+
+@keyframes nf-flash {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.7);
+    }
+    25% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.25);
+    }
 }
 
 .nf-p-top,
@@ -1950,12 +2002,14 @@ body.nf-playing .videoOsdTop {
     gap: 18px;
 }
 
+/* Netflix's controls are considerably larger than Jellyfin's: a 40px glyph in a
+   56px target, not a 32px glyph in 44px. */
 .nf-p-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 56px;
+    height: 56px;
     padding: 0;
     border: 0;
     background: none;
@@ -1965,15 +2019,19 @@ body.nf-playing .videoOsdTop {
 }
 
 .nf-p-btn:hover {
-    transform: scale(1.18);
+    transform: scale(1.15);
 }
 
-.nf-p-btn .material-icons {
-    font-size: 32px;
+.nf-p-btn svg {
+    width: 40px;
+    height: 40px;
+    fill: #fff;
+    pointer-events: none;
 }
 
-.nf-p-back .material-icons {
-    font-size: 34px;
+.nf-p-back svg {
+    width: 42px;
+    height: 42px;
 }
 
 /* Scrubber: a red fill up to the playhead over a grey track, with a round knob
@@ -2036,9 +2094,13 @@ body.nf-playing .videoOsdTop {
 .nf-p-title {
     flex: 1;
     text-align: center;
-    font-size: 18px;
-    font-weight: 500;
+    font-size: 20px;
+    font-weight: 600;
     padding: 0 1rem;
+}
+
+.nf-p-remaining {
+    font-size: 17px;
 }
 
 /* The volume slider slides out of the speaker, as on Netflix. */

@@ -1378,12 +1378,43 @@
         return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(s).padStart(2, '0');
     }
 
+    /* Netflix's own glyph shapes, drawn rather than borrowed from the Material
+     * set - the Material equivalents read as a different product. */
+    var GLYPHS = {
+        play: 'M4 2.7v18.6c0 .8.9 1.3 1.5.9l14.6-9.3a1 1 0 000-1.8L5.5 1.8c-.6-.4-1.5.1-1.5.9z',
+        pause: 'M6 3h4v18H6V3zm8 0h4v18h-4V3z',
+        back10:
+            'M12 4V1L7 5l5 4V6a6 6 0 11-6 6H4a8 8 0 108-8zm-1.9 11.5H9V11l-1.4.4v-1L10 9.6h.1v5.9zm5.6-2.2c0 .8-.2 1.4-.5 1.8-.4.3-.9.5-1.5.5s-1.1-.2-1.5-.5c-.3-.4-.5-1-.5-1.8v-1.1c0-.8.2-1.4.5-1.8.4-.3.9-.5 1.5-.5s1.1.2 1.5.5c.3.4.5 1 .5 1.8v1.1zm-1.2-1.2c0-.5 0-.8-.2-1a.6.6 0 00-.6-.4c-.3 0-.5.1-.6.3-.1.2-.2.5-.2 1v1.4c0 .5.1.8.2 1 .1.2.3.3.6.3s.5-.1.6-.3c.1-.2.2-.5.2-1v-1.3z',
+        forward10:
+            'M12 4V1l5 4-5 4V6a6 6 0 106 6h2a8 8 0 11-8-8zm-1.9 11.5H9V11l-1.4.4v-1L10 9.6h.1v5.9zm5.6-2.2c0 .8-.2 1.4-.5 1.8-.4.3-.9.5-1.5.5s-1.1-.2-1.5-.5c-.3-.4-.5-1-.5-1.8v-1.1c0-.8.2-1.4.5-1.8.4-.3.9-.5 1.5-.5s1.1.2 1.5.5c.3.4.5 1 .5 1.8v1.1zm-1.2-1.2c0-.5 0-.8-.2-1a.6.6 0 00-.6-.4c-.3 0-.5.1-.6.3-.1.2-.2.5-.2 1v1.4c0 .5.1.8.2 1 .1.2.3.3.6.3s.5-.1.6-.3c.1-.2.2-.5.2-1v-1.3z',
+        volume:
+            'M11 4.7L6.6 8.3H3a1 1 0 00-1 1v5.4a1 1 0 001 1h3.6l4.4 3.6c.6.5 1.5.1 1.5-.7V5.4c0-.8-.9-1.2-1.5-.7zm5.5 2a1 1 0 00-1.3 1.5 5 5 0 010 7.6 1 1 0 001.3 1.5 7 7 0 000-10.6zm2.8-2.6A1 1 0 0018 5.6a9 9 0 010 12.8 1 1 0 101.4 1.4 11 11 0 000-15.7z',
+        mute: 'M11 4.7L6.6 8.3H3a1 1 0 00-1 1v5.4a1 1 0 001 1h3.6l4.4 3.6c.6.5 1.5.1 1.5-.7V5.4c0-.8-.9-1.2-1.5-.7zm11 5.9l-1.4-1.4-2.1 2.1-2.1-2.1-1.4 1.4 2.1 2.1-2.1 2.1 1.4 1.4 2.1-2.1 2.1 2.1 1.4-1.4-2.1-2.1 2.1-2.1z',
+        next: 'M4 3.8v16.4c0 .8.9 1.3 1.5.9l12-8.2a1 1 0 000-1.8l-12-8.2c-.6-.4-1.5.1-1.5.9zM19 3h2v18h-2V3z',
+        episodes:
+            'M4 8h13v12H4V8zm2 2v8h9v-8H6zM7 5h13v12h-2V7H7V5zm3-3h13v12h-2V4H10V2z',
+        subtitles:
+            'M3 3h18a2 2 0 012 2v12a2 2 0 01-2 2H7l-5 4V5a2 2 0 011-2zm3 6v2h6V9H6zm8 0v2h4V9h-4zM6 13v2h4v-2H6zm6 0v2h6v-2h-6z',
+        fullscreen: 'M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 0h2v7h-7v-2h5v-5z',
+        back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z'
+    };
+
+    function svgIcon(name) {
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('aria-hidden', 'true');
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', GLYPHS[name] || GLYPHS.play);
+        svg.appendChild(path);
+        return svg;
+    }
+
     function playerButton(glyph, title, onClick, cls) {
         var button = el('button', 'nf-p-btn' + (cls ? ' ' + cls : ''));
         button.type = 'button';
         button.title = title;
         button.setAttribute('aria-label', title);
-        button.appendChild(icon(glyph));
+        button.appendChild(svgIcon(glyph));
         button.addEventListener('click', function (event) {
             event.stopPropagation();
             onClick();
@@ -1428,11 +1459,22 @@
 
         var top = el('div', 'nf-p-top');
         top.appendChild(
-            playerButton('arrow_back', 'Indietro', function () {
+            playerButton('back', 'Indietro', function () {
                 window.history.back();
             }, 'nf-p-back')
         );
         node.appendChild(top);
+
+        // Netflix flashes a large glyph over the picture on every transport
+        // action; without it a press gives no feedback at all.
+        var flash = el('div', 'nf-p-flash');
+        node.appendChild(flash);
+        var flashGlyph = function (name) {
+            flash.replaceChildren(svgIcon(name));
+            flash.classList.remove('is-on');
+            void flash.offsetWidth;
+            flash.classList.add('is-on');
+        };
 
         var bottom = el('div', 'nf-p-bottom');
 
@@ -1452,24 +1494,32 @@
         var centre = el('div', 'nf-p-title');
         var right = el('div', 'nf-p-group');
 
-        var playBtn = playerButton('play_arrow', 'Riproduci', function () {
-            if (video.paused) video.play();
-            else video.pause();
+        var playBtn = playerButton('play', 'Riproduci', function () {
+            if (video.paused) {
+                video.play();
+                flashGlyph('play');
+            } else {
+                video.pause();
+                flashGlyph('pause');
+            }
         });
         left.appendChild(playBtn);
         left.appendChild(
-            playerButton('replay_10', 'Indietro di 10 secondi', function () {
+            playerButton('back10', 'Indietro di 10 secondi', function () {
                 seekTo(video, video.currentTime - 10);
+                flashGlyph('back10');
             })
         );
         left.appendChild(
-            playerButton('forward_10', 'Avanti di 10 secondi', function () {
+            playerButton('forward10', 'Avanti di 10 secondi', function () {
                 seekTo(video, video.currentTime + 10);
+                flashGlyph('forward10');
             })
         );
 
-        var volumeBtn = playerButton('volume_up', 'Audio', function () {
+        var volumeBtn = playerButton('volume', 'Audio', function () {
             video.muted = !video.muted;
+            volumeBtn.replaceChildren(svgIcon(video.muted ? 'mute' : 'volume'));
         });
         var volume = el('input', 'nf-p-volume');
         volume.type = 'range';
@@ -1493,12 +1543,12 @@
         };
 
         right.appendChild(
-            playerButton('skip_next', 'Prossimo episodio', function () {
+            playerButton('next', 'Prossimo episodio', function () {
                 proxy('.videoOsdBottom .btnNextTrack');
             })
         );
         right.appendChild(
-            playerButton('video_library', 'Episodi', function () {
+            playerButton('episodes', 'Episodi', function () {
                 var id = player && player.seriesId;
                 if (id) openModal(id);
             })
@@ -1542,7 +1592,7 @@
             }
             remaining.textContent = '-' + fmt(duration - video.currentTime);
             range.style.setProperty('--nf-progress', (Number(range.value) / 10).toFixed(2) + '%');
-            playBtn.replaceChildren(icon(video.paused ? 'play_arrow' : 'pause'));
+            playBtn.replaceChildren(svgIcon(video.paused ? 'play' : 'pause'));
         };
 
         video.addEventListener('timeupdate', sync);
