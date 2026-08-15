@@ -1242,6 +1242,16 @@
         if (!osd) return;
         if (osd.querySelector('.nf-osd')) return;
 
+        // Half a rearrangement is worse than none: if this build of jellyfin-web
+        // does not have the pieces this expects, the stock OSD is left exactly as
+        // it is rather than being taken apart into something unusable.
+        var essential = osd.querySelector('.sliderContainer');
+        var transport = osd.querySelector('.btnPause, .btnPlay');
+        if (!essential || !transport) {
+            log('player: expected controls not found, leaving the OSD alone');
+            return;
+        }
+
         var shell = el('div', 'nf-osd');
         var scrub = el('div', 'nf-osd-scrub');
         var row = el('div', 'nf-osd-row');
