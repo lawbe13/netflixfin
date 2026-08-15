@@ -98,8 +98,14 @@ body.nf-detail .backdropContainer::after {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(77deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.5) 38%, rgba(0, 0, 0, 0) 72%),
-        linear-gradient(0deg, var(--nf-bg) 3%, rgba(20, 20, 20, 0) 34%);
+        linear-gradient(
+            77deg,
+            rgba(0, 0, 0, 0.92) 0%,
+            rgba(0, 0, 0, 0.72) 28%,
+            rgba(0, 0, 0, 0.25) 58%,
+            rgba(0, 0, 0, 0) 78%
+        ),
+        linear-gradient(0deg, var(--nf-bg) 4%, rgba(20, 20, 20, 0) 40%);
 }
 
 /* Thin, unobtrusive scrollbars. */
@@ -780,8 +786,10 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
         z-index: 2;
         left: var(--nf-gutter);
         right: auto;
-        top: auto;
-        bottom: 58vh;
+        /* Anchored from the top so it lands just above the ribbon regardless of
+           how tall the page turns out to be. */
+        top: 25vh;
+        bottom: auto;
         width: min(30rem, 34vw);
         height: 14vh;
         background-position: left bottom;
@@ -808,7 +816,20 @@ body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
         /* Jellyfin fixes the ribbon's height for its single-row layout. */
         height: auto;
         min-height: 0;
-        margin-bottom: 1.5rem;
+        padding-top: 3rem;
+        padding-bottom: 2rem;
+        /* The artwork is fixed, so the page has to fade onto solid colour here or
+           it keeps showing through the metadata all the way down. */
+        background: linear-gradient(
+            180deg,
+            rgba(20, 20, 20, 0) 0%,
+            rgba(20, 20, 20, 0.65) 45%,
+            var(--nf-bg) 100%
+        );
+    }
+
+    body.nf-detail .detailPagePrimaryContent {
+        background: var(--nf-bg);
     }
 
     body.nf-detail .mainDetailButtons {
