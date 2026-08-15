@@ -25,8 +25,9 @@
     --nf-text: #fff;
     --nf-text-dim: rgba(255, 255, 255, 0.7);
     --nf-text-meta: #bcbcbc;
-    /* Netflix rounds a 248px tile by 12px - just under 5% of its width. */
-    --nf-card-radius: 10px;
+    /* Netflix rounds a 248px tile by 12px at a 1920 viewport - 0.63vw - so the
+       corner keeps its proportion as the tiles grow with the window. */
+    --nf-card-radius: clamp(6px, 0.63vw, 18px);
     --nf-gutter: 60px;
     --nf-row-gap: 8px;
     --nf-tiles: 7;
@@ -547,12 +548,21 @@ body.nf-scrolled .skinHeader {
     border-radius: var(--nf-card-radius);
 }
 
+/* The rounding has to clip, not just be declared: the artwork is a background on
+   an inner element, and without overflow control its square corners paint past
+   the rounded ones - which is the ragged corner seen on some covers. */
 .cardScalable,
 .cardImageContainer,
 .cardContent,
 .cardContent-button,
 .cardImage {
     border-radius: var(--nf-card-radius);
+    overflow: hidden;
+}
+
+.card .cardBox {
+    border-radius: var(--nf-card-radius);
+    overflow: hidden;
 }
 
 .cardImageContainer,
@@ -1662,11 +1672,9 @@ body.nf-detail .backdropImage {
     padding: 4rem var(--nf-gutter) 1.5rem;
 }
 
-.videoOsdBottom .osdControls {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
+/* Jellyfin's OSD is not a single flex row, so re-parenting it with flex order
+   tore the layout apart instead of rearranging it. Its own structure is left
+   alone; only colour, weight and sizing are ours. */
 
 /* Scrubber */
 .videoOsdBottom .sliderContainer {
@@ -1715,11 +1723,8 @@ body.nf-detail .backdropImage {
 }
 
 /* Control row */
-.videoOsdBottom .buttons,
-.videoOsdBottom .osdControls > .flex:last-child {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.videoOsdBottom .buttons {
+    gap: 0.35rem;
 }
 
 .videoOsdBottom .paper-icon-button-light {
@@ -1738,60 +1743,19 @@ body.nf-detail .backdropImage {
     font-size: 30px;
 }
 
-/* Netflix order: transport left, title centre, options right. */
-.videoOsdBottom .btnPause,
-.videoOsdBottom .btnPlay {
-    order: 1;
-}
-
-.videoOsdBottom .btnRewind {
-    order: 2;
-}
-
-.videoOsdBottom .btnFastForward {
-    order: 3;
-}
-
-.videoOsdBottom .buttonMute {
-    order: 4;
-}
-
-.videoOsdBottom .osdTextContainer,
 .videoOsdBottom .osdTitle {
-    order: 5;
-    flex: 1;
-    text-align: center;
     font-size: 18px;
     font-weight: 500;
     color: #fff;
 }
 
-.videoOsdBottom .btnSubtitles {
-    order: 6;
-}
-
-.videoOsdBottom .btnAudio {
-    order: 7;
-}
-
-.videoOsdBottom .btnNextTrack {
-    order: 8;
-}
-
-.videoOsdBottom .btnVideoOsdSettings {
-    order: 9;
-}
-
-.videoOsdBottom .btnFullscreen,
-.videoOsdBottom .btnToggleFullscreen {
-    order: 10;
-}
-
-/* Netflix keeps no chapter or record controls on screen. */
+/* Controls Netflix does not put on screen. The rating star and the "ends at"
+   line are Jellyfin's own; everything else here has no Netflix counterpart. */
 .videoOsdBottom .btnRecord,
-.videoOsdBottom .btnPreviousChapter,
-.videoOsdBottom .btnNextChapter,
-.videoOsdBottom .btnUserRating {
+.videoOsdBottom .btnUserRating,
+.videoOsdBottom .btnVideoOsdSettings,
+.videoOsdBottom .btnPictureInPicture,
+.videoOsdBottom .btnSyncPlay {
     display: none !important;
 }
 
