@@ -393,18 +393,25 @@ body.nf-scrolled .skinHeader {
     display: none !important;
 }
 
-/* "Explore all" style links only on row hover, as Netflix does it. */
-.sectionTitleContainer .emby-button.sectionTitleTextButton,
+/* On several row types Jellyfin renders the heading itself as
+   .sectionTitleTextButton - the title is the link to the library. Fading that
+   class was fading the row titles, which is why "Film aggiunti di recente" and
+   friends only appeared on hover. Only the separate "more" affordance fades. */
 .sectionTitleContainer .btnMore {
     opacity: 0;
-    color: #54b9c5 !important;
-    font-size: 0.8rem;
     transition: opacity 0.2s var(--nf-ease);
 }
 
-.verticalSection:hover .sectionTitleContainer .emby-button.sectionTitleTextButton,
 .verticalSection:hover .sectionTitleContainer .btnMore {
     opacity: 1;
+}
+
+.sectionTitleContainer .emby-button.sectionTitleTextButton {
+    opacity: 1 !important;
+    color: #e5e5e5 !important;
+    font-size: 24px !important;
+    font-weight: 500;
+    text-transform: none;
 }
 
 /* The row owns its overflow: Jellyfin only adds its clipping .scrollX class on
