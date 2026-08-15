@@ -7,6 +7,15 @@
     "owner": "lawbe13",
     "category": "General",
     "imageUrl": "https://raw.githubusercontent.com/lawbe13/netflixfin/main/docs/logo.png",
-    "versions": []
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "See https://github.com/lawbe13/netflixfin/releases/tag/v1.0.0.0",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/lawbe13/netflixfin/releases/download/v1.0.0.0/netflixfin_1.0.0.0.zip",
+        "checksum": "901b0f4ad9bedb42adefc87d6c9b3b1a",
+        "timestamp": "2026-08-15T15:03:19Z"
+      }
+    ]
   }
 ]
