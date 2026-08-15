@@ -695,7 +695,9 @@
                 Fields: 'Overview,Genres,ProductionYear,OfficialRating'
             }))
             .then(function (result) {
-                var items = result.Items || [];
+                // The endpoint returns its own count whatever Limit is passed, so
+                // the nine Netflix shows are taken here.
+                var items = (result.Items || []).slice(0, 9);
                 if (!items.length) return;
 
                 mount.appendChild(el('h3', null, 'Altri titoli simili'));
