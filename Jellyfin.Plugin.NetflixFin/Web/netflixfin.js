@@ -1225,6 +1225,55 @@
         window.addEventListener('hashchange', destroyPreview);
     }
 
+    /* -------------------------------------------------------------- player */
+
+    /* Netflix's transport is one row: play/back-10/forward-10/volume hard left,
+     * title centred, next-episode/episodes/subtitles/fullscreen hard right, with
+     * a full-width scrubber above it.
+     *
+     * Jellyfin's controls are *moved* into that arrangement rather than
+     * reimplemented. Rebuilding them would mean re-deriving seeking, which the
+     * server drives differently for direct play and for transcodes; relocating
+     * the real elements keeps every behaviour attached to them. An earlier
+     * attempt to rearrange the same controls with flex order instead tore the
+     * layout apart, because the OSD is not one flex row to begin with. */
+    function layoutPlayer() {
+        var osd = document.querySelector('.videoOsdBottom');
+        if (!osd) return;
+        if (osd.querySelector('.nf-osd')) return;
+
+        var shell = el('div', 'nf-osd');
+        var scrub = el('div', 'nf-osd-scrub');
+        var row = el('div', 'nf-osd-row');
+        var left = el('div', 'nf-osd-left');
+        var centre = el('div', 'nf-osd-centre');
+        var right = el('div', 'nf-osd-right');
+
+        row.appendChild(left);
+        row.appendChild(centre);
+        row.appendChild(right);
+        shell.appendChild(scrub);
+        shell.appendChild(row);
+
+        var move = function (selector, target) {
+            osd.querySelectorAll(selector).forEach(function (node) {
+                if (node && node.parentNode !== target) target.appendChild(node);
+            });
+        };
+
+        // The slider carries Jellyfin's seek wiring; it goes across as-is.
+        move('.sliderContainer, .osdProgressInner, .osdTimeText, .osdPositionText, .osdDurationText', scrub);
+
+        move('.btnPause, .btnPlay, .btnRewind, .btnFastForward, .buttonMute, .osdVolumeSliderContainer, .volumeButtons', left);
+        move('.osdTextContainer, .osdTitle, .osdMediaInfo', centre);
+        move(
+            '.btnNextTrack, .btnSubtitles, .btnAudio, .btnFullscreen, .btnToggleFullscreen, .btnScreenshot',
+            right
+        );
+
+        osd.appendChild(shell);
+    }
+
     /* ------------------------------------------------------------ billboard */
 
     /* Netflix's billboard puts a play glyph on the primary button and nothing at
@@ -1400,6 +1449,7 @@
         mountHero();
         decorateTop10();
         decorateRows();
+        layoutPlayer();
         widenCards();
         reapplyThumbs();
     }

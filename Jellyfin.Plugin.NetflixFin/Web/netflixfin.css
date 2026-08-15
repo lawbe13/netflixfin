@@ -1722,9 +1722,59 @@ body.nf-detail .backdropImage {
     color: #fff;
 }
 
-/* Control row */
-.videoOsdBottom .buttons {
-    gap: 0.35rem;
+/* The relocated transport, arranged the Netflix way. Jellyfin's own containers
+   are emptied by the move, so they are folded away. */
+.videoOsdBottom .buttons:empty,
+.videoOsdBottom .osdControls > div:empty {
+    display: none;
+}
+
+.nf-osd {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+}
+
+.nf-osd-scrub {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.nf-osd-scrub .sliderContainer {
+    flex: 1;
+    margin: 0;
+}
+
+.nf-osd-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nf-osd-left,
+.nf-osd-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nf-osd-centre {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+    text-align: center;
+}
+
+.nf-osd-right {
+    margin-left: auto;
 }
 
 .videoOsdBottom .paper-icon-button-light {
