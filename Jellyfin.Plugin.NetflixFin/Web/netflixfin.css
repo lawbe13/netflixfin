@@ -977,14 +977,15 @@ body.nf-hover-preview .cardOverlayContainer {
     z-index: 2;
 }
 
+/* A dark translucent capsule with white text; all the colour lives in the icon.
+   Netflix uses no border and no coloured text here. */
 .nf-hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 7px 13px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    padding: 7px 14px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     font-size: 14px;
@@ -994,10 +995,15 @@ body.nf-hover-preview .cardOverlayContainer {
 }
 
 .nf-hero-badge svg {
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
     fill: #e5b649;
     flex: 0 0 auto;
+}
+
+/* "Nuova stagione" and friends get Netflix's red megaphone rather than the gold. */
+.nf-hero-badge-new svg {
+    fill: #e50914;
 }
 
 @media (max-width: 799px) {

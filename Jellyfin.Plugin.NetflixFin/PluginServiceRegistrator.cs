@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.NetflixFin.Awards;
 using Jellyfin.Plugin.NetflixFin.Injection;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -12,5 +13,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddHostedService<InjectionService>();
+        serviceCollection.AddHostedService<AwardsService>();
     }
 }

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Resources;
 using System.Text;
 using System.Text.Json;
+using Jellyfin.Plugin.NetflixFin.Awards;
 using Jellyfin.Plugin.NetflixFin.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -80,6 +81,30 @@ public class NetflixFinController : ControllerBase
 
         var js = "window.NetflixFinConfig=" + settings + ";\n" + ReadResource("Web.netflixfin.js");
         return Content(js, "application/javascript", Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// Gets the award tallies for the library, keyed by IMDb ID.
+    /// </summary>
+    /// <remarks>
+    /// Titles with no awards are simply absent, so the map stays small — 127 entries out of
+    /// 744 titles on the library this was built against. The client fetches it once.
+    /// </remarks>
+    [HttpGet("awards")]
+    [Produces("application/json")]
+    public ActionResult GetAwards()
+    {
+        var service = AwardsService.Instance;
+        if (service == null)
+        {
+            return new JsonResult(new { updatedUtc = (DateTime?)null, titles = new Dictionary<string, object>() });
+        }
+
+        // Cheap to ask on every call: it returns immediately unless the cache has aged out,
+        // and the refresh itself runs under a lock that drops concurrent callers.
+        _ = service.RefreshIfStaleAsync(CancellationToken.None);
+
+        return new JsonResult(new { updatedUtc = service.UpdatedUtc, titles = service.Titles }, _json);
     }
 
     private static string Sanitize(string? value, string fallback)

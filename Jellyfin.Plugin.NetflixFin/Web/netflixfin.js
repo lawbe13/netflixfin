@@ -1540,9 +1540,13 @@
         back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z',
         close: 'M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z',
         search: 'M10 2a8 8 0 105 14.3l5.3 5.3 1.4-1.4-5.3-5.3A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z',
-        trophy:
-            'M18 3V2H6v1H2v4a4 4 0 004 4h.4A6 6 0 0011 14.9V18H7v2h10v-2h-4v-3.1A6 6 0 0017.6 11H18a4 4 0 004-4V3h-4zM4 7V5h2v4a2 2 0 01-2-2zm16 0a2 2 0 01-2 2V5h2v2z',
-        sparkle: 'M12 2l2.2 6.1L20 10l-5.8 1.9L12 18l-2.2-6.1L4 10l5.8-1.9L12 2zm7 12l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1 1-2.6z',
+        /* Netflix's award call-out uses a laurel wreath, not a trophy: two branches
+         * curving up and open at the top, in gold. */
+        laurel:
+            'M12 20.6c-2.1-1.3-3.4-3-3.4-5.3 0-1 .2-1.9.6-2.7-1.5-.6-2.7-1.7-3.4-3.2C5 7.7 4.9 5.8 5.5 3.9c1.9.2 3.5 1 4.6 2.4.9 1.1 1.4 2.4 1.5 3.8V4h.8v6.1c.1-1.4.6-2.7 1.5-3.8 1.1-1.4 2.7-2.2 4.6-2.4.6 1.9.5 3.8-.3 5.5-.7 1.5-1.9 2.6-3.4 3.2.4.8.6 1.7.6 2.7 0 2.3-1.3 4-3.4 5.3zM7 5.2c-.2 1.3 0 2.5.5 3.6.5 1.1 1.3 1.9 2.4 2.4.1-1.4-.2-2.7-.9-3.8-.5-.9-1.2-1.6-2-2.2zm10 0c-.8.6-1.5 1.3-2 2.2-.7 1.1-1 2.4-.9 3.8 1.1-.5 1.9-1.3 2.4-2.4.5-1.1.7-2.3.5-3.6zm-5 6.9c-.9.9-1.4 2-1.4 3.2 0 1.3.5 2.4 1.4 3.3.9-.9 1.4-2 1.4-3.3 0-1.2-.5-2.3-1.4-3.2z',
+        /* And a megaphone for "new season" / "new episode". */
+        megaphone:
+            'M20 3.5v17a1 1 0 01-1.6.8L11 15.6v3.9a2.5 2.5 0 01-5 0v-4H5a3 3 0 01-3-3v-1a3 3 0 013-3h6l7.4-5.7a1 1 0 011.6.7zM8 15.5v4a.5.5 0 001 0v-4H8z',
         bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z'
     };
 
@@ -2222,10 +2226,11 @@
 
     /* The badges Netflix hangs off a billboard - "Nuova stagione", "Candidata
      * agli Emmy" - are claims about the title, so ours are only ever derived
-     * from fields Jellyfin actually holds. Awards are not among them: no
-     * metadata provider Jellyfin ships records nominations, so no badge here
-     * can say so. What is real:
+     * from data that actually exists somewhere:
      *
+     *   awards               Oscar / Emmy / Golden Globe / BAFTA tallies, served by
+     *                        the plugin from Wikidata plus the OMDb payloads Jellyfin
+     *                        already cached (see Awards/AwardsService.cs)
      *   DateCreated          when the title entered the library
      *   DateLastMediaAdded   when episodes were last added to a series
      *   CriticRating         the aggregated critics' score from the provider
@@ -2234,6 +2239,25 @@
      * Most titles will show nothing, which is correct - Netflix's badges are
      * the exception too. */
     var DAY = 86400000;
+    var awardsByImdb = null;
+
+    function loadAwards() {
+        if (awardsByImdb) return Promise.resolve(awardsByImdb);
+        var client = api();
+        // getUrl honours a server running under a base path; the literal only has to
+        // cover the case where ApiClient is not up yet.
+        var url = client ? client.getUrl('NetflixFin/awards') : '/NetflixFin/awards';
+        return fetch(url)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                awardsByImdb = (data && data.titles) || {};
+                return awardsByImdb;
+            })
+            .catch(function () {
+                awardsByImdb = {};
+                return awardsByImdb;
+            });
+    }
 
     function ageInDays(value) {
         if (!value) return Infinity;
@@ -2241,19 +2265,64 @@
         return isNaN(when) ? Infinity : (Date.now() - when) / DAY;
     }
 
+    /* Netflix states the fact and never the count - "Emmy Award Winner", never
+     * "Winner of 4 Emmys" - and that happens to be the honest choice here too.
+     * The counts are good but not perfect: Wikidata splits Ben-Hur's score win
+     * across two category entities and is missing Toy Story 3's song win, so a
+     * number would be wrong now and then. A bare fact is not. */
+    var AWARDS = [
+        { win: 'OscarWins', nom: 'OscarNoms', won: 'Premiat$ agli Oscar®', cand: 'Candidat$ agli Oscar®' },
+        { win: 'EmmyWins', nom: 'EmmyNoms', won: 'Premiat$ agli Emmy®', cand: 'Candidat$ agli Emmy®' },
+        { win: 'GlobeWins', nom: 'GlobeNoms', won: 'Premiat$ ai Golden Globe', cand: 'Candidat$ ai Golden Globe' },
+        { win: 'BaftaWins', nom: 'BaftaNoms', won: 'Premiat$ ai BAFTA', cand: 'Candidat$ ai BAFTA' }
+    ];
+
+    function awardBadge(item) {
+        var imdb = item.ProviderIds && item.ProviderIds.Imdb;
+        var record = imdb && awardsByImdb && awardsByImdb[imdb];
+        if (!record) return null;
+
+        // "il film" is masculine, "la serie" feminine, and Netflix Italia does agree
+        // its own copy ("Stand-up vincitrici e candidate agli Emmy®").
+        var ending = item.Type === 'Series' ? 'a' : 'o';
+
+        for (var i = 0; i < AWARDS.length; i++) {
+            var family = AWARDS[i];
+            var wins = record[family.win] || 0;
+            var noms = record[family.nom] || 0;
+            if (!wins && !noms) continue;
+
+            var template = wins ? family.won : family.cand;
+            return {
+                glyph: 'laurel',
+                text: template.replace('$', ending),
+                hint: wins
+                    ? wins + (wins === 1 ? ' premio vinto' : ' premi vinti')
+                    : noms + (noms === 1 ? ' candidatura' : ' candidature')
+            };
+        }
+
+        return null;
+    }
+
     function itemBadges(item) {
         var badges = [];
 
+        var award = awardBadge(item);
+        if (award) badges.push(award);
+
         if (item.Type === 'Series' && ageInDays(item.DateLastMediaAdded) <= 45) {
-            badges.push({ glyph: 'episodes', text: 'Nuovi episodi' });
+            badges.push({ glyph: 'megaphone', text: 'Nuovi episodi' });
         } else if (ageInDays(item.DateCreated) <= 30) {
-            badges.push({ glyph: 'sparkle', text: 'Novità' });
+            badges.push({ glyph: 'megaphone', text: 'Novità' });
         }
 
-        if (item.CriticRating >= 90) {
-            badges.push({ glyph: 'trophy', text: 'Acclamato dalla critica' });
-        } else if (item.CommunityRating >= 8.5) {
-            badges.push({ glyph: 'trophy', text: 'Molto amato' });
+        if (!award) {
+            if (item.CriticRating >= 90) {
+                badges.push({ glyph: 'laurel', text: 'Acclamat' + (item.Type === 'Series' ? 'a' : 'o') + ' dalla critica' });
+            } else if (item.CommunityRating >= 8.5) {
+                badges.push({ glyph: 'laurel', text: 'Molto amat' + (item.Type === 'Series' ? 'a' : 'o') });
+            }
         }
 
         return badges.slice(0, 2);
@@ -2336,14 +2405,25 @@
 
             overview.textContent = item.Overview || '';
 
+            paintBadges();
+        }
+
+        function paintBadges() {
+            var item = items[current];
+            if (!item) return;
             badges.textContent = '';
             itemBadges(item).forEach(function (badge) {
-                var pill = el('span', 'nf-hero-badge');
+                var pill = el('span', 'nf-hero-badge' + (badge.glyph === 'megaphone' ? ' nf-hero-badge-new' : ''));
+                if (badge.hint) pill.title = badge.hint;
                 pill.appendChild(svgIcon(badge.glyph));
                 pill.appendChild(el('span', null, badge.text));
                 badges.appendChild(pill);
             });
         }
+
+        // The awards map arrives on its own schedule; repaint once it lands so the
+        // first billboard is not the only one that misses out.
+        loadAwards().then(paintBadges);
 
         play.addEventListener('click', function () {
             playNow(items[current].Id, items[current].ServerId, items[current].Type);
@@ -2402,7 +2482,7 @@
                 // billboard cannot tell a new arrival from a ten-year-old one.
                 Fields:
                     'Overview,Genres,ProductionYear,OfficialRating,ChildCount,' +
-                    'DateCreated,DateLastMediaAdded,CriticRating,Status',
+                    'DateCreated,DateLastMediaAdded,CriticRating,ProviderIds',
                 EnableTotalRecordCount: false
             })
             .then(function (result) {
