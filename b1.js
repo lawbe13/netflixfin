@@ -1,3 +1,4 @@
+window.NetflixFinConfig={"enableHoverPreview":true,"hideCardText":true,"useWideThumbnails":true,"enableHeroBanner":true,"heroAutoRotate":true,"heroRotateSeconds":12,"enableHeroTrailer":true,"heroTrailerDelaySeconds":3,"enableTop10":true,"logoUrl":"","accentColor":"#E50914"};
 /* NetflixFin - behaviour layer.
  *
  * The stylesheet carries the look. This file adds the four things CSS cannot
@@ -28,7 +29,6 @@
        both spellings count. */
     var TOP10_RE = /top\s*-?\s*10|\b10\s+(titoli|piu|più)\b/i;
     var heroTimer = null;
-    var heroTeardown = null;
 
     /* ---------------------------------------------------------------- utils */
 
@@ -449,9 +449,6 @@
         }
     }
 
-    var detailLogoTimer = null;
-    var detailLogoTries = 0;
-
     function decorateDetail() {
         var onDetail = /#\/details/.test(window.location.hash);
         document.body.classList.toggle('nf-detail', onDetail);
@@ -467,20 +464,8 @@
         document.body.classList.toggle('nf-detail-logo', hasLogo);
 
         // The logo arrives as a lazy-loaded background-image, which is not a DOM
-        // mutation, so the observer never sees it land and it has to be polled for.
-        // One poll at a time, and not forever: this used to schedule an
-        // uncancellable call on every refresh, so each pass through here started a
-        // fresh chain on top of the ones already running.
-        if (detailLogoTimer) {
-            clearTimeout(detailLogoTimer);
-            detailLogoTimer = null;
-        }
-        if (logo && !hasLogo && detailLogoTries < 8) {
-            detailLogoTries++;
-            detailLogoTimer = setTimeout(decorateDetail, 700);
-        } else if (hasLogo || !logo) {
-            detailLogoTries = 0;
-        }
+        // mutation, so the observer never sees it land.
+        if (logo && !hasLogo) setTimeout(decorateDetail, 700);
 
         document.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
             .forEach(function (button) {
@@ -592,12 +577,8 @@
 
                 if (!slider.dataset.nfRowBound) {
                     slider.dataset.nfRowBound = '1';
-                    // Scroll only. A resize listener here would be per-row and could
-                    // never be removed - jellyfin-web swaps whole pages, so each visit
-                    // minted another one, and every retained closure pinned its own
-                    // detached row subtree in memory for the life of the tab. One
-                    // listener in start() calls decorateRows instead.
                     slider.addEventListener('scroll', update, { passive: true });
+                    window.addEventListener('resize', update, { passive: true });
                 }
 
                 update();
@@ -737,12 +718,7 @@
             if ((container.style.backgroundImage || '').indexOf(url) === -1) {
                 container.style.backgroundImage = 'url("' + url + '")';
             }
-            // Only when it is actually there. classList.remove on a class the element
-            // does not carry still writes the class attribute, and this runs over every
-            // swapped tile on the page - 640 of them on this library - on every pass.
-            if (container.classList.contains('blurhashed')) {
-                container.classList.remove('blurhashed');
-            }
+            container.classList.remove('blurhashed');
         });
     }
 
@@ -1382,11 +1358,6 @@
             });
     }
 
-    /* Kept as the MediaQueryList, deliberately, not as its .matches boolean: the query
-     * is re-evaluated on every read, so a 2-in-1 that gains a mouse after load starts
-     * getting hover previews. Freezing the boolean here would kill them silently. */
-    var FINE_POINTER = window.matchMedia('(hover: hover) and (pointer: fine)');
-
     function bindPreview() {
         if (document.body.dataset.nfPreviewBound) return;
         document.body.dataset.nfPreviewBound = '1';
@@ -1395,7 +1366,7 @@
             'mouseover',
             function (event) {
                 if (!cfg.enableHoverPreview) return;
-                if (!FINE_POINTER.matches) return;
+                if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
                 var card = event.target.closest && event.target.closest('.card[data-id]');
                 if (!card || !card.closest('.itemsContainer')) return;
@@ -1438,6 +1409,94 @@
     }
 
     /* -------------------------------------------------------------- player */
+
+    /* Netflix's transport is one row: play/back-10/forward-10/volume hard left,
+     * title centred, next-episode/episodes/subtitles/fullscreen hard right, with
+     * a full-width scrubber above it.
+     *
+     * Jellyfin's controls are *moved* into that arrangement rather than
+     * reimplemented. Rebuilding them would mean re-deriving seeking, which the
+     * server drives differently for direct play and for transcodes; relocating
+     * the real elements keeps every behaviour attached to them. An earlier
+     * attempt to rearrange the same controls with flex order instead tore the
+     * layout apart, because the OSD is not one flex row to begin with. */
+    /* DISABLED. Relocating Jellyfin's controls produced a player that looked
+     * closer to Netflix but whose buttons no longer responded - twice. The OSD
+     * carries behaviour that does not survive being re-parented, and a player
+     * that cannot be operated is worse than one that is merely styled. It is
+     * kept here as a record of the approach, not called.
+     *
+     * Doing this properly means driving playback ourselves rather than moving
+     * Jellyfin's widgets, which is a much larger piece of work. */
+    function layoutPlayerDisabled() {
+        var osd = document.querySelector('.videoOsdBottom');
+        if (!osd) return;
+        if (osd.querySelector('.nf-osd')) return;
+
+        // Half a rearrangement is worse than none: if this build of jellyfin-web
+        // does not have the pieces this expects, the stock OSD is left exactly as
+        // it is rather than being taken apart into something unusable.
+        var essential = osd.querySelector('.sliderContainer');
+        var transport = osd.querySelector('.btnPause, .btnPlay');
+        if (!essential || !transport) {
+            log('player: expected controls not found, leaving the OSD alone');
+            return;
+        }
+
+        var shell = el('div', 'nf-osd');
+        var scrub = el('div', 'nf-osd-scrub');
+        var row = el('div', 'nf-osd-row');
+        var left = el('div', 'nf-osd-left');
+        var centre = el('div', 'nf-osd-centre');
+        var right = el('div', 'nf-osd-right');
+
+        row.appendChild(left);
+        row.appendChild(centre);
+        row.appendChild(right);
+        shell.appendChild(scrub);
+        shell.appendChild(row);
+
+        // One at a time, in the order Netflix places them - a selector list would
+        // move them in DOM order instead, which is how the transport came out as
+        // PiP/rewind/pause/forward.
+        var move = function (selector, target) {
+            var node = osd.querySelector(selector);
+            if (node && node.parentNode !== target) target.appendChild(node);
+            return node;
+        };
+
+        // The volume control is a .sliderContainer too, which is why two bars
+        // ended up side by side in the scrubber row. Take the seek slider by
+        // identity, not by class alone.
+        var sliders = Array.prototype.filter.call(
+            osd.querySelectorAll('.sliderContainer'),
+            function (node) {
+                return !node.closest('.volumeButtons, .osdVolumeSliderContainer');
+            }
+        );
+        if (sliders[0]) scrub.appendChild(sliders[0]);
+        move('.osdDurationText', scrub);
+
+        move('.btnPause, .btnPlay', left);
+        move('.btnRewind', left);
+        move('.btnFastForward', left);
+        var volume = move('.volumeButtons', left);
+        if (!volume) {
+            move('.buttonMute', left);
+            move('.osdVolumeSliderContainer', left);
+        }
+
+        move('.osdTextContainer', centre) || move('.osdTitle', centre);
+
+        move('.btnNextTrack', right);
+        move('.btnSubtitles', right);
+        move('.btnAudio', right);
+        move('.btnFullscreen, .btnToggleFullscreen', right);
+
+        osd.appendChild(shell);
+    }
+
+    /* ------------------------------------------------- player component */
 
     /* A player of our own, bound to the <video> element rather than to
      * Jellyfin's OSD. Moving Jellyfin's controls around was tried twice and both
@@ -1849,11 +1908,6 @@
         if (player.wheelGuard) {
             window.removeEventListener('wheel', player.wheelGuard, { capture: true });
         }
-        if (player.videoListeners && player.video) {
-            player.videoListeners.forEach(function (pair) {
-                player.video.removeEventListener(pair[0], pair[1]);
-            });
-        }
         // Hand the element back exactly as it was found.
         if (player.video) {
             try {
@@ -2073,12 +2127,6 @@
             seekTo(video, (Number(range.value) / 1000) * duration);
         });
 
-        // timeupdate fires about four times a second, and this used to rebuild the
-        // play/pause SVG on every one of them - inside the subtree the page-wide
-        // MutationObserver is watching, so each one also queued a decoration pass.
-        // The glyph only ever has two states.
-        var drawnPaused = null;
-
         var sync = function () {
             var duration = video.duration || 0;
             if (!scrubbing && duration) {
@@ -2086,27 +2134,15 @@
             }
             remaining.textContent = '-' + fmt(duration - video.currentTime);
             range.style.setProperty('--nf-progress', (Number(range.value) / 10).toFixed(2) + '%');
-            if (video.paused !== drawnPaused) {
-                drawnPaused = video.paused;
-                playBtn.replaceChildren(svgIcon(drawnPaused ? 'play' : 'pause'));
-            }
+            playBtn.replaceChildren(svgIcon(video.paused ? 'play' : 'pause'));
         };
 
-        var onPause = function () {
+        video.addEventListener('timeupdate', sync);
+        video.addEventListener('loadedmetadata', sync);
+        video.addEventListener('play', sync);
+        video.addEventListener('pause', function () {
             sync();
             showPlayerChrome();
-        };
-
-        // Kept on the player so destroyPlayer can take them off the video element,
-        // which Jellyfin reuses between titles rather than replacing.
-        player.videoListeners = [
-            ['timeupdate', sync],
-            ['loadedmetadata', sync],
-            ['play', sync],
-            ['pause', onPause]
-        ];
-        player.videoListeners.forEach(function (pair) {
-            video.addEventListener(pair[0], pair[1]);
         });
         sync();
 
@@ -2543,21 +2579,6 @@
 
         window.addEventListener('message', onPlayerMessage);
 
-        /* Teardown has to be reachable from outside. It used to hang off the rotation
-         * interval - which hashchange clears directly, so the callback that would have
-         * removed this listener never ran, and every billboard ever built left one
-         * behind, each still holding its items and its iframe. */
-        if (heroTeardown) heroTeardown();
-        heroTeardown = function () {
-            heroTeardown = null;
-            if (heroTimer) {
-                clearInterval(heroTimer);
-                heroTimer = null;
-            }
-            stopTrailer();
-            window.removeEventListener('message', onPlayerMessage);
-        };
-
         mute.addEventListener('click', function (event) {
             event.stopPropagation();
             muted = !muted;
@@ -2578,7 +2599,9 @@
         if (cfg.heroAutoRotate && items.length > 1) {
             heroTimer = setInterval(function () {
                 if (!document.body.contains(hero)) {
-                    if (heroTeardown) heroTeardown();
+                    clearInterval(heroTimer);
+                    heroTimer = null;
+                    window.removeEventListener('message', onPlayerMessage);
                     return;
                 }
                 // A trailer holds the billboard: rotating out mid-play would be
@@ -2591,8 +2614,6 @@
         render(0);
         return hero;
     }
-
-    var heroPending = false;
 
     function mountHero() {
         if (!cfg.enableHeroBanner) return;
@@ -2613,15 +2634,8 @@
         var container = document.querySelector('.homeSectionsContainer');
         if (!container || container.querySelector('[data-nf-hero]')) return;
 
-        // The marker above only lands once the request comes back, and refresh() can
-        // run several times in that window - which fired the same 20-item query two or
-        // three times over and raced the results into the same container.
-        if (heroPending) return;
-
         var client = api();
         if (!client) return;
-
-        heroPending = true;
 
         client
             .getItems(client.getCurrentUserId(), {
@@ -2639,7 +2653,6 @@
                 EnableTotalRecordCount: false
             })
             .then(function (result) {
-                heroPending = false;
                 var items = (result.Items || []).filter(function (item) {
                     return item.BackdropImageTags && item.BackdropImageTags.length && item.Overview;
                 });
@@ -2651,7 +2664,6 @@
                 log('billboard mounted');
             })
             .catch(function (err) {
-                heroPending = false;
                 log('billboard failed', err);
             });
     }
@@ -2685,16 +2697,7 @@
 
     function start() {
         applyTileCount();
-        window.addEventListener(
-            'resize',
-            function () {
-                applyTileCount();
-                // The rows' arrows and page dots are sized off the viewport, and this
-                // is the one place that redraws them - the alternative was a listener
-                // per row, which leaked.
-                decorateRows();
-            },
-            { passive: true });
+        window.addEventListener('resize', applyTileCount, { passive: true });
         applyBodyFlags();
         bindScrollState();
         bindPreview();
@@ -2711,7 +2714,10 @@
         });
 
         window.addEventListener('hashchange', function () {
-            if (heroTeardown) heroTeardown();
+            if (heroTimer) {
+                clearInterval(heroTimer);
+                heroTimer = null;
+            }
             schedule();
         });
     }
