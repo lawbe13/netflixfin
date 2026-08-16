@@ -52,21 +52,25 @@
    not mean the tiles should be fewer here, it usually means the opposite. So
    the ladder holds five across everything between a phone and the desktop
    breakpoint, and only real phones drop to three. */
-@media (max-width: 1399px) {
+/* Mirrors applyTileCount in netflixfin.js, which sets --nf-tiles inline and so
+   wins; these are here for the moment before the script runs. */
+@media (max-width: 1799px) {
     :root {
         --nf-tiles: 5;
         --nf-row-title: 21px;
     }
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1199px) {
     :root {
         --nf-gutter: 4vw;
+        --nf-tiles: 4;
+        --nf-row-title: 20px;
         --nf-hover-scale: 1.2;
     }
 }
 
-@media (max-width: 399px) {
+@media (max-width: 699px) {
     :root {
         --nf-tiles: 3;
         --nf-row-title: 18px;

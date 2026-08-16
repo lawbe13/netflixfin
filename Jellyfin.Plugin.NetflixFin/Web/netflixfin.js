@@ -149,8 +149,11 @@
      * winning on specificity. It is also the value the debug line below reads
      * back, so what is measured is what is applied. */
     function applyTileCount() {
+        // Two measured anchors: 1512 wants five, 1920 and 2133 want seven. The
+        // boundary therefore sits between them, not at 1400 - which is what put
+        // seven on the laptop.
         var width = window.innerWidth;
-        var tiles = width >= 1400 ? 7 : width >= 400 ? 5 : 3;
+        var tiles = width >= 1800 ? 7 : width >= 1200 ? 5 : width >= 700 ? 4 : 3;
         var root = document.documentElement;
         if (root.style.getPropertyValue('--nf-tiles') !== String(tiles)) {
             root.style.setProperty('--nf-tiles', String(tiles));
