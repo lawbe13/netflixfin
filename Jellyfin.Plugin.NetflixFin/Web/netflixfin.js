@@ -2445,6 +2445,8 @@
         var trailerTimer = null;
         var trailerCap = null;
         var revealTimer = null;
+        var pingTimer = null;
+        var pings = 0;
         var frame = null;
         var muted = true;
         var handshake = 1;
@@ -2477,6 +2479,17 @@
             mute.setAttribute('aria-label', mute.title);
         }
 
+        /* One handshake on the iframe's load event is not enough - the player is often
+         * not listening yet and the message goes nowhere, after which no state ever
+         * comes back. Repeating it costs nothing and is what makes the reveal reliable. */
+        function ping() {
+            pingTimer = null;
+            if (!frame || !frame.contentWindow) return;
+            frame.contentWindow.postMessage(
+                JSON.stringify({ event: 'listening', id: handshake, channel: 'widget' }), '*');
+            if (++pings < 20) pingTimer = setTimeout(ping, 400);
+        }
+
         function reveal() {
             if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
             if (frame) hero.classList.add('is-playing');
@@ -2486,6 +2499,8 @@
             if (trailerTimer) { clearTimeout(trailerTimer); trailerTimer = null; }
             if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
             if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+            if (pingTimer) { clearTimeout(pingTimer); pingTimer = null; }
+            pings = 0;
             hero.classList.remove('is-playing');
             videoBox.textContent = '';
             frame = null;
@@ -2515,20 +2530,14 @@
                     '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
                     '&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=' +
                     encodeURIComponent(location.origin);
-                frame.addEventListener('load', function () {
-                    // Opt in to state events; without this YouTube stays silent and we
-                    // would never learn that the trailer ended.
-                    if (frame && frame.contentWindow) {
-                        frame.contentWindow.postMessage(
-                            JSON.stringify({ event: 'listening', id: handshake, channel: 'widget' }), '*');
-                    }
-                });
                 videoBox.appendChild(frame);
+                pings = 0;
+                ping();
 
-                // Held back until the player reports that it is actually playing, so
-                // the billboard never shows YouTube's title card and spinner. If the
-                // handshake goes missing, reveal anyway rather than never.
-                revealTimer = setTimeout(reveal, 4000);
+                // Held back until the clock actually moves, so the billboard never shows
+                // YouTube's black frame and spinner. If the handshake goes missing
+                // entirely, reveal late rather than never.
+                revealTimer = setTimeout(reveal, 8000);
 
                 // Backstop: if the ended event never arrives - a blocked embed, a
                 // dropped handshake - the billboard must not sit on a dead frame.
@@ -2547,9 +2556,10 @@
             if (!data) return;
             var info = data.info;
             var state = data.event === 'onStateChange' ? info : (info && info.playerState);
-            if (state === 1) reveal();
-            // 0 is ended; 5 is "cued", which is what an embed-blocked video settles on.
-            if (state === 0 || state === 5) stopTrailer();
+            // A moving clock is the only dependable "it is really playing" signal: this
+            // player reports buffering readily but rarely announces state 1.
+            if (state === 1 || (info && info.currentTime > 0.2)) reveal();
+            if (state === 0) stopTrailer();
         }
 
         window.addEventListener('message', onPlayerMessage);
