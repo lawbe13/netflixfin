@@ -2630,6 +2630,16 @@
 
     var heroRequest = null;
 
+    /* The billboard has to be the first thing in the column. It is claimed early
+     * now - earlier than jellyfin-web finishes populating the container - and
+     * jellyfin-web then prepends its own #categories-wrapper above it, which left
+     * the billboard sitting 32px lower than Netflix's. */
+    function hoistHero(container, node) {
+        if (container.firstElementChild !== node) {
+            container.insertBefore(node, container.firstElementChild);
+        }
+    }
+
     function mountHero() {
         if (!cfg.enableHeroBanner) return;
 
@@ -2647,7 +2657,13 @@
         }
 
         var container = document.querySelector('.homeSectionsContainer');
-        if (!container || container.querySelector('[data-nf-hero]')) return;
+        if (!container) return;
+
+        var mounted = container.querySelector('[data-nf-hero]');
+        if (mounted) {
+            hoistHero(container, mounted);
+            return;
+        }
 
         // Claim the top of the column at its final height straight away. Without this
         // the billboard drops in later and shoves every row down the page; with it the
@@ -2657,6 +2673,7 @@
             slot = el('div', 'nf-hero nf-hero-reserve');
             container.insertBefore(slot, container.firstChild);
         }
+        hoistHero(container, slot);
 
         heroItems()
             .then(function (data) {
@@ -2672,6 +2689,7 @@
                 } else {
                     existing.insertBefore(hero, existing.firstChild);
                 }
+                hoistHero(existing, hero);
                 log('billboard mounted');
             })
             .catch(function (err) {
