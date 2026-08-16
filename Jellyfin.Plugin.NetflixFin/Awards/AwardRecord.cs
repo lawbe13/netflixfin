@@ -35,6 +35,7 @@ public sealed class AwardRecord
     public int BaftaNoms { get; set; }
 
     /// <summary>Gets a value indicating whether the record carries anything worth showing.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsEmpty =>
         OscarWins == 0 && OscarNoms == 0 &&
         EmmyWins == 0 && EmmyNoms == 0 &&

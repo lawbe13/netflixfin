@@ -2270,11 +2270,12 @@
      * The counts are good but not perfect: Wikidata splits Ben-Hur's score win
      * across two category entities and is missing Toy Story 3's song win, so a
      * number would be wrong now and then. A bare fact is not. */
+    /* Keys are camelCase: the controller serialises with JsonNamingPolicy.CamelCase. */
     var AWARDS = [
-        { win: 'OscarWins', nom: 'OscarNoms', won: 'Premiat$ agli Oscar®', cand: 'Candidat$ agli Oscar®' },
-        { win: 'EmmyWins', nom: 'EmmyNoms', won: 'Premiat$ agli Emmy®', cand: 'Candidat$ agli Emmy®' },
-        { win: 'GlobeWins', nom: 'GlobeNoms', won: 'Premiat$ ai Golden Globe', cand: 'Candidat$ ai Golden Globe' },
-        { win: 'BaftaWins', nom: 'BaftaNoms', won: 'Premiat$ ai BAFTA', cand: 'Candidat$ ai BAFTA' }
+        { win: 'oscarWins', nom: 'oscarNoms', won: 'Premiat$ agli Oscar®', cand: 'Candidat$ agli Oscar®' },
+        { win: 'emmyWins', nom: 'emmyNoms', won: 'Premiat$ agli Emmy®', cand: 'Candidat$ agli Emmy®' },
+        { win: 'globeWins', nom: 'globeNoms', won: 'Premiat$ ai Golden Globe', cand: 'Candidat$ ai Golden Globe' },
+        { win: 'baftaWins', nom: 'baftaNoms', won: 'Premiat$ ai BAFTA', cand: 'Candidat$ ai BAFTA' }
     ];
 
     function awardBadge(item) {
