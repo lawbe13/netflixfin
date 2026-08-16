@@ -1432,24 +1432,35 @@
          * PlaybackPositionTicks > 0. Setting the position to zero is the surgical
          * way to do it - marking it played or unplayed also empties the position but
          * rewrites the watch history to get there. */
-        var resume = item.UserData && item.UserData.PlaybackPositionTicks > 0;
+        /* Netflix puts the X on every tile in Continue Watching, so it goes on the
+         * whole row rather than only on the part-watched titles. Jellyfin's row
+         * mixes two kinds, and they are dismissed differently: something you are
+         * part-way through leaves when its position is reset, which is surgical,
+         * while a "next up" episode has no position to reset and only leaves once
+         * it is marked played. */
+        var inResumeRow = !!(card.closest('.verticalSection') || {}).querySelector
+            && /continua a guardare|prossimo|resume|next up/i.test(
+                ((card.closest('.verticalSection') || {}).querySelector('.sectionTitle') || {}).textContent || ''
+            );
+        var started = item.UserData && item.UserData.PlaybackPositionTicks > 0;
         var remove = null;
-        if (resume) {
+        if (inResumeRow || started) {
             remove = el('button', 'nf-circle');
             remove.type = 'button';
             remove.title = 'Rimuovi dalla riga';
             remove.appendChild(svgIcon('close'));
             remove.addEventListener('click', function () {
-                client
-                    .ajax({
+                var userId = client.getCurrentUserId();
+                var call = started
+                    ? client.ajax({
                         type: 'POST',
-                        url: client.getUrl('UserItems/' + item.Id + '/UserData', {
-                            userId: client.getCurrentUserId()
-                        }),
+                        url: client.getUrl('UserItems/' + item.Id + '/UserData', { userId: userId }),
                         data: JSON.stringify({ PlaybackPositionTicks: 0 }),
                         contentType: 'application/json',
                         dataType: 'json'
                     })
+                    : client.markPlayed(userId, item.Id, new Date());
+                call
                     .then(function () {
                         destroyPreview();
                         // The row is server-rendered, so the tile has to go by hand.
@@ -2363,7 +2374,7 @@
         }
 
         var label = function (item) {
-            if (!item || !player) return;
+            if (!item || !item.Id || !player) return;
             player.itemId = item.Id;
             if (item.SeriesId) player.seriesId = item.SeriesId;
             if (item.SeasonId) player.seasonId = item.SeasonId;
@@ -2381,7 +2392,23 @@
         };
 
         player.label = label;
-        ensureItem();
+        resolveSoon(0);
+    }
+
+    /* The player is built the moment the video element appears, which is before the
+     * server has a playback session to report and often before the element has a
+     * src. A single attempt at that moment finds nothing and nothing tries again,
+     * which is why both panels stayed dead for the life of the player. It keeps
+     * asking for a few seconds instead. */
+    function resolveSoon(attempt) {
+        if (!player) return;
+        var current = player;
+        ensureItem().then(function (item) {
+            if (player !== current || item || attempt >= 6) return;
+            setTimeout(function () {
+                if (player === current) resolveSoon(attempt + 1);
+            }, 700);
+        });
     }
 
     /* Which title is on screen. Asked from three places because no single one of
@@ -2462,8 +2489,14 @@
         player.itemPromise = client
             .getItem(client.getCurrentUserId(), id)
             .then(function (item) {
-                if (player === current && current.label) current.label(item);
-                return item;
+                if (player === current && current.label) {
+                    try {
+                        current.label(item);
+                    } catch (err) {
+                        log('could not label the player', err);
+                    }
+                }
+                return item && item.Id ? item : null;
             })
             .catch(function (err) {
                 // Clear it so the next press can try again rather than inheriting

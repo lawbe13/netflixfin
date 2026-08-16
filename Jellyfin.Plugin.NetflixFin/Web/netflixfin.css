@@ -798,6 +798,15 @@ body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
     background: rgba(255, 255, 255, 0.1);
 }
 
+/* The circle was built for Jellyfin's icon font, where colour comes from `color`.
+   The drawn icons are SVG and take their colour from `fill`, which nothing set - so
+   the X and the thumbs came out black on a dark button. */
+.nf-circle svg {
+    width: 20px;
+    height: 20px;
+    fill: #fff;
+}
+
 .nf-circle .material-icons {
     font-size: 20px;
 }
@@ -2616,7 +2625,10 @@ body.nf-playing .skinHeader {
    a progress bar of its own, which lands on top of this player's transport and
    reads as two players stacked. Its artwork and copy are worth keeping; the
    second bar is not, and ours is the one you can actually scrub with. */
-body.nf-playing .pause-screen-progress-wrap {
+body.nf-playing .pause-screen-progress-wrap,
+body.nf-playing .pause-screen-progress-bar,
+body.nf-playing .pause-screen-progress-meta,
+body.nf-playing [class*="pause-screen-progress"] {
     display: none !important;
 }
 
