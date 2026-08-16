@@ -874,6 +874,18 @@ body.nf-hover-preview .cardOverlayContainer {
     box-shadow: 10px 20px 32px rgba(0, 0, 0, 0.45);
 }
 
+/* The billboard's space, claimed before its data arrives. It inherits the geometry
+   from .nf-hero, so the rows below settle into their final position immediately
+   instead of being shoved down when the artwork turns up. */
+.nf-hero-reserve {
+    background: #1a1a1a;
+}
+
+.nf-hero-reserve::before,
+.nf-hero-reserve::after {
+    content: none;
+}
+
 .nf-hero-media {
     position: absolute;
     inset: 0;

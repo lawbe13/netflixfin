@@ -2592,7 +2592,7 @@
         return hero;
     }
 
-    var heroPending = false;
+    var heroRequest = null;
 
     function mountHero() {
         if (!cfg.enableHeroBanner) return;
@@ -2613,47 +2613,93 @@
         var container = document.querySelector('.homeSectionsContainer');
         if (!container || container.querySelector('[data-nf-hero]')) return;
 
-        // The marker above only lands once the request comes back, and refresh() can
-        // run several times in that window - which fired the same 20-item query two or
-        // three times over and raced the results into the same container.
-        if (heroPending) return;
+        // Claim the top of the column at its final height straight away. Without this
+        // the billboard drops in later and shoves every row down the page; with it the
+        // rows land in their final position first time.
+        var slot = container.querySelector('.nf-hero-reserve');
+        if (!slot) {
+            slot = el('div', 'nf-hero nf-hero-reserve');
+            container.insertBefore(slot, container.firstChild);
+        }
 
-        var client = api();
-        if (!client) return;
-
-        heroPending = true;
-
-        client
-            .getItems(client.getCurrentUserId(), {
-                IncludeItemTypes: 'Movie,Series',
-                Recursive: true,
-                SortBy: 'Random',
-                Limit: 20,
-                ImageTypeLimit: 2,
-                EnableImageTypes: 'Backdrop,Logo',
-                // The extra fields exist for the badges; without them the
-                // billboard cannot tell a new arrival from a ten-year-old one.
-                Fields:
-                    'Overview,Genres,ProductionYear,OfficialRating,ChildCount,' +
-                    'DateCreated,DateLastMediaAdded,CriticRating,ProviderIds,RemoteTrailers',
-                EnableTotalRecordCount: false
-            })
-            .then(function (result) {
-                heroPending = false;
-                var items = (result.Items || []).filter(function (item) {
-                    return item.BackdropImageTags && item.BackdropImageTags.length && item.Overview;
-                });
-                if (!items.length) return;
+        heroItems()
+            .then(function (data) {
+                if (!data || !data.items.length) return;
 
                 var existing = document.querySelector('.homeSectionsContainer');
                 if (!existing || existing.querySelector('[data-nf-hero]')) return;
-                existing.insertBefore(buildHero(items.slice(0, 5), client), existing.firstChild);
+
+                var hero = buildHero(data.items.slice(0, 5), data.client);
+                var reserve = existing.querySelector('.nf-hero-reserve');
+                if (reserve) {
+                    existing.replaceChild(hero, reserve);
+                } else {
+                    existing.insertBefore(hero, existing.firstChild);
+                }
                 log('billboard mounted');
             })
             .catch(function (err) {
-                heroPending = false;
                 log('billboard failed', err);
             });
+    }
+
+    /* The billboard's data is fetched once and kept, and the fetch starts the moment
+     * ApiClient can answer - not when the home rows finally render.
+     *
+     * That ordering is the whole point. Measured on a cold load of this server: the
+     * theme's own script is parsed at 341ms, but jellyfin-web does not make its first
+     * API call until 1439ms, and the rows arrive well after that. Asking for the
+     * billboard only once the rows exist put it last in the queue, which is exactly
+     * how it looked. Now it is in flight alongside them. */
+    function heroItems() {
+        if (heroRequest) return heroRequest;
+
+        heroRequest = new Promise(function (resolve) {
+            var deadline = Date.now() + 30000;
+            (function poll() {
+                var client = api();
+                if (client && client.getCurrentUserId && client.getCurrentUserId()) {
+                    return resolve(client);
+                }
+                if (Date.now() > deadline) return resolve(null);
+                setTimeout(poll, 50);
+            })();
+        }).then(function (client) {
+            if (!client) return null;
+            return client
+                .getItems(client.getCurrentUserId(), {
+                    IncludeItemTypes: 'Movie,Series',
+                    Recursive: true,
+                    SortBy: 'Random',
+                    Limit: 20,
+                    ImageTypeLimit: 2,
+                    EnableImageTypes: 'Backdrop,Logo',
+                    // The extra fields exist for the badges; without them the
+                    // billboard cannot tell a new arrival from a ten-year-old one.
+                    Fields:
+                        'Overview,Genres,ProductionYear,OfficialRating,ChildCount,' +
+                        'DateCreated,DateLastMediaAdded,CriticRating,ProviderIds,RemoteTrailers',
+                    EnableTotalRecordCount: false
+                })
+                .then(function (result) {
+                    var items = (result.Items || []).filter(function (item) {
+                        return item.BackdropImageTags && item.BackdropImageTags.length && item.Overview;
+                    });
+                    // Warm the first backdrop while the rows are still drawing, so the
+                    // artwork is in cache by the time the element exists to show it.
+                    if (items.length) {
+                        var warm = new Image();
+                        warm.src = client.getImageUrl(items[0].Id, {
+                            type: 'Backdrop',
+                            maxWidth: 1920,
+                            tag: items[0].BackdropImageTags && items[0].BackdropImageTags[0]
+                        });
+                    }
+                    return { client: client, items: items };
+                });
+        });
+
+        return heroRequest;
     }
 
     /* ------------------------------------------------------------ lifecycle */
@@ -2699,6 +2745,12 @@
         bindScrollState();
         bindPreview();
         bindModal();
+
+        // Both go out immediately, in parallel with jellyfin-web's own boot, rather
+        // than waiting for a render that only happens a second and a half later.
+        if (cfg.enableHeroBanner) heroItems();
+        loadAwards();
+
         refresh();
 
         // Attributes are watched too: the lazy loader rewrites card backgrounds
