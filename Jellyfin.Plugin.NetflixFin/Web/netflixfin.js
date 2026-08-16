@@ -1330,6 +1330,68 @@
             });
         });
 
+        /* Netflix's rating control is one button that opens three: thumb down, thumb
+         * up, and a double thumb up for "love this". Jellyfin models this as
+         * UserData.Likes, a nullable boolean - null unrated, false down, true up -
+         * so the third option has nowhere to be stored and is left out rather than
+         * faked. */
+        var liked = item.UserData ? item.UserData.Likes : null;
+        var rate = el('div', 'nf-rate');
+        var rateBtn = el('button', 'nf-circle nf-rate-open');
+        rateBtn.type = 'button';
+        rateBtn.title = 'Valuta';
+
+        var paintRate = function () {
+            rateBtn.replaceChildren(svgIcon(liked === false ? 'thumbdown' : 'thumbup'));
+            rateBtn.classList.toggle('is-rated', liked === true || liked === false);
+        };
+
+        var setRating = function (value) {
+            var userId = client.getCurrentUserId();
+            // Pressing the choice you already hold clears it, which is how Netflix
+            // un-rates a title.
+            var next = liked === value ? null : value;
+            var call =
+                next === null
+                    ? client.ajax({
+                        type: 'DELETE',
+                        url: client.getUrl('UserItems/' + item.Id + '/Rating', { userId: userId })
+                    })
+                    : client.ajax({
+                        type: 'POST',
+                        url: client.getUrl('UserItems/' + item.Id + '/Rating', {
+                            userId: userId,
+                            likes: next
+                        })
+                    });
+            call.then(function () {
+                liked = next;
+                paintRate();
+            }).catch(function (err) {
+                log('could not save the rating', err);
+            });
+        };
+
+        var options = el('div', 'nf-rate-options');
+        [
+            { glyph: 'thumbdown', label: 'Non fa per me', value: false },
+            { glyph: 'thumbup', label: 'Mi piace', value: true }
+        ].forEach(function (choice) {
+            var button = el('button', 'nf-circle nf-rate-choice');
+            button.type = 'button';
+            button.title = choice.label;
+            button.appendChild(svgIcon(choice.glyph));
+            button.addEventListener('click', function (event) {
+                event.stopPropagation();
+                setRating(choice.value);
+            });
+            options.appendChild(button);
+        });
+
+        paintRate();
+        rate.appendChild(rateBtn);
+        rate.appendChild(options);
+
         var watched = el('button', 'nf-circle');
         watched.type = 'button';
         watched.title = 'Visto';
@@ -1338,6 +1400,41 @@
             client.markPlayed(client.getCurrentUserId(), item.Id, new Date());
             watched.style.borderColor = '#fff';
         });
+
+        /* Only on something you are part-way through: Netflix's X takes a title out
+         * of "Continue watching", and membership of that row is exactly
+         * PlaybackPositionTicks > 0. Setting the position to zero is the surgical
+         * way to do it - marking it played or unplayed also empties the position but
+         * rewrites the watch history to get there. */
+        var resume = item.UserData && item.UserData.PlaybackPositionTicks > 0;
+        var remove = null;
+        if (resume) {
+            remove = el('button', 'nf-circle');
+            remove.type = 'button';
+            remove.title = 'Rimuovi da Continua a guardare';
+            remove.appendChild(svgIcon('close'));
+            remove.addEventListener('click', function () {
+                client
+                    .ajax({
+                        type: 'POST',
+                        url: client.getUrl('UserItems/' + item.Id + '/UserData', {
+                            userId: client.getCurrentUserId()
+                        }),
+                        data: JSON.stringify({ PlaybackPositionTicks: 0 }),
+                        contentType: 'application/json',
+                        dataType: 'json'
+                    })
+                    .then(function () {
+                        destroyPreview();
+                        // The row is server-rendered, so the tile has to go by hand.
+                        var tile = card.closest('.card');
+                        if (tile) tile.remove();
+                    })
+                    .catch(function (err) {
+                        log('could not remove from continue watching', err);
+                    });
+            });
+        }
 
         var expand = el('button', 'nf-circle');
         expand.type = 'button';
@@ -1351,6 +1448,8 @@
         actions.appendChild(play);
         actions.appendChild(fav);
         actions.appendChild(watched);
+        actions.appendChild(rate);
+        if (remove) actions.appendChild(remove);
         actions.appendChild(el('span', 'nf-spacer'));
         actions.appendChild(expand);
         body.appendChild(actions);
@@ -1526,6 +1625,10 @@
         laurel:
             'M12 20.6c-2.1-1.3-3.4-3-3.4-5.3 0-1 .2-1.9.6-2.7-1.5-.6-2.7-1.7-3.4-3.2C5 7.7 4.9 5.8 5.5 3.9c1.9.2 3.5 1 4.6 2.4.9 1.1 1.4 2.4 1.5 3.8V4h.8v6.1c.1-1.4.6-2.7 1.5-3.8 1.1-1.4 2.7-2.2 4.6-2.4.6 1.9.5 3.8-.3 5.5-.7 1.5-1.9 2.6-3.4 3.2.4.8.6 1.7.6 2.7 0 2.3-1.3 4-3.4 5.3zM7 5.2c-.2 1.3 0 2.5.5 3.6.5 1.1 1.3 1.9 2.4 2.4.1-1.4-.2-2.7-.9-3.8-.5-.9-1.2-1.6-2-2.2zm10 0c-.8.6-1.5 1.3-2 2.2-.7 1.1-1 2.4-.9 3.8 1.1-.5 1.9-1.3 2.4-2.4.5-1.1.7-2.3.5-3.6zm-5 6.9c-.9.9-1.4 2-1.4 3.2 0 1.3.5 2.4 1.4 3.3.9-.9 1.4-2 1.4-3.3 0-1.2-.5-2.3-1.4-3.2z',
         /* And a megaphone for "new season" / "new episode". */
+        thumbup:
+            'M2 20h3V9H2v11zm19.8-9.2c.1-.2.2-.5.2-.8v-1c0-1.1-.9-2-2-2h-4.6l.7-3.4v-.3c0-.4-.2-.8-.4-1.1L14.6 1 8.3 7.3c-.4.4-.6.9-.6 1.4V18c0 1.1.9 2 2 2h8c.8 0 1.5-.5 1.8-1.2l2.3-5.4c.1-.2.1-.4.1-.6v-1c0-.4-.1-.7-.1-1z',
+        thumbdown:
+            'M22 4h-3v11h3V4zM2.2 13.2c-.1.2-.2.5-.2.8v1c0 1.1.9 2 2 2h4.6l-.7 3.4v.3c0 .4.2.8.4 1.1L9.4 23l6.3-6.3c.4-.4.6-.9.6-1.4V6c0-1.1-.9-2-2-2H6c-.8 0-1.5.5-1.8 1.2L1.9 10.6c-.1.2-.1.4-.1.6v1c0 .4.1.7.1 1z',
         megaphone:
             'M20 3.5v17a1 1 0 01-1.6.8L11 15.6v3.9a2.5 2.5 0 01-5 0v-4H5a3 3 0 01-3-3v-1a3 3 0 013-3h6l7.4-5.7a1 1 0 011.6.7zM8 15.5v4a.5.5 0 001 0v-4H8z',
         bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z'
@@ -1603,8 +1706,6 @@
             button.addEventListener('mouseenter', cancel);
             button.addEventListener('mouseleave', arm);
         }
-        // Opened by hover, so the pointer may never enter it at all.
-        arm();
     }
 
     function panelShell(title, cls) {
@@ -2278,6 +2379,11 @@
             log('currentItem unavailable', err);
         }
 
+        // Transcoded playback runs through MSE, where video.src is a blob: URL with
+        // no id in it - which is why a film's audio panel stayed dead while direct
+        // play worked. The session knows regardless of how the media is delivered.
+        if (player.sessionItemId) return player.sessionItemId;
+
         var src = (player.video && (player.video.currentSrc || player.video.src)) || '';
         // Case-insensitive on purpose: direct play is served from /Videos/<id>/ and
         // the HLS endpoints from /videos/<id>/.
@@ -2295,8 +2401,31 @@
         if (player.itemPromise) return player.itemPromise;
 
         var client = api();
+        if (!client) return Promise.resolve(null);
+
         var id = currentItemId();
-        if (!client || !id) return Promise.resolve(null);
+        if (!id) {
+            // Last resort, and the one that always knows: ask the server what this
+            // device is playing.
+            var waiting = player;
+            player.itemPromise = client
+                .getSessions({ deviceId: client.deviceId() })
+                .then(function (sessions) {
+                    var mine = (sessions || []).filter(function (session) {
+                        return session.NowPlayingItem;
+                    })[0];
+                    if (!mine || player !== waiting) return null;
+                    waiting.sessionItemId = mine.NowPlayingItem.Id;
+                    waiting.itemPromise = null;
+                    return ensureItem();
+                })
+                .catch(function (err) {
+                    if (player === waiting) waiting.itemPromise = null;
+                    log('could not read the playback session', err);
+                    return null;
+                });
+            return player.itemPromise;
+        }
 
         var current = player;
         player.itemPromise = client
@@ -2549,6 +2678,7 @@
             overview.textContent = item.Overview || '';
 
             paintBadges();
+            tintFrom(item, client);
         }
 
         function paintBadges() {
@@ -2750,6 +2880,63 @@
     }
 
     var heroRequest = null;
+    var tintCache = {};
+
+    /* Netflix washes the page behind the billboard with a colour taken from the
+     * current artwork - measured on netflix.com as an SVG radial gradient centred
+     * half a viewport above the top edge, 250% by 250%, opaque to 20% and clear by
+     * 65%. It is NOT red: three samples gave dark maroon, dark navy and dark olive,
+     * always with the largest RGB channel at exactly 38, i.e. the artwork's hue at
+     * about 15% brightness. Red is simply what it looks like on red key art.
+     *
+     * The colour is sampled from the backdrop itself, which is same-origin, so the
+     * canvas stays readable. */
+    function tintFrom(item, client) {
+        var root = document.documentElement;
+        var tag = item.BackdropImageTags && item.BackdropImageTags[0];
+        if (!tag) return;
+
+        if (tintCache[item.Id]) {
+            root.style.setProperty('--nf-hero-tint', tintCache[item.Id]);
+            return;
+        }
+
+        var probe = new Image();
+        probe.crossOrigin = 'anonymous';
+        probe.onload = function () {
+            try {
+                var canvas = document.createElement('canvas');
+                canvas.width = 16;
+                canvas.height = 9;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(probe, 0, 0, 16, 9);
+                var data = ctx.getImageData(0, 0, 16, 9).data;
+
+                var r = 0, g = 0, b = 0, n = 0;
+                for (var i = 0; i < data.length; i += 4) {
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                    n++;
+                }
+                r /= n; g /= n; b /= n;
+
+                // Keep the hue, pin the brightness: whatever the art, the wash is
+                // as dim as Netflix's. A flat grey average would read as sludge, so
+                // the channels are scaled by the brightest one.
+                var peak = Math.max(r, g, b, 1);
+                var scale = 38 / peak;
+                var tint =
+                    'rgb(' + Math.round(r * scale) + ',' +
+                    Math.round(g * scale) + ',' + Math.round(b * scale) + ')';
+                tintCache[item.Id] = tint;
+                root.style.setProperty('--nf-hero-tint', tint);
+            } catch (err) {
+                log('could not sample the artwork', err);
+            }
+        };
+        probe.src = client.getImageUrl(item.Id, { type: 'Backdrop', maxWidth: 96, tag: tag });
+    }
 
     /* The billboard has to be the first thing in the column. It is claimed early
      * now - earlier than jellyfin-web finishes populating the container - and

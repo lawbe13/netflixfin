@@ -654,11 +654,11 @@ body.nf-scrolled .skinHeader {
     width: calc(100% / var(--nf-tiles));
 }
 
-.card.nf-thumb .cardPadder {
+.mainAnimatedPages .card.nf-thumb .cardPadder {
     padding-bottom: 56.25% !important;
 }
 
-.cardBox {
+.mainAnimatedPages .cardBox {
     margin: 0 !important;
     padding: 0 !important;
     background: none !important;
@@ -666,7 +666,7 @@ body.nf-scrolled .skinHeader {
     box-shadow: none !important;
 }
 
-.cardPadder {
+.mainAnimatedPages .cardPadder {
     background-color: #2a2a2a;
     border-radius: var(--nf-card-radius);
 }
@@ -674,38 +674,38 @@ body.nf-scrolled .skinHeader {
 /* The rounding has to clip, not just be declared: the artwork is a background on
    an inner element, and without overflow control its square corners paint past
    the rounded ones - which is the ragged corner seen on some covers. */
-.cardScalable,
-.cardImageContainer,
-.cardContent,
-.cardContent-button,
-.cardImage {
+.mainAnimatedPages .cardScalable,
+.mainAnimatedPages .cardImageContainer,
+.mainAnimatedPages .cardContent,
+.mainAnimatedPages .cardContent-button,
+.mainAnimatedPages .cardImage {
     border-radius: var(--nf-card-radius);
     overflow: hidden;
 }
 
-.card .cardBox {
+.mainAnimatedPages .card .cardBox {
     border-radius: var(--nf-card-radius);
     overflow: hidden;
 }
 
-.cardImageContainer,
-.cardContent {
+.mainAnimatedPages .cardImageContainer,
+.mainAnimatedPages .cardContent {
     background-color: #2a2a2a;
 }
 
 /* Netflix puts no caption under a tile - the title is in the artwork, and the
    rest arrives on hover. */
-body.nf-hide-card-text .cardFooter:not(.innerCardFooter),
-body.nf-hide-card-text .cardText:not(.innerCardFooter .cardText) {
+body.nf-hide-card-text .mainAnimatedPages .cardFooter:not(.innerCardFooter),
+body.nf-hide-card-text .mainAnimatedPages .cardText:not(.innerCardFooter .cardText) {
     display: none !important;
 }
 
 /* Jellyfin's own hover overlay is replaced wholesale by the preview card. */
-body.nf-hover-preview .cardOverlayContainer {
+body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
     display: none !important;
 }
 
-.cardIndicators {
+.mainAnimatedPages .cardIndicators {
     top: 0.4em;
     right: 0.4em;
 }
@@ -2603,32 +2603,96 @@ body.nf-playing .skinHeader {
 
 
 /* --- Jellyfin's own dialogs ----------------------------------------------
-   Jellyfin reuses the whole card component inside its dialogs: the image editor
-   builds .imageEditorCard out of .card / .cardBox / .cardOverlayContainer, and
-   puts them in an .itemsContainer, so there is no container to scope by. This
-   skin's card styling is meant for the library, and applied in there it removed
-   the margins between the images and hid the overlay carrying "delete" and
-   "replace" - which is what made the image editor unusable. Jellyfin's own
-   values stand inside a dialog. */
-.dialogContainer .cardBox {
-    margin: 0.6em !important;
-    background: none !important;
-}
-
-.dialogContainer .cardOverlayContainer {
-    display: block !important;
-}
-
-.dialogContainer .cardText,
-.dialogContainer .cardFooter {
-    display: block !important;
-}
+   Every card rule in this file is scoped to .mainAnimatedPages, the page body.
+   Jellyfin's dialogs render in .dialogContainer, a sibling of it, and they are
+   built out of the same card component - the image editor makes .imageEditorCard
+   out of .card / .cardBox / .cardOverlayContainer inside an .itemsContainer, so
+   there is nothing about the markup to scope by. Styling meant for the library
+   was closing the gaps between the editor's images and hiding the overlay that
+   carries delete and replace. Nothing in this skin reaches into a dialog now. */
 
 /* --- Jellyfin Enhanced's pause screen -------------------------------------
    That plugin draws its own overlay on pause - artwork, logo, plot - and with it
    a progress bar of its own, which lands on top of this player's transport and
    reads as two players stacked. Its artwork and copy are worth keeping; the
    second bar is not, and ours is the one you can actually scrub with. */
-body.nf-playing.pause-screen-active .pause-screen-progress-wrap {
+body.nf-playing .pause-screen-progress-wrap {
     display: none !important;
+}
+
+
+/* [hidden] is only a user-agent rule, and .nf-p-btn sets display itself, so the
+   episodes button stayed on screen for films despite being marked hidden. */
+.nf-p-btn[hidden] {
+    display: none !important;
+}
+
+/* --- The wash behind the billboard ---------------------------------------
+   Measured off netflix.com: an SVG radial gradient on a full-bleed wrapper behind
+   the inset card, centred half a viewport ABOVE the top edge, 250% by 250%, at
+   full strength to 20% and clear by 65%. It reads as a glow along the top edge
+   because the card's artwork is opaque and only the gutters let it through.
+
+   It is not red. Three samples gave dark maroon, dark navy and dark olive, always
+   with the largest channel at exactly 38 - the artwork's own hue at about 15%
+   brightness. Red is what it looks like on red key art. netflixfin.js samples the
+   backdrop and sets --nf-hero-tint. */
+.homePage.libraryPage {
+    background-image: radial-gradient(
+        250% 250% at 50% -50%,
+        var(--nf-hero-tint, transparent) 20%,
+        transparent 65%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 115vh;
+}
+
+/* --- Rating, the way Netflix opens it -------------------------------------
+   One button that grows into the choices when you hover it. Jellyfin stores
+   UserData.Likes as a nullable boolean, so there are two options and not
+   Netflix's three - "love this" has nowhere to live and is left out. */
+.nf-rate {
+    position: relative;
+    display: inline-flex;
+}
+
+.nf-rate-options {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) scale(0.7);
+    transform-origin: bottom center;
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 9999px;
+    background: #181818;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.75);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s var(--nf-ease), transform 0.18s var(--nf-ease);
+}
+
+.nf-rate:hover .nf-rate-options,
+.nf-rate:focus-within .nf-rate-options {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    pointer-events: auto;
+}
+
+.nf-rate-choice {
+    transition: transform 0.12s var(--nf-ease);
+}
+
+.nf-rate-choice:hover {
+    transform: scale(1.18);
+}
+
+.nf-circle.is-rated {
+    background: #fff;
+    border-color: #fff;
+}
+
+.nf-circle.is-rated svg {
+    fill: #000;
 }
