@@ -1719,11 +1719,17 @@
 
                     var active = activeOf(kind);
 
-                    options.forEach(function (stream) {
+                    options.forEach(function (stream, position) {
                         var button = el('button', 'nf-p-track');
                         button.type = 'button';
                         button.appendChild(el('span', 'nf-p-tick'));
-                        button.appendChild(el('span', null, trackLabel(stream, kind)));
+                        button.appendChild(
+                            el(
+                                'span',
+                                null,
+                                trackLabel(stream, kind, kind === 'Subtitle' ? position - 1 : position)
+                            )
+                        );
                         if (stream.Index === active) button.classList.add('is-active');
                         button.addEventListener('click', function () {
                             apply(stream.Index, pm);
@@ -1793,16 +1799,21 @@
         return name.charAt(0).toUpperCase() + name.slice(1);
     }
 
-    function trackLabel(stream, kind) {
+    function trackLabel(stream, kind, position) {
         if (stream.Index === -1) return 'Disattivati';
 
+        // A file with a single untagged audio track has no language at all;
+        // falling through to DisplayTitle there put "AAC - Stereo - Predefinito"
+        // on screen, which is the codec string this exists to avoid.
         var name =
             languageName(stream.Language) ||
-            (stream.Title && !/\b(aac|ac3|eac3|dts|truehd|flac|opus|mp3|srt|subrip|pgs|ass)\b/i.test(stream.Title)
+            (stream.Title &&
+            !/\b(aac|ac3|eac3|dts|truehd|flac|opus|mp3|srt|subrip|pgs|ass|stereo|mono|5\.1|7\.1)\b/i.test(
+                stream.Title
+            )
                 ? stream.Title
                 : null) ||
-            stream.DisplayTitle ||
-            'Traccia ' + stream.Index;
+            (kind === 'Audio' && position === 0 ? 'Originale' : 'Traccia ' + (position + 1));
 
         var notes = [];
         if (stream.IsForced) notes.push('forzati');
