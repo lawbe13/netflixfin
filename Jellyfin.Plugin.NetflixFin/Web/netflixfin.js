@@ -1447,20 +1447,27 @@
         if (inResumeRow || started) {
             remove = el('button', 'nf-circle');
             remove.type = 'button';
-            remove.title = 'Rimuovi dalla riga';
+            remove.title = started
+                ? 'Rimuovi dalla riga'
+                : 'Rimuovi dalla riga (segna la serie come vista)';
             remove.appendChild(svgIcon('close'));
             remove.addEventListener('click', function () {
                 var userId = client.getCurrentUserId();
                 /* Two different removals, because the row holds two different
-                 * things. A title you are part-way through is in the row purely
-                 * because PlaybackPositionTicks > 0, so zeroing that takes it out
-                 * and touches nothing else.
+                 * things.
                  *
-                 * A "next up" episode is not stored anywhere - Jellyfin computes
-                 * that part of the row from what you have watched - so there is
-                 * nothing to delete. The only thing that moves it is marking the
-                 * episode watched, and the series will then offer the episode after
-                 * it. Jellyfin has no per-series dismissal to borrow. */
+                 * A title you are part-way through is in the row purely because
+                 * PlaybackPositionTicks > 0, so zeroing that takes it out and
+                 * touches nothing else.
+                 *
+                 * A "next up" episode is not stored anywhere: Jellyfin computes that
+                 * half of the row from watch history, and TVSeriesManager has no
+                 * per-series dismissal to borrow - the only exclusion it honours is
+                 * a library-wide one. Marking just the episode watched therefore
+                 * removes nothing; the series comes back the next day offering the
+                 * episode after it, which is exactly what it was doing. The series
+                 * has to be marked watched for it to actually leave. */
+                var series = !started && item.SeriesId ? item.SeriesId : null;
                 var call = started
                     ? client.ajax({
                         type: 'POST',
@@ -1469,7 +1476,7 @@
                         contentType: 'application/json',
                         dataType: 'json'
                     })
-                    : client.markPlayed(userId, item.Id, new Date());
+                    : client.markPlayed(userId, series || item.Id, new Date());
                 call
                     .then(function () {
                         destroyPreview();
