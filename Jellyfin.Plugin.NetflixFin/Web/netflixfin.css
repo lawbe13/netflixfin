@@ -967,6 +967,45 @@ body.nf-hover-preview .cardOverlayContainer {
     margin-top: 0.4rem;
 }
 
+/* Badges sit in the billboard's bottom-right corner, as Netflix places them. */
+.nf-hero-badges {
+    position: absolute;
+    right: 40px;
+    bottom: 8%;
+    display: flex;
+    gap: 8px;
+    z-index: 2;
+}
+
+.nf-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 13px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.nf-hero-badge svg {
+    width: 17px;
+    height: 17px;
+    fill: #e5b649;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 799px) {
+    .nf-hero-badges {
+        display: none;
+    }
+}
+
 /* Netflix's action buttons are pills: 48px tall, 18px/500, 8px 20px. */
 .nf-btn {
     display: inline-flex;

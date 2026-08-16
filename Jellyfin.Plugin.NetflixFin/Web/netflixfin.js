@@ -1540,6 +1540,9 @@
         back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z',
         close: 'M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z',
         search: 'M10 2a8 8 0 105 14.3l5.3 5.3 1.4-1.4-5.3-5.3A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z',
+        trophy:
+            'M18 3V2H6v1H2v4a4 4 0 004 4h.4A6 6 0 0011 14.9V18H7v2h10v-2h-4v-3.1A6 6 0 0017.6 11H18a4 4 0 004-4V3h-4zM4 7V5h2v4a2 2 0 01-2-2zm16 0a2 2 0 01-2 2V5h2v2z',
+        sparkle: 'M12 2l2.2 6.1L20 10l-5.8 1.9L12 18l-2.2-6.1L4 10l5.8-1.9L12 2zm7 12l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1 1-2.6z',
         bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z'
     };
 
@@ -2217,6 +2220,45 @@
      * two stacked billboards are worse than either alone. */
     var RIVAL_HERO = '#slides-container, #slideshow, .mediaBar, .jellyfin-enhanced-hero';
 
+    /* The badges Netflix hangs off a billboard - "Nuova stagione", "Candidata
+     * agli Emmy" - are claims about the title, so ours are only ever derived
+     * from fields Jellyfin actually holds. Awards are not among them: no
+     * metadata provider Jellyfin ships records nominations, so no badge here
+     * can say so. What is real:
+     *
+     *   DateCreated          when the title entered the library
+     *   DateLastMediaAdded   when episodes were last added to a series
+     *   CriticRating         the aggregated critics' score from the provider
+     *   CommunityRating      the audience score
+     *
+     * Most titles will show nothing, which is correct - Netflix's badges are
+     * the exception too. */
+    var DAY = 86400000;
+
+    function ageInDays(value) {
+        if (!value) return Infinity;
+        var when = Date.parse(value);
+        return isNaN(when) ? Infinity : (Date.now() - when) / DAY;
+    }
+
+    function itemBadges(item) {
+        var badges = [];
+
+        if (item.Type === 'Series' && ageInDays(item.DateLastMediaAdded) <= 45) {
+            badges.push({ glyph: 'episodes', text: 'Nuovi episodi' });
+        } else if (ageInDays(item.DateCreated) <= 30) {
+            badges.push({ glyph: 'sparkle', text: 'Novità' });
+        }
+
+        if (item.CriticRating >= 90) {
+            badges.push({ glyph: 'trophy', text: 'Acclamato dalla critica' });
+        } else if (item.CommunityRating >= 8.5) {
+            badges.push({ glyph: 'trophy', text: 'Molto amato' });
+        }
+
+        return badges.slice(0, 2);
+    }
+
     function buildHero(items, client) {
         var hero = el('div', 'nf-hero');
         hero.setAttribute('data-nf-hero', '1');
@@ -2252,6 +2294,9 @@
         content.appendChild(overview);
         content.appendChild(buttons);
         hero.appendChild(content);
+
+        var badges = el('div', 'nf-hero-badges');
+        hero.appendChild(badges);
 
         var current = 0;
 
@@ -2290,6 +2335,14 @@
             });
 
             overview.textContent = item.Overview || '';
+
+            badges.textContent = '';
+            itemBadges(item).forEach(function (badge) {
+                var pill = el('span', 'nf-hero-badge');
+                pill.appendChild(svgIcon(badge.glyph));
+                pill.appendChild(el('span', null, badge.text));
+                badges.appendChild(pill);
+            });
         }
 
         play.addEventListener('click', function () {
@@ -2345,7 +2398,11 @@
                 Limit: 20,
                 ImageTypeLimit: 2,
                 EnableImageTypes: 'Backdrop,Logo',
-                Fields: 'Overview,Genres,ProductionYear,OfficialRating,ChildCount',
+                // The extra fields exist for the badges; without them the
+                // billboard cannot tell a new arrival from a ten-year-old one.
+                Fields:
+                    'Overview,Genres,ProductionYear,OfficialRating,ChildCount,' +
+                    'DateCreated,DateLastMediaAdded,CriticRating,Status',
                 EnableTotalRecordCount: false
             })
             .then(function (result) {
