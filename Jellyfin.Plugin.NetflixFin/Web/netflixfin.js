@@ -1961,10 +1961,16 @@
             };
         }
 
+        /* Every wheel is stopped from reaching anyone else, panels included -
+         * letting them through was exactly how the volume still moved while a
+         * panel was open. Scrolling is the browser's default action, decided by
+         * hit-testing rather than by listeners, so halting propagation costs the
+         * panel nothing; only preventDefault would, and that is reserved for
+         * wheels outside a panel, where there is nothing to scroll. */
         player.wheelGuard = function (event) {
-            if (event.target && event.target.closest && event.target.closest('.nf-p-panel')) return;
+            var inPanel = !!(event.target && event.target.closest && event.target.closest('.nf-p-panel'));
             suppressUntil = Date.now() + 500;
-            event.preventDefault();
+            if (!inPanel) event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
         };
