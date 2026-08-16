@@ -1596,13 +1596,14 @@
     }
 
     /* Both panels need the item the player is showing, and that is resolved over the
-     * network. A press that lands before it arrives used to do nothing at all, with
-     * no retry and nothing on screen to say why - which is what a rebuilt player
-     * looked like until its request came back. They wait for it now. */
+     * network. A press that lands before the answer used to do nothing at all, with
+     * no retry and nothing on screen to say why. It waits now, and asks again if
+     * nothing has been asked yet - the resolution is lazy, so pressing the button is
+     * itself a reason to go and find out. */
     function waitForItem(reopen, retried) {
-        if (retried || !player || !player.ready) return;
+        if (retried || !player) return;
         var current = player;
-        player.ready.then(function () {
+        ensureItem().then(function () {
             if (player === current) reopen();
         });
     }
@@ -2196,7 +2197,7 @@
         }
 
         var label = function (item) {
-            if (!item) return;
+            if (!item || !player) return;
             player.itemId = item.Id;
             if (item.SeriesId) player.seriesId = item.SeriesId;
             if (item.SeasonId) player.seasonId = item.SeasonId;
@@ -2210,41 +2211,72 @@
                 : item.Name;
         };
 
-        var client = api();
-        if (window.playbackManager && typeof window.playbackManager.currentItem === 'function') {
-            try {
-                label(window.playbackManager.currentItem());
-            } catch (err) {
-                log('currentItem unavailable', err);
+        player.label = label;
+        ensureItem();
+    }
+
+    /* Which title is on screen. Asked from three places because no single one of
+     * them is dependable:
+     *
+     *   playbackManager   present during playback on some builds and absent on
+     *                     others - it is not exposed on window here at all.
+     *   the stream URL    Jellyfin serves the media from /Videos/<id>/..., so the
+     *                     video element itself carries the answer whenever there is
+     *                     anything playing. This is the one that always works.
+     *   the route         only carries ?id= when playback was reached by URL.
+     *
+     * Resolving from the route alone is what left the panels dead: the route often
+     * does not carry an id, and then nothing set player.itemId at all. */
+    function currentItemId() {
+        if (!player) return null;
+        if (player.itemId) return player.itemId;
+
+        try {
+            var pm = window.playbackManager;
+            if (pm && typeof pm.currentItem === 'function') {
+                var item = pm.currentItem();
+                if (item && item.Id) return item.Id;
             }
+        } catch (err) {
+            log('currentItem unavailable', err);
         }
 
-        /* Resolve the item whatever the title says.
-         *
-         * This used to be guarded by `if (!centre.textContent)`, which conflated two
-         * different things: the title is cosmetic, but the same call is what sets
-         * player.itemId and player.seriesId, and the episodes and audio panels both
-         * return immediately without them. playbackManager is not reachable on this
-         * build, so that call was the only thing setting them.
-         *
-         * The result was a player whose panels worked until it was rebuilt and then
-         * never again: on the first build Jellyfin's OSD title has not landed yet,
-         * so the guard passes; on a rebuild - which is exactly what leaving
-         * fullscreen causes - the title is already there, the guard fails, and the
-         * two buttons go dead with nothing to show for it. */
-        var settle;
-        player.ready = new Promise(function (resolve) { settle = resolve; });
+        var src = (player.video && (player.video.currentSrc || player.video.src)) || '';
+        // Case-insensitive on purpose: direct play is served from /Videos/<id>/ and
+        // the HLS endpoints from /videos/<id>/.
+        var fromStream = /\/videos\/([0-9a-fA-F-]{32,36})\//i.exec(src);
+        if (fromStream) return fromStream[1];
 
-        var match = client && !player.itemId && window.location.hash.match(/[?&]id=([^&]+)/);
-        if (match) {
-            client
-                .getItem(client.getCurrentUserId(), match[1])
-                .then(label)
-                .catch(function (err) { log('could not resolve the playing item', err); })
-                .then(settle);
-        } else {
-            settle();
-        }
+        var fromRoute = window.location.hash.match(/[?&]id=([^&]+)/);
+        return fromRoute ? fromRoute[1] : null;
+    }
+
+    /* Resolved once per player and remembered, so a press that arrives before the
+     * answer waits for it rather than being dropped. */
+    function ensureItem() {
+        if (!player) return Promise.resolve(null);
+        if (player.itemPromise) return player.itemPromise;
+
+        var client = api();
+        var id = currentItemId();
+        if (!client || !id) return Promise.resolve(null);
+
+        var current = player;
+        player.itemPromise = client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                if (player === current && current.label) current.label(item);
+                return item;
+            })
+            .catch(function (err) {
+                // Clear it so the next press can try again rather than inheriting
+                // a rejected promise for the life of the player.
+                if (player === current) current.itemPromise = null;
+                log('could not resolve the playing item', err);
+                return null;
+            });
+
+        return player.itemPromise;
     }
 
     /* Sole owner of nf-playing, which hides Jellyfin's header so the player can draw
