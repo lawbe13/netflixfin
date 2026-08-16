@@ -5,3 +5,7 @@ obj/
 artifacts/
 .vs/
 .idea/
+
+# scratch from local curl checks
+b1.js
+h1.txt
