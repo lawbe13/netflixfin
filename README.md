@@ -123,6 +123,33 @@ of Game of Thrones' 59 Emmy wins and none of Rick and Morty's two. A bare fact d
 a missing badge; a number would have degraded to a wrong one. The tallies are in the pill's
 tooltip for anyone who wants them.
 
+## Billboard trailer
+
+After a configurable pause the billboard swaps its artwork for the title's trailer,
+muted, with a mute toggle top right. The synopsis folds away as it starts, and because
+the copy column is anchored to the bottom of the card the metadata line and the logo
+drop toward the buttons on their own. Rotation holds until the trailer ends.
+
+Jellyfin's metadata providers record trailers as YouTube links — 591 of 744 titles on
+the library this was built against, and no local trailer files at all — so the player is
+a YouTube embed. It is chrome-free, oversized 15% so the title bar and watermark fall
+outside the crop, and `pointer-events: none`, so every click still belongs to the
+billboard.
+
+Three things it has to survive, all of them observed rather than guessed:
+
+* **Jellyfin sets `<meta name="referrer" content="no-referrer">`.** YouTube rejects an
+  embed that arrives with no referrer at all — *Error 153, video player configuration
+  error* — so the iframe carries its own `referrerpolicy`.
+* **Some trailers are not embeddable.** The link answers `onError 150` and the billboard
+  keeps its artwork. One in twenty-four sampled titles was blocked this way.
+* **The video is revealed only when the player reports that it is playing.** Buffering, a
+  dead link, or a tab the browser has backgrounded and refuses to decode media in all
+  leave the artwork exactly where it is. A trailer that starts late appears late; one
+  that never starts is never seen.
+
+Turn it off, or change the pause, under **Dashboard → Plugins → NetflixFin**.
+
 ## Custom CSS only
 
 Without installing anything, paste this into **Dashboard → General → Custom CSS**:
