@@ -3080,7 +3080,15 @@
 
         heroItems()
             .then(function (data) {
-                if (!data || !data.items.length) return;
+                if (!data || !data.items.length) {
+                    // Nothing came back, so let a later pass try again rather than
+                    // holding the memo - and drop the placeholder, because an empty
+                    // box where the billboard should be is worse than no billboard.
+                    heroRequest = null;
+                    var stale = document.querySelector('.nf-hero-reserve');
+                    if (stale) stale.remove();
+                    return;
+                }
 
                 var existing = document.querySelector('.homeSectionsContainer');
                 if (!existing || existing.querySelector('[data-nf-hero]')) return;
@@ -3096,6 +3104,9 @@
                 log('billboard mounted');
             })
             .catch(function (err) {
+                heroRequest = null;
+                var stale = document.querySelector('.nf-hero-reserve');
+                if (stale) stale.remove();
                 log('billboard failed', err);
             });
     }
