@@ -57,6 +57,17 @@ public class PluginConfiguration : BasePluginConfiguration
     public int HeroRotateSeconds { get; set; } = 12;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the hero swaps its artwork for the title's
+    /// trailer after a moment, the way Netflix's billboard does.
+    /// </summary>
+    public bool EnableHeroTrailer { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets how long the artwork is held before the trailer takes over.
+    /// </summary>
+    public int HeroTrailerDelaySeconds { get; set; } = 3;
+
+    /// <summary>
     /// Gets or sets a value indicating whether rows named like "Top 10" get
     /// oversized rank numerals.
     /// </summary>

@@ -2347,6 +2347,14 @@
             return layer;
         });
 
+        // After the layers so it paints over the artwork, still under the scrim.
+        var videoBox = el('div', 'nf-hero-video');
+        hero.appendChild(videoBox);
+
+        var mute = el('button', 'nf-hero-mute');
+        mute.type = 'button';
+        hero.appendChild(mute);
+
         var content = el('div', 'nf-hero-content');
         var logo = el('img', 'nf-hero-logo');
         logo.alt = '';
@@ -2373,6 +2381,9 @@
         function render(index) {
             var item = items[index];
             current = index;
+
+            stopTrailer();
+            scheduleTrailer();
 
             layers.forEach(function (layer, i) {
                 layer.classList.toggle('is-active', i === index);
@@ -2426,6 +2437,113 @@
         // first billboard is not the only one that misses out.
         loadAwards().then(paintBadges);
 
+        /* --- Trailer ---------------------------------------------------------
+         * Jellyfin's providers record trailers as YouTube links (591 of 744 titles
+         * on the library this was built against; none of them local files), so an
+         * embed is the only way to play one. It is muted, chrome-free and inert to
+         * the pointer, and a title without a trailer simply keeps its artwork. */
+        var trailerTimer = null;
+        var trailerCap = null;
+        var frame = null;
+        var muted = true;
+        var handshake = 1;
+
+        function youTubeId(url) {
+            var match = /(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/.exec(url || '');
+            return match ? match[1] : null;
+        }
+
+        function trailerFor(item) {
+            var list = (item && item.RemoteTrailers) || [];
+            for (var i = 0; i < list.length; i++) {
+                var id = youTubeId(list[i].Url);
+                if (id) return id;
+            }
+            return null;
+        }
+
+        function command(func) {
+            if (!frame || !frame.contentWindow) return;
+            frame.contentWindow.postMessage(
+                JSON.stringify({ event: 'command', func: func, args: [], id: handshake, channel: 'widget' }),
+                '*');
+        }
+
+        function syncMute() {
+            mute.textContent = '';
+            mute.appendChild(svgIcon(muted ? 'mute' : 'volume'));
+            mute.title = muted ? 'Riattiva l\'audio' : 'Disattiva l\'audio';
+            mute.setAttribute('aria-label', mute.title);
+        }
+
+        function stopTrailer() {
+            if (trailerTimer) { clearTimeout(trailerTimer); trailerTimer = null; }
+            if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
+            hero.classList.remove('is-playing');
+            videoBox.textContent = '';
+            frame = null;
+            muted = true;
+            syncMute();
+        }
+
+        function scheduleTrailer() {
+            if (cfg.enableHeroTrailer === false) return;
+            var id = trailerFor(items[current]);
+            if (!id) return;
+
+            var delay = Math.max(0, cfg.heroTrailerDelaySeconds == null ? 3 : cfg.heroTrailerDelaySeconds);
+            trailerTimer = setTimeout(function () {
+                if (!document.body.contains(hero)) return;
+                frame = document.createElement('iframe');
+                frame.allow = 'autoplay; encrypted-media';
+                frame.setAttribute('frameborder', '0');
+                frame.src =
+                    'https://www.youtube-nocookie.com/embed/' + id +
+                    '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
+                    '&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=' +
+                    encodeURIComponent(location.origin);
+                frame.addEventListener('load', function () {
+                    // Opt in to state events; without this YouTube stays silent and we
+                    // would never learn that the trailer ended.
+                    if (frame && frame.contentWindow) {
+                        frame.contentWindow.postMessage(
+                            JSON.stringify({ event: 'listening', id: handshake, channel: 'widget' }), '*');
+                    }
+                });
+                videoBox.appendChild(frame);
+                hero.classList.add('is-playing');
+
+                // Backstop: if the ended event never arrives - a blocked embed, a
+                // dropped handshake - the billboard must not sit on a dead frame.
+                trailerCap = setTimeout(stopTrailer, 40000);
+            }, delay * 1000);
+        }
+
+        function onPlayerMessage(event) {
+            if (!frame || !/youtube(-nocookie)?\.com$/.test(event.origin.replace(/^https?:\/\/(www\.)?/, ''))) {
+                return;
+            }
+            var data = event.data;
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) { return; }
+            }
+            if (!data) return;
+            var info = data.info;
+            var state = data.event === 'onStateChange' ? info : (info && info.playerState);
+            if (state === 0) stopTrailer();
+        }
+
+        window.addEventListener('message', onPlayerMessage);
+
+        mute.addEventListener('click', function (event) {
+            event.stopPropagation();
+            muted = !muted;
+            command(muted ? 'mute' : 'unMute');
+            syncMute();
+        });
+
+        syncMute();
+
         play.addEventListener('click', function () {
             playNow(items[current].Id, items[current].ServerId, items[current].Type);
         });
@@ -2439,8 +2557,12 @@
                 if (!document.body.contains(hero)) {
                     clearInterval(heroTimer);
                     heroTimer = null;
+                    window.removeEventListener('message', onPlayerMessage);
                     return;
                 }
+                // A trailer holds the billboard: rotating out mid-play would be
+                // the one thing Netflix never does.
+                if (hero.classList.contains('is-playing')) return;
                 render((current + 1) % items.length);
             }, Math.max(4, cfg.heroRotateSeconds) * 1000);
         }
@@ -2483,7 +2605,7 @@
                 // billboard cannot tell a new arrival from a ten-year-old one.
                 Fields:
                     'Overview,Genres,ProductionYear,OfficialRating,ChildCount,' +
-                    'DateCreated,DateLastMediaAdded,CriticRating,ProviderIds',
+                    'DateCreated,DateLastMediaAdded,CriticRating,ProviderIds,RemoteTrailers',
                 EnableTotalRecordCount: false
             })
             .then(function (result) {

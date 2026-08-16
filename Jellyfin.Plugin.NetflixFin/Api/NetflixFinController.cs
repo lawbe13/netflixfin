@@ -73,6 +73,8 @@ public class NetflixFinController : ControllerBase
                 config.EnableHeroBanner,
                 config.HeroAutoRotate,
                 config.HeroRotateSeconds,
+                config.EnableHeroTrailer,
+                config.HeroTrailerDelaySeconds,
                 config.EnableTop10,
                 config.LogoUrl,
                 config.AccentColor

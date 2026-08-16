@@ -419,6 +419,13 @@ body.nf-scrolled .skinHeader {
     margin-top: 0 !important;
 }
 
+/* Jellyfin pads the home page down by more than its own header is tall. Netflix
+   sits the billboard 12px below an 80px header, so reclaim the difference rather
+   than piling another margin on top. */
+.homePage.libraryPage {
+    padding-top: 80px !important;
+}
+
 .homePage .nf-hero {
     margin-top: 12px;
 }
@@ -905,6 +912,71 @@ body.nf-hover-preview .cardOverlayContainer {
     background: none;
 }
 
+/* --- Billboard trailer ---------------------------------------------------
+   Sits at the artwork's own layer so the side scrim at z-index -1 still falls
+   over it and keeps the copy readable. */
+.nf-hero-video {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.8s var(--nf-ease);
+    /* The billboard's own click targets stay in charge; nothing reaches YouTube. */
+    pointer-events: none;
+}
+
+.nf-hero.is-playing .nf-hero-video {
+    opacity: 1;
+}
+
+/* The billboard is 2.18:1 and the video 16:9, so width drives the fit and the
+   crop is taken off the top and bottom. */
+.nf-hero-video iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 100%;
+    border: 0;
+}
+
+.nf-hero-mute {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    z-index: 3;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    background: rgba(42, 42, 42, 0.6);
+    cursor: pointer;
+    display: none;
+    place-items: center;
+    opacity: 0;
+    transition: opacity 0.4s var(--nf-ease), background-color 0.2s ease;
+}
+
+.nf-hero.is-playing .nf-hero-mute {
+    display: grid;
+    opacity: 1;
+}
+
+.nf-hero-mute:hover {
+    background: rgba(80, 80, 80, 0.7);
+}
+
+.nf-hero-mute svg {
+    width: 20px;
+    height: 20px;
+    fill: #fff;
+}
+
 .nf-hero-content {
     position: absolute;
     left: 40px;
@@ -913,6 +985,28 @@ body.nf-hover-preview .cardOverlayContainer {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+/* While the trailer runs the synopsis folds away. The column is anchored to the
+   bottom, so the metadata line and the logo above it drop toward the buttons on
+   their own - and the logo grows as it goes. */
+.nf-hero-logo,
+.nf-hero-title {
+    transition: transform 0.5s var(--nf-ease);
+    transform-origin: left bottom;
+}
+
+.nf-hero.is-playing .nf-hero-logo,
+.nf-hero.is-playing .nf-hero-title {
+    transform: scale(1.15);
+}
+
+.nf-hero.is-playing .nf-hero-overview {
+    opacity: 0;
+    max-height: 0;
+    /* Swallows the flex gap as well, otherwise a 1rem hole is left behind. */
+    margin-bottom: -1rem;
+    pointer-events: none;
 }
 
 .nf-hero-logo {
@@ -959,6 +1053,9 @@ body.nf-hover-preview .cardOverlayContainer {
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin: 0;
+    max-height: 90px;
+    transition: opacity 0.35s var(--nf-ease), max-height 0.5s var(--nf-ease),
+        margin-bottom 0.5s var(--nf-ease);
 }
 
 .nf-hero-buttons {
@@ -968,10 +1065,12 @@ body.nf-hover-preview .cardOverlayContainer {
 }
 
 /* Badges sit in the billboard's bottom-right corner, as Netflix places them. */
+/* 40px in from the billboard's right and bottom edges, the same inset the content
+   column uses on the left. Measured off netflix.com at a 1920 viewport. */
 .nf-hero-badges {
     position: absolute;
     right: 40px;
-    bottom: 8%;
+    bottom: 40px;
     display: flex;
     gap: 8px;
     z-index: 2;
@@ -983,20 +1082,20 @@ body.nf-hover-preview .cardOverlayContainer {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 7px 14px;
+    padding: 8px 16px;
     border-radius: 9999px;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: #fff;
     white-space: nowrap;
 }
 
 .nf-hero-badge svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     fill: #e5b649;
     flex: 0 0 auto;
 }

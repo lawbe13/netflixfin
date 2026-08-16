@@ -32,6 +32,20 @@
                 </div>
 
                 <label class="checkboxContainer">
+                    <input is="emby-checkbox" type="checkbox" id="EnableHeroTrailer" />
+                    <span>Play the trailer on the hero after a few seconds</span>
+                </label>
+                <div class="fieldDescription">
+                    Uses the YouTube trailer the metadata provider recorded, muted, and falls
+                    back to the artwork when a title has none. Needs internet from the browser.
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="number" id="HeroTrailerDelaySeconds" min="0" max="30"
+                           label="Seconds before the trailer starts" />
+                </div>
+
+                <label class="checkboxContainer">
                     <input is="emby-checkbox" type="checkbox" id="EnableHoverPreview" />
                     <span>Expand cards on hover</span>
                 </label>
@@ -102,10 +116,10 @@
         (function () {
             var pluginId = 'b8e0f7c2-6b3a-4a4a-9e2f-1d5c7a9b3e41';
 
-            var checkboxes = ['EnableHeroBanner', 'HeroAutoRotate', 'EnableHoverPreview',
+            var checkboxes = ['EnableHeroBanner', 'HeroAutoRotate', 'EnableHeroTrailer', 'EnableHoverPreview',
                 'HideCardText', 'UseWideThumbnails', 'EnableTop10', 'EnableCss', 'EnableScript'];
             var texts = ['AccentColor', 'BackgroundColor', 'LogoUrl', 'CustomCss'];
-            var numbers = ['HeroRotateSeconds', 'CardRadius'];
+            var numbers = ['HeroRotateSeconds', 'HeroTrailerDelaySeconds', 'CardRadius'];
 
             function view() {
                 return document.querySelector('#NetflixFinConfigPage');
