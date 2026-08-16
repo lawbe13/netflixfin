@@ -2015,6 +2015,11 @@ body.nf-playing .volumeIndicator {
     pointer-events: none;
 }
 
+/* Belt and braces: an open panel stays legible even if the chrome does fade. */
+.nf-player.is-idle .nf-p-panel {
+    opacity: 1;
+}
+
 /* Netflix's transient glyph: a large mark flashed in the middle of the picture
    on play, pause and each skip. */
 .nf-p-flash {

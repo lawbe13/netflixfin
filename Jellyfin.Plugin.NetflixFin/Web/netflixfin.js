@@ -1519,6 +1519,8 @@
         player.node.querySelectorAll('.nf-p-panel').forEach(function (panel) {
             panel.remove();
         });
+        // The chrome was being held up by the panel; start its clock again.
+        showPlayerChrome();
     }
 
     function panelShell(title, cls) {
@@ -1852,7 +1854,12 @@
         player.node.classList.remove('is-idle');
         clearTimeout(playerHideTimer);
         playerHideTimer = setTimeout(function () {
-            if (player && !player.video.paused) player.node.classList.add('is-idle');
+            if (!player || player.video.paused) return;
+            // An open panel keeps the chrome up. It lives inside .nf-player, so
+            // fading the chrome faded the panel with it - hover opened it and
+            // three seconds later it was gone, which read as hover doing nothing.
+            if (player.node.querySelector('.nf-p-panel')) return;
+            player.node.classList.add('is-idle');
         }, 3000);
     }
 
