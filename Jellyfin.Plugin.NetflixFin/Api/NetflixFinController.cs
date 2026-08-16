@@ -20,6 +20,75 @@ public class NetflixFinController : ControllerBase
 {
     private static readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
+    /* The stylesheet and the script are 178 KB between them and were rebuilt from their
+       embedded resources, string by string, on every request - and answered with no
+       validator at all, so every page load fetched the lot again. Both are now built
+       once per configuration and served against an ETag, which turns the repeat visit
+       into a 304 of a couple of hundred bytes. */
+    private static readonly object _buildLock = new();
+    private static string? _builtFor;
+    private static string? _css;
+    private static string? _js;
+
+    private static (string Body, string Tag) Asset(bool stylesheet)
+    {
+        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var key = Fingerprint(config);
+
+        lock (_buildLock)
+        {
+            if (_builtFor != key)
+            {
+                _css = null;
+                _js = null;
+                _builtFor = key;
+            }
+
+            var cached = stylesheet ? _css : _js;
+            if (cached == null)
+            {
+                cached = stylesheet ? BuildStylesheet(config) : BuildScript(config);
+                if (stylesheet)
+                {
+                    _css = cached;
+                }
+                else
+                {
+                    _js = cached;
+                }
+            }
+
+            return (cached, "\"" + key + (stylesheet ? "c" : "j") + "\"");
+        }
+    }
+
+    /// <summary>
+    /// Identifies the exact bytes the assets would be built from: the plugin build plus
+    /// every setting that is spliced into them.
+    /// </summary>
+    private static string Fingerprint(PluginConfiguration config)
+    {
+        var version = typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "0";
+        var bytes = Encoding.UTF8.GetBytes(version + "|" + JsonSerializer.Serialize(config, _json));
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes), 0, 8);
+    }
+
+    private ActionResult Serve(string body, string tag, string contentType)
+    {
+        Response.Headers.ETag = tag;
+        // Revalidate rather than expire: a settings change has to reach the browser the
+        // moment it is saved, and a 304 costs almost nothing on a local network.
+        Response.Headers.CacheControl = "no-cache";
+
+        if (Request.Headers.IfNoneMatch.Count > 0
+            && Request.Headers.IfNoneMatch.ToString().Contains(tag, StringComparison.Ordinal))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        return Content(body, contentType, Encoding.UTF8);
+    }
+
     /// <summary>
     /// Gets the stylesheet, with the configured tokens spliced in as CSS custom properties.
     /// </summary>
@@ -27,10 +96,15 @@ public class NetflixFinController : ControllerBase
     [Produces("text/css")]
     public ActionResult GetStylesheet()
     {
-        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var asset = Asset(stylesheet: true);
+        return Serve(asset.Body, asset.Tag, "text/css");
+    }
+
+    private static string BuildStylesheet(PluginConfiguration config)
+    {
         if (!config.EnableCss)
         {
-            return Content(string.Empty, "text/css", Encoding.UTF8);
+            return string.Empty;
         }
 
         var css = new StringBuilder();
@@ -48,7 +122,7 @@ public class NetflixFinController : ControllerBase
             css.Append('\n').Append(config.CustomCss);
         }
 
-        return Content(css.ToString(), "text/css", Encoding.UTF8);
+        return css.ToString();
     }
 
     /// <summary>
@@ -58,10 +132,15 @@ public class NetflixFinController : ControllerBase
     [Produces("application/javascript")]
     public ActionResult GetScript()
     {
-        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var asset = Asset(stylesheet: false);
+        return Serve(asset.Body, asset.Tag, "application/javascript");
+    }
+
+    private static string BuildScript(PluginConfiguration config)
+    {
         if (!config.EnableScript)
         {
-            return Content(string.Empty, "application/javascript", Encoding.UTF8);
+            return string.Empty;
         }
 
         var settings = JsonSerializer.Serialize(
@@ -81,8 +160,7 @@ public class NetflixFinController : ControllerBase
             },
             _json);
 
-        var js = "window.NetflixFinConfig=" + settings + ";\n" + ReadResource("Web.netflixfin.js");
-        return Content(js, "application/javascript", Encoding.UTF8);
+        return "window.NetflixFinConfig=" + settings + ";\n" + ReadResource("Web.netflixfin.js");
     }
 
     /// <summary>

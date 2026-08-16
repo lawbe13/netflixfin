@@ -164,13 +164,7 @@
     function applyBodyFlags() {
         document.body.classList.toggle('nf-hover-preview', !!cfg.enableHoverPreview);
         document.body.classList.toggle('nf-hide-card-text', !!cfg.hideCardText);
-
-        // Netflix's player chrome is a back arrow and nothing else, so the rest of
-        // the header steps aside whenever a video is on screen.
-        document.body.classList.toggle(
-            'nf-playing',
-            !!document.querySelector('.videoPlayerContainer video, .videoOsdBottom')
-        );
+        // nf-playing is managePlayer's alone - see the note there.
     }
 
     function bindScrollState() {
@@ -2196,10 +2190,21 @@
         }
     }
 
+    /* Sole owner of nf-playing, which hides Jellyfin's header so the player can draw
+     * its own back arrow over a bare video.
+     *
+     * It has to be sole owner. It used to be set from applyBodyFlags as well, on the
+     * looser test "does .videoOsdBottom exist" - and Jellyfin leaves that element in
+     * the DOM, invisible, long after you have left the video and gone back to the
+     * home screen. destroyPlayer returns early when there is no player of ours to
+     * tear down, so it never cleared the flag the other function had set, and the
+     * header stayed hidden on the home page. The live video element is the only
+     * honest signal. */
     function managePlayer() {
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
         if (!video) {
             destroyPlayer();
+            document.body.classList.remove('nf-playing');
             return;
         }
         if (player && player.video === video) return;
