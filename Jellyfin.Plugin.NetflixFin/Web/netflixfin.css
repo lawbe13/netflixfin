@@ -31,6 +31,7 @@
     --nf-gutter: 60px;
     --nf-row-gap: 8px;
     --nf-tiles: 7;
+    --nf-row-title: 24px;
     --nf-hero-rotate: 12s;
     --nf-hover-scale: 1.38;
     --nf-hover-delay: 0.4s;
@@ -38,23 +39,38 @@
     --nf-font: "Netflix Sans", "Helvetica Neue", "Segoe UI", Roboto, Ubuntu, Arial, sans-serif;
 }
 
-@media (max-width: 1400px) {
+/* Netflix's own breakpoints, read off its stylesheet: the tile is 16.667% of a
+   row at 1400 and up, then 20%, 25%, 33.3% and 50% as the window narrows. Ours
+   held 7 across from 1400 all the way up, which is right at 1920 but leaves the
+   tiles too small on a 1400-1500 laptop - the step down was missing. The counts
+   below reproduce Netflix's tile-to-viewport ratio at each of its steps. */
+@media (max-width: 1399px) {
     :root {
         --nf-tiles: 6;
+        --nf-row-title: 21px;
     }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1099px) {
     :root {
         --nf-gutter: 4vw;
         --nf-tiles: 5;
+        --nf-row-title: 20px;
         --nf-hover-scale: 1.2;
     }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 799px) {
+    :root {
+        --nf-tiles: 4;
+        --nf-row-title: 18px;
+    }
+}
+
+@media (max-width: 499px) {
     :root {
         --nf-tiles: 3;
+        --nf-row-title: 17px;
     }
 }
 
@@ -392,6 +408,18 @@ body.nf-scrolled .skinHeader {
     padding-right: 0;
 }
 
+/* Netflix leaves 12px between the header and the billboard; Jellyfin's page
+   padding was pushing ours further down. */
+.homePage .tabContent,
+.homePage .homeSectionsContainer {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+.homePage .nf-hero {
+    margin-top: 12px;
+}
+
 .verticalSection {
     margin: 0 0 0.6rem;
 }
@@ -423,7 +451,7 @@ body.nf-scrolled .skinHeader {
 
 .sectionTitle,
 .sectionTitle-cards {
-    font-size: 24px;
+    font-size: var(--nf-row-title);
     font-weight: 500;
     line-height: 1.25;
     color: #e5e5e5;
@@ -472,7 +500,7 @@ body.nf-scrolled .skinHeader {
 .sectionTitleContainer .emby-button.sectionTitleTextButton {
     opacity: 1 !important;
     color: #e5e5e5 !important;
-    font-size: 24px !important;
+    font-size: var(--nf-row-title) !important;
     font-weight: 500;
     text-transform: none;
 }
@@ -824,7 +852,10 @@ body.nf-hover-preview .cardOverlayContainer {
     width: auto;
     margin: 0 var(--nf-gutter) 0.5rem;
     aspect-ratio: 1785 / 819;
-    max-height: 84vh;
+    /* 84vh was clamping the card on a wide window - measured 2.32 against
+       Netflix's 2.18 - so it came out shorter than it should be. The aspect
+       decides; the cap is only there for very short windows. */
+    max-height: 95vh;
     min-height: 22rem;
     border-radius: 24px;
     overflow: hidden;
