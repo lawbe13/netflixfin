@@ -44,16 +44,17 @@
    held 7 across from 1400 all the way up, which is right at 1920 but leaves the
    tiles too small on a 1400-1500 laptop - the step down was missing. The counts
    below reproduce Netflix's tile-to-viewport ratio at each of its steps. */
-/* The ladder is anchored to the one width confirmed correct - 1920, where the
-   measured pitch of 256px over an 1800px row is 7.03 tiles - and each step down
-   applies Netflix's own ratio from its stylesheet: 20% is 1.2x the 16.667% of
-   the top band, 25% is 1.5x, 33.3% is 2x, 50% is 3x. Hence 7 / 5.9 / 4.7 / 3.5
-   / 2.3. Counts are deliberately fractional: a whole number here is what made
-   the tiles too small on a narrow window, three across at 430px where Netflix
-   shows barely two and a half. */
+/* Two confirmed anchors decide this, not a formula: seven tiles on the desktop
+   (viewport ~1920-2133) and five on the laptop, whose CSS viewport reports 430
+   because the display is scaled - a small viewport on a physically large
+   screen.
+   That is why deriving the count from width alone kept failing: narrower does
+   not mean the tiles should be fewer here, it usually means the opposite. So
+   the ladder holds five across everything between a phone and the desktop
+   breakpoint, and only real phones drop to three. */
 @media (max-width: 1399px) {
     :root {
-        --nf-tiles: 5.9;
+        --nf-tiles: 5;
         --nf-row-title: 21px;
     }
 }
@@ -61,24 +62,14 @@
 @media (max-width: 1099px) {
     :root {
         --nf-gutter: 4vw;
-        --nf-tiles: 4.7;
-        --nf-row-title: 20px;
         --nf-hover-scale: 1.2;
     }
 }
 
-@media (max-width: 799px) {
+@media (max-width: 399px) {
     :root {
-        --nf-tiles: 3.5;
+        --nf-tiles: 3;
         --nf-row-title: 18px;
-    }
-}
-
-@media (max-width: 499px) {
-    :root {
-        --nf-gutter: 4vw;
-        --nf-tiles: 2.3;
-        --nf-row-title: 17px;
     }
 }
 
