@@ -96,6 +96,33 @@ Changes need a hard refresh in the browser (Ctrl+Shift+R).
   banner, the rank numerals, the poster→backdrop swap, and the scrolled-header flag.
   If the script fails, the theme degrades to a static Netflix-coloured skin.
 
+## Award badges
+
+The billboard badges a title that really has won or been nominated for an Academy Award,
+a Primetime Emmy, a Golden Globe or a BAFTA. Nothing is inferred and nothing is invented:
+titles without an award simply carry no badge, which on a 744-title library came out at
+231 badged.
+
+Jellyfin stores no award data of its own, so `Awards/AwardsService.cs` assembles it from
+two keyless sources and caches the result under `<cache>/netflixfin/awards.json`, refreshed
+weekly:
+
+* **Jellyfin's own OMDb cache.** The OMDb metadata provider writes its full payload to
+  `<cache>/omdb/{imdb}.json`, and that payload carries an IMDb-derived `Awards` string it
+  then discards rather than mapping onto the item. Free, local, exact — but it names only
+  one award family per title.
+* **Wikidata.** `query.wikidata.org/sparql`, batched, roughly a second per 300 titles.
+
+The two are merged per family by taking the larger count, because they disagree by
+omission rather than by contradiction.
+
+The badge states the fact and never the count — "Premiato agli Oscar®", not "Winner of 11
+Oscars" — matching Netflix, and for a good reason: Wikidata is exact on film awards
+(Titanic 11 wins / 14 nominations, Pulp Fiction 1 / 7) but thin on television, holding 7
+of Game of Thrones' 59 Emmy wins and none of Rick and Morty's two. A bare fact degrades to
+a missing badge; a number would have degraded to a wrong one. The tallies are in the pill's
+tooltip for anyone who wants them.
+
 ## Custom CSS only
 
 Without installing anything, paste this into **Dashboard → General → Custom CSS**:
