@@ -2495,6 +2495,15 @@
             if (frame) hero.classList.add('is-playing');
         }
 
+        /* Trailers rot: providers keep the link long after YouTube has taken the video
+         * down, and the embed then sits on "Video unavailable" reporting state -1
+         * forever. Nothing is ever shown that has not actually started playing, so a
+         * dead link costs the billboard nothing but its artwork. */
+        function giveUp() {
+            revealTimer = null;
+            if (!hero.classList.contains('is-playing')) stopTrailer();
+        }
+
         function stopTrailer() {
             if (trailerTimer) { clearTimeout(trailerTimer); trailerTimer = null; }
             if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
@@ -2534,10 +2543,9 @@
                 pings = 0;
                 ping();
 
-                // Held back until the clock actually moves, so the billboard never shows
-                // YouTube's black frame and spinner. If the handshake goes missing
-                // entirely, reveal late rather than never.
-                revealTimer = setTimeout(reveal, 8000);
+                // The video is revealed only once its clock actually moves, so the
+                // billboard never shows YouTube's black frame, spinner or error card.
+                revealTimer = setTimeout(giveUp, 10000);
 
                 // Backstop: if the ended event never arrives - a blocked embed, a
                 // dropped handshake - the billboard must not sit on a dead frame.
