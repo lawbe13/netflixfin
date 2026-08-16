@@ -931,14 +931,16 @@ body.nf-hover-preview .cardOverlayContainer {
     opacity: 1;
 }
 
-/* The billboard is 2.18:1 and the video 16:9, so width drives the fit and the
-   crop is taken off the top and bottom. */
+/* The billboard is 2.18:1 and the video 16:9, so width drives the fit and the crop
+   comes off the top and bottom. The extra 15% is deliberate: modestbranding no
+   longer does anything, and oversizing pushes YouTube's title bar and watermark
+   outside the visible frame instead of leaving them sitting on the billboard. */
 .nf-hero-video iframe {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 100%;
+    width: 115%;
     aspect-ratio: 16 / 9;
     min-height: 100%;
     border: 0;

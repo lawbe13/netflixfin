@@ -2444,6 +2444,7 @@
          * the pointer, and a title without a trailer simply keeps its artwork. */
         var trailerTimer = null;
         var trailerCap = null;
+        var revealTimer = null;
         var frame = null;
         var muted = true;
         var handshake = 1;
@@ -2476,9 +2477,15 @@
             mute.setAttribute('aria-label', mute.title);
         }
 
+        function reveal() {
+            if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+            if (frame) hero.classList.add('is-playing');
+        }
+
         function stopTrailer() {
             if (trailerTimer) { clearTimeout(trailerTimer); trailerTimer = null; }
             if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
+            if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
             hero.classList.remove('is-playing');
             videoBox.textContent = '';
             frame = null;
@@ -2497,6 +2504,12 @@
                 frame = document.createElement('iframe');
                 frame.allow = 'autoplay; encrypted-media';
                 frame.setAttribute('frameborder', '0');
+                // Jellyfin's index.html carries <meta name="referrer" content="no-referrer">,
+                // and YouTube refuses an embed that arrives with no referrer at all:
+                // "Error 153, video player configuration error". The attribute overrides
+                // the document policy for this one request. Verified both ways in the
+                // browser - without it the player never loads.
+                frame.referrerPolicy = 'strict-origin-when-cross-origin';
                 frame.src =
                     'https://www.youtube-nocookie.com/embed/' + id +
                     '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
@@ -2511,7 +2524,11 @@
                     }
                 });
                 videoBox.appendChild(frame);
-                hero.classList.add('is-playing');
+
+                // Held back until the player reports that it is actually playing, so
+                // the billboard never shows YouTube's title card and spinner. If the
+                // handshake goes missing, reveal anyway rather than never.
+                revealTimer = setTimeout(reveal, 4000);
 
                 // Backstop: if the ended event never arrives - a blocked embed, a
                 // dropped handshake - the billboard must not sit on a dead frame.
@@ -2530,7 +2547,9 @@
             if (!data) return;
             var info = data.info;
             var state = data.event === 'onStateChange' ? info : (info && info.playerState);
-            if (state === 0) stopTrailer();
+            if (state === 1) reveal();
+            // 0 is ended; 5 is "cued", which is what an embed-blocked video settles on.
+            if (state === 0 || state === 5) stopTrailer();
         }
 
         window.addEventListener('message', onPlayerMessage);
