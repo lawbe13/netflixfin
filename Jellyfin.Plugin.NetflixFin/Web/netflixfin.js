@@ -638,6 +638,14 @@
      * wrong as a tile. A row is converted only when every item in it has a Thumb,
      * because a row of mixed shapes is twice as tall as it needs to be; rows
      * without one keep the posters Jellyfin picked. One request answers a row. */
+    /* Which of a row's items have 16:9 key art. One entry per item id, shared by
+     * every row - the home screen repeats titles across "continue watching",
+     * "recently added" and the genre rows, so the same id was being asked about
+     * several times over. */
+    var thumbTags = {};
+    var thumbQueue = [];
+    var thumbFlush = null;
+
     function widenCards(root) {
         if (!cfg.useWideThumbnails) return;
 
@@ -671,60 +679,96 @@
                 }
 
                 row.dataset.nfThumb = 'pending';
-                var ids = cards.map(function (card) {
-                    return card.dataset.id;
-                });
+                thumbQueue.push({ row: row, cards: cards, client: client });
 
-                client
-                    .getItems(client.getCurrentUserId(), {
-                        Ids: ids.join(','),
-                        EnableImageTypes: 'Thumb',
-                        EnableTotalRecordCount: false
-                    })
-                    .then(function (result) {
-                        var tags = {};
-                        (result.Items || []).forEach(function (item) {
-                            if (item.ImageTags && item.ImageTags.Thumb) {
-                                tags[item.Id] = item.ImageTags.Thumb;
-                            }
-                        });
-
-                        if (!ids.every(function (id) { return tags[id]; })) {
-                            row.dataset.nfThumb = 'no-thumbs';
-                            return;
-                        }
-
-                        cards.forEach(function (card) {
-                            var container = card.querySelector('.cardImageContainer');
-                            if (!container) return;
-
-                            var url = client.getImageUrl(card.dataset.id, {
-                                type: 'Thumb',
-                                maxWidth: 640,
-                                tag: tags[card.dataset.id]
-                            });
-
-                            // Jellyfin drops its blurhash when its own image loads.
-                            // Ours is a different URL, so that never fires.
-                            var preload = new Image();
-                            preload.onload = function () {
-                                container.classList.remove('blurhashed');
-                            };
-                            preload.src = url;
-
-                            container.dataset.nfThumbUrl = url;
-                            container.style.backgroundImage = 'url("' + url + '")';
-                            card.classList.add('nf-thumb');
-                        });
-
-                        row.dataset.nfThumb = 'yes';
-                        log('thumbed row of', cards.length);
-                    })
-                    .catch(function (err) {
-                        row.dataset.nfThumb = 'error';
-                        log('thumb lookup failed', err);
-                    });
+                // Rows arrive one after another as jellyfin-web renders them, and
+                // asking per row meant eight separate round trips for one home
+                // screen. Waiting a moment collects them into one.
+                if (!thumbFlush) thumbFlush = setTimeout(flushThumbs, 80);
             });
+    }
+
+    function flushThumbs() {
+        thumbFlush = null;
+        var batch = thumbQueue;
+        thumbQueue = [];
+        if (!batch.length) return;
+
+        var client = batch[0].client;
+        var wanted = {};
+        batch.forEach(function (job) {
+            job.cards.forEach(function (card) {
+                var id = card.dataset.id;
+                if (!(id in thumbTags)) wanted[id] = true;
+            });
+        });
+
+        var ids = Object.keys(wanted);
+        var lookup = ids.length
+            ? client
+                .getItems(client.getCurrentUserId(), {
+                    Ids: ids.join(','),
+                    EnableImageTypes: 'Thumb',
+                    EnableUserData: false,
+                    EnableTotalRecordCount: false
+                })
+                .then(function (result) {
+                    // Absent means asked and not there, so it is never asked again.
+                    ids.forEach(function (id) { thumbTags[id] = null; });
+                    (result.Items || []).forEach(function (item) {
+                        thumbTags[item.Id] =
+                            (item.ImageTags && item.ImageTags.Thumb) || null;
+                    });
+                })
+            : Promise.resolve();
+
+        lookup
+            .then(function () {
+                batch.forEach(function (job) { applyThumbs(job); });
+            })
+            .catch(function (err) {
+                batch.forEach(function (job) { job.row.dataset.nfThumb = 'error'; });
+                log('thumb lookup failed', err);
+            });
+    }
+
+    /* Row-atomic on purpose: a row where only some items have key art would come
+     * out half 16:9 and half portrait, at two different heights. */
+    function applyThumbs(job) {
+        var complete = job.cards.every(function (card) {
+            return thumbTags[card.dataset.id];
+        });
+
+        if (!complete) {
+            job.row.dataset.nfThumb = 'no-thumbs';
+            return;
+        }
+
+        job.cards.forEach(function (card) {
+            var container = card.querySelector('.cardImageContainer');
+            if (!container) return;
+
+            var url = job.client.getImageUrl(card.dataset.id, {
+                type: 'Thumb',
+                maxWidth: 640,
+                tag: thumbTags[card.dataset.id]
+            });
+
+            // Jellyfin drops its blurhash when its own image loads. Ours is a
+            // different URL, so that never fires.
+            var preload = new Image();
+            preload.onload = function () {
+                container.classList.remove('blurhashed');
+            };
+            preload.src = url;
+
+            container.dataset.nfThumbUrl = url;
+            container.style.backgroundImage = 'url("' + url + '")';
+            card.classList.add('nf-thumb');
+        });
+
+        job.row.dataset.nfThumb = 'yes';
+        log('thumbed row of', job.cards.length);
     }
 
     /* Jellyfin re-loads a row's posters when it scrolls into view, writing the
