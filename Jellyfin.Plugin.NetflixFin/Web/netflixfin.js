@@ -2442,7 +2442,6 @@
          * on the library this was built against; none of them local files), so an
          * embed is the only way to play one. It is muted, chrome-free and inert to
          * the pointer, and a title without a trailer simply keeps its artwork. */
-        var trailerTimer = null;
         var trailerCap = null;
         var revealTimer = null;
         var pingTimer = null;
@@ -2506,7 +2505,6 @@
         }
 
         function stopTrailer() {
-            if (trailerTimer) { clearTimeout(trailerTimer); trailerTimer = null; }
             if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
             if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
             if (pingTimer) { clearTimeout(pingTimer); pingTimer = null; }
@@ -2523,35 +2521,34 @@
             var id = trailerFor(items[current]);
             if (!id) return;
 
-            var delay = Math.max(0, cfg.heroTrailerDelaySeconds == null ? 3 : cfg.heroTrailerDelaySeconds);
-            trailerTimer = setTimeout(function () {
-                if (!document.body.contains(hero)) return;
-                frame = document.createElement('iframe');
-                frame.allow = 'autoplay; encrypted-media';
-                frame.setAttribute('frameborder', '0');
-                // Jellyfin's index.html carries <meta name="referrer" content="no-referrer">,
-                // and YouTube refuses an embed that arrives with no referrer at all:
-                // "Error 153, video player configuration error". The attribute overrides
-                // the document policy for this one request. Verified both ways in the
-                // browser - without it the player never loads.
-                frame.referrerPolicy = 'strict-origin-when-cross-origin';
-                frame.src =
-                    'https://www.youtube-nocookie.com/embed/' + id +
-                    '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
-                    '&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=' +
-                    encodeURIComponent(location.origin);
-                videoBox.appendChild(frame);
-                pings = 0;
-                ping();
+            // The player is mounted at once and only revealed after the pause. That
+            // head start is the whole point: reveal it the instant it is created and
+            // the billboard shows YouTube's black frame and spinner while it buffers,
+            // which is precisely what the artwork is there to cover.
+            frame = document.createElement('iframe');
+            frame.allow = 'autoplay; encrypted-media';
+            frame.setAttribute('frameborder', '0');
+            // Jellyfin's index.html carries <meta name="referrer" content="no-referrer">,
+            // and YouTube refuses an embed that arrives with no referrer at all:
+            // "Error 153, video player configuration error". The attribute overrides
+            // the document policy for this one request. Verified both ways in the
+            // browser - without it the player never loads.
+            frame.referrerPolicy = 'strict-origin-when-cross-origin';
+            frame.src =
+                'https://www.youtube-nocookie.com/embed/' + id +
+                '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
+                '&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=' +
+                encodeURIComponent(location.origin);
+            videoBox.appendChild(frame);
+            pings = 0;
+            ping();
 
-                // Long enough for an onError to arrive first - it lands in about a
-                // second - so a blocked video is dropped before anything is shown.
-                revealTimer = setTimeout(reveal, 3000);
+            var delay = Math.max(3, cfg.heroTrailerDelaySeconds == null ? 3 : cfg.heroTrailerDelaySeconds);
+            revealTimer = setTimeout(reveal, delay * 1000);
 
-                // Backstop: if the ended event never arrives - a blocked embed, a
-                // dropped handshake - the billboard must not sit on a dead frame.
-                trailerCap = setTimeout(stopTrailer, 40000);
-            }, delay * 1000);
+            // Backstop: if the ended event never arrives - a dropped handshake, a
+            // player that stalls - the billboard must not sit on a dead frame.
+            trailerCap = setTimeout(stopTrailer, (delay + 40) * 1000);
         }
 
         function onPlayerMessage(event) {
