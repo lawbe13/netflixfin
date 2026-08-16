@@ -1927,6 +1927,22 @@
         }, 3000);
     }
 
+    /* Fullscreen renders the fullscreen element and its descendants and nothing
+     * else, so a player parented to <body> simply vanishes the moment anything
+     * else goes fullscreen - which is what it did. It follows the fullscreen
+     * element instead, and comes home when fullscreen ends.
+     *
+     * A <video> taken fullscreen on its own cannot host an overlay at all; in that
+     * case there is nothing to be done, so the player is left where it is rather
+     * than throwing on appendChild. */
+    function hostPlayer() {
+        if (!player) return;
+        var target = document.fullscreenElement || document.webkitFullscreenElement;
+        if (target && target.tagName === 'VIDEO') return;
+        var host = target || document.body;
+        if (player.node.parentNode !== host) host.appendChild(player.node);
+    }
+
     function buildPlayer(video) {
         var node = el('div', 'nf-player');
 
@@ -2050,9 +2066,8 @@
         bottom.appendChild(row);
         node.appendChild(bottom);
 
-        document.body.appendChild(node);
-
         player = { node: node, video: video, seriesId: null };
+        hostPlayer();
 
         /* Scrolling was still moving the volume after guarding the two range
          * inputs, and no synthetic wheel on the video, the container, the OSD or
@@ -2184,10 +2199,20 @@
             }
         }
 
-        // playbackManager is not always reachable from here, and Jellyfin's own
-        // title element is hidden with its OSD, so fall back to the item the
-        // route is already pointing at.
-        if (!centre.textContent && client) {
+        /* Resolve the item whatever the title says.
+         *
+         * This used to be guarded by `if (!centre.textContent)`, which conflated two
+         * different things: the title is cosmetic, but the same call is what sets
+         * player.itemId and player.seriesId, and the episodes and audio panels both
+         * return immediately without them. playbackManager is not reachable on this
+         * build, so that call was the only thing setting them.
+         *
+         * The result was a player whose panels worked until it was rebuilt and then
+         * never again: on the first build Jellyfin's OSD title has not landed yet,
+         * so the guard passes; on a rebuild - which is exactly what leaving
+         * fullscreen causes - the title is already there, the guard fails, and the
+         * two buttons go dead with nothing to show for it. */
+        if (client && !player.itemId) {
             var match = window.location.hash.match(/[?&]id=([^&]+)/);
             if (match) {
                 client.getItem(client.getCurrentUserId(), match[1]).then(label).catch(function () {});
@@ -2799,6 +2824,11 @@
         bindScrollState();
         bindPreview();
         bindModal();
+
+        // One listener for the life of the page: the player is rebuilt often, and
+        // binding this per player would leave one behind every time.
+        document.addEventListener('fullscreenchange', hostPlayer);
+        document.addEventListener('webkitfullscreenchange', hostPlayer);
 
         // Both go out immediately, in parallel with jellyfin-web's own boot, rather
         // than waiting for a render that only happens a second and a half later.
