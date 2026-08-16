@@ -1316,7 +1316,7 @@
 
         var fav = el('button', 'nf-circle');
         fav.type = 'button';
-        fav.title = 'Preferiti';
+        fav.title = 'Aggiungi a La mia lista';
         var isFav = item.UserData && item.UserData.IsFavorite;
         fav.appendChild(icon(isFav ? 'favorite' : 'add'));
         fav.addEventListener('click', function () {
@@ -1339,11 +1339,15 @@
         var rate = el('div', 'nf-rate');
         var rateBtn = el('button', 'nf-circle nf-rate-open');
         rateBtn.type = 'button';
-        rateBtn.title = 'Valuta';
+        // Netflix leaves the collapsed button unlabelled until a rating is held.
+        rateBtn.title = '';
 
         var paintRate = function () {
             rateBtn.replaceChildren(svgIcon(liked === false ? 'thumbdown' : 'thumbup'));
             rateBtn.classList.toggle('is-rated', liked === true || liked === false);
+            rateBtn.title =
+                liked === true ? 'Valutazione pollice alzato'
+                    : liked === false ? 'Valutazione pollice verso' : '';
         };
 
         var setRating = function (value) {
@@ -1374,8 +1378,8 @@
 
         var options = el('div', 'nf-rate-options');
         [
-            { glyph: 'thumbdown', label: 'Non fa per me', value: false },
-            { glyph: 'thumbup', label: 'Mi piace', value: true }
+            { glyph: 'thumbdown', label: 'Valutazione pollice verso', value: false },
+            { glyph: 'thumbup', label: 'Valutazione pollice alzato', value: true }
         ].forEach(function (choice) {
             var button = el('button', 'nf-circle nf-rate-choice');
             button.type = 'button';
@@ -1386,6 +1390,28 @@
                 setRating(choice.value);
             });
             options.appendChild(button);
+        });
+
+        /* Netflix opens this on hover after a 300ms debounce, not instantly, and
+         * Escape closes it. Both measured off the shipped bundle. */
+        var openTimer = null;
+        var setOpen = function (open) {
+            rate.classList.toggle('is-open', open);
+        };
+        rate.addEventListener('mouseenter', function () {
+            clearTimeout(openTimer);
+            openTimer = setTimeout(function () { setOpen(true); }, 300);
+        });
+        rate.addEventListener('mouseleave', function () {
+            clearTimeout(openTimer);
+            setOpen(false);
+        });
+        rateBtn.addEventListener('click', function () {
+            clearTimeout(openTimer);
+            setOpen(true);
+        });
+        rate.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') setOpen(false);
         });
 
         paintRate();
@@ -1411,7 +1437,7 @@
         if (resume) {
             remove = el('button', 'nf-circle');
             remove.type = 'button';
-            remove.title = 'Rimuovi da Continua a guardare';
+            remove.title = 'Rimuovi dalla riga';
             remove.appendChild(svgIcon('close'));
             remove.addEventListener('click', function () {
                 client
@@ -1438,18 +1464,23 @@
 
         var expand = el('button', 'nf-circle');
         expand.type = 'button';
-        expand.title = 'Altre info';
+        expand.title = 'Episodi e info';
         expand.appendChild(icon('expand_more'));
         expand.addEventListener('click', function () {
             destroyPreview();
             openModal(item.Id);
         });
 
+        /* Netflix's order, measured on a Continue Watching tile: play, my list, the
+         * X, then the thumbs - and only the chevron is pushed to the right edge,
+         * with margin-left: auto. "Visto" has no counterpart there; it is kept
+         * because it is a Jellyfin action worth having, and put last so the run
+         * Netflix does have is in Netflix's order. */
         actions.appendChild(play);
         actions.appendChild(fav);
-        actions.appendChild(watched);
-        actions.appendChild(rate);
         if (remove) actions.appendChild(remove);
+        actions.appendChild(rate);
+        actions.appendChild(watched);
         actions.appendChild(el('span', 'nf-spacer'));
         actions.appendChild(expand);
         body.appendChild(actions);

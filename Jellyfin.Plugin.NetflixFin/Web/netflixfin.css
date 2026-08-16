@@ -2647,10 +2647,18 @@ body.nf-playing .pause-screen-progress-wrap {
     background-size: 100% 115vh;
 }
 
-/* --- Rating, the way Netflix opens it -------------------------------------
-   One button that grows into the choices when you hover it. Jellyfin stores
-   UserData.Likes as a nullable boolean, so there are two options and not
-   Netflix's three - "love this" has nowhere to live and is left out. */
+/* --- Rating, to Netflix's own measurements --------------------------------
+   The collapsed button expands into a pill CENTRED ON ITSELF, on the same
+   baseline as the button row - it is not a tooltip floating above. Measured off
+   the live app: pill background rgb(35,35,35), radius 30px, height 48px, 8px
+   padding, options 32x32 on rgba(128,128,128,.2) with 9px between them. Netflix's
+   is 130px for three options; ours is 89px for two, because Jellyfin's
+   UserData.Likes is a nullable boolean and its third option - the double thumb
+   for "love this" - has nowhere to be stored.
+
+   Timing is theirs too: opacity over 0.1s linear, transform over 0.3s
+   cubic-bezier(.5,0,.1,1), scaling 0.8 to 1. The two icons slide in from their
+   own sides as it opens. */
 .nf-rate {
     position: relative;
     display: inline-flex;
@@ -2658,34 +2666,60 @@ body.nf-playing .pause-screen-progress-wrap {
 
 .nf-rate-options {
     position: absolute;
-    bottom: calc(100% + 8px);
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%) scale(0.7);
-    transform-origin: bottom center;
+    z-index: 2;
     display: flex;
-    gap: 6px;
-    padding: 6px;
-    border-radius: 9999px;
-    background: #181818;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.75);
+    gap: 9px;
+    width: 89px;
+    height: 48px;
+    padding: 8px;
+    border-radius: 30px;
+    background: rgb(35, 35, 35);
+    transform: translate(-50%, -50%) scale(0.8);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.18s var(--nf-ease), transform 0.18s var(--nf-ease);
+    transition: opacity 0.1s linear, transform 0.3s cubic-bezier(0.5, 0, 0.1, 1);
 }
 
-.nf-rate:hover .nf-rate-options,
-.nf-rate:focus-within .nf-rate-options {
+.nf-rate.is-open .nf-rate-options {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: translate(-50%, -50%) scale(1);
     pointer-events: auto;
 }
 
 .nf-rate-choice {
-    transition: transform 0.12s var(--nf-ease);
+    width: 32px;
+    height: 32px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(128, 128, 128, 0.2);
+    opacity: 0;
+    transition: transform 0.3s var(--nf-ease), opacity 0.3s var(--nf-ease),
+        background-color 0.15s ease;
+}
+
+.nf-rate-choice:first-child {
+    transform: translateX(1em);
+}
+
+.nf-rate-choice:last-child {
+    transform: translateX(-1em);
+}
+
+.nf-rate.is-open .nf-rate-choice {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 .nf-rate-choice:hover {
-    transform: scale(1.18);
+    background: rgba(128, 128, 128, 0.45);
+}
+
+.nf-rate-choice svg {
+    width: 18px;
+    height: 18px;
 }
 
 .nf-circle.is-rated {
