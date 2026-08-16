@@ -881,8 +881,7 @@ body.nf-hover-preview .cardOverlayContainer {
     background: #1a1a1a;
 }
 
-.nf-hero-reserve::before,
-.nf-hero-reserve::after {
+.nf-hero-reserve::before {
     content: none;
 }
 
@@ -900,28 +899,18 @@ body.nf-hover-preview .cardOverlayContainer {
     opacity: 1;
 }
 
-.nf-hero::before,
-.nf-hero::after {
+.nf-hero::before {
     content: "";
     position: absolute;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-}
-
-.nf-hero::before {
     background: linear-gradient(
         77deg,
         rgba(0, 0, 0, 0.85) 0%,
         rgba(0, 0, 0, 0.55) 35%,
         rgba(0, 0, 0, 0) 70%
     );
-}
-
-/* Netflix's billboard is a self-contained card: no fade into the page at its
-   bottom edge, only the side scrim that keeps the copy legible. */
-.nf-hero::after {
-    background: none;
 }
 
 /* --- Billboard trailer ---------------------------------------------------
@@ -2581,10 +2570,6 @@ body.nf-playing .volumeIndicator {
 /* Netflix's player chrome is a back arrow and nothing else - no navigation, no
    logo, no account controls. Jellyfin keeps its whole header on top of the
    video, so it is stripped down while a video is playing. */
-body.nf-playing .skinHeader {
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0)) !important;
-}
-
 /* The component draws its own back arrow, so Jellyfin's entire header goes -
    including the home button, which was still sitting beside ours. */
 body.nf-playing .skinHeader {

@@ -174,8 +174,9 @@
             var y = window.scrollY || scroller.scrollTop || 0;
             document.body.classList.toggle('nf-scrolled', y > 60);
         };
+        // Window's capture listener already sees every scroll in the document, so
+        // one binding is enough; the second only ran the same callback twice.
         window.addEventListener('scroll', update, { passive: true, capture: true });
-        document.addEventListener('scroll', update, { passive: true, capture: true });
         update();
     }
 
@@ -2012,14 +2013,9 @@
 
         // Right cluster mirrors Netflix: next episode, episode list, subtitles,
         // fullscreen. The first three only make sense for an episode.
-        var proxy = function (selector) {
-            var target = document.querySelector(selector);
-            if (target) target.click();
-        };
-
         right.appendChild(
             playerButton('next', 'Prossimo episodio', function () {
-                proxy('.videoOsdBottom .btnNextTrack');
+                proxyClick('.videoOsdBottom .btnNextTrack');
             })
         );
         // Netflix opens these on hover, not on click.
@@ -2056,7 +2052,7 @@
 
         document.body.appendChild(node);
 
-        player = { node: node, video: video, range: range, remaining: remaining, title: centre, playBtn: playBtn, seriesId: null };
+        player = { node: node, video: video, seriesId: null };
 
         /* Scrolling was still moving the volume after guarding the two range
          * inputs, and no synthetic wheel on the video, the container, the OSD or
@@ -2518,10 +2514,6 @@
             trailerCap = setTimeout(stopTrailer, 40000);
         }
 
-        function playerFailed() {
-            stopTrailer();
-        }
-
         function stopTrailer() {
             if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
             if (mountTimer) { clearTimeout(mountTimer); mountTimer = null; }
@@ -2576,7 +2568,7 @@
             }
             if (!data) return;
             if (data.event === 'onError') {
-                playerFailed();
+                stopTrailer();
                 return;
             }
             var info = data.info;
