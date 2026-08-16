@@ -140,6 +140,24 @@
 
     /* ------------------------------------------------------------ body flags */
 
+    /* Tiles per row, decided here rather than in a media query.
+     *
+     * The laptop kept showing seven where five were wanted while its console
+     * reported a 430px viewport - a width at which the stylesheet's rule says
+     * five. Setting the variable inline on :root removes both suspects at once:
+     * it beats a stale cached stylesheet, and it beats any rule that was
+     * winning on specificity. It is also the value the debug line below reads
+     * back, so what is measured is what is applied. */
+    function applyTileCount() {
+        var width = window.innerWidth;
+        var tiles = width >= 1400 ? 7 : width >= 400 ? 5 : 3;
+        var root = document.documentElement;
+        if (root.style.getPropertyValue('--nf-tiles') !== String(tiles)) {
+            root.style.setProperty('--nf-tiles', String(tiles));
+            log('tiles', tiles, 'at', width);
+        }
+    }
+
     function applyBodyFlags() {
         document.body.classList.toggle('nf-hover-preview', !!cfg.enableHoverPreview);
         document.body.classList.toggle('nf-hide-card-text', !!cfg.hideCardText);
@@ -2348,6 +2366,7 @@
     var scheduled = null;
 
     function refresh() {
+        applyTileCount();
         applyBodyFlags();
         applyLogo();
         netflixHeaderIcons();
@@ -2370,6 +2389,8 @@
     }
 
     function start() {
+        applyTileCount();
+        window.addEventListener('resize', applyTileCount, { passive: true });
         applyBodyFlags();
         bindScrollState();
         bindPreview();
