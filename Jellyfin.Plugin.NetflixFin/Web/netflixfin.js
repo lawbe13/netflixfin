@@ -2443,7 +2443,7 @@
          * embed is the only way to play one. It is muted, chrome-free and inert to
          * the pointer, and a title without a trailer simply keeps its artwork. */
         var trailerCap = null;
-        var revealTimer = null;
+        var mountTimer = null;
         var pingTimer = null;
         var pings = 0;
         var frame = null;
@@ -2489,24 +2489,28 @@
             if (++pings < 20) pingTimer = setTimeout(ping, 400);
         }
 
+        /* The billboard swaps to the video only when the player says it is playing,
+         * never on a timer. Everything else - buffering, an embed the owner blocked
+         * (onError 150, which is what L'alba dei morti dementi answers), a tab the
+         * browser has backgrounded and is refusing to decode media in - leaves the
+         * artwork exactly where it was. A trailer that starts late simply appears
+         * late; one that never starts is never seen. */
         function reveal() {
-            if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
-            if (frame) hero.classList.add('is-playing');
+            if (!frame || hero.classList.contains('is-playing')) return;
+            hero.classList.add('is-playing');
+            // The cap runs from here, not from mount: a player that spent a minute
+            // buffering has not used up its screen time.
+            if (trailerCap) clearTimeout(trailerCap);
+            trailerCap = setTimeout(stopTrailer, 40000);
         }
 
-        /* Trailers rot, and some were never embeddable to begin with: the link for
-         * L'alba dei morti dementi answers onError 150, "embedding disabled". Measured
-         * across 24 titles from this library, one was blocked. The player is not to be
-         * trusted about anything else - it reports buffering readily, almost never
-         * announces state 1, and its infoDelivery carries no clock - but onError is
-         * prompt and unambiguous, so that is what the billboard listens for. */
         function playerFailed() {
             stopTrailer();
         }
 
         function stopTrailer() {
             if (trailerCap) { clearTimeout(trailerCap); trailerCap = null; }
-            if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+            if (mountTimer) { clearTimeout(mountTimer); mountTimer = null; }
             if (pingTimer) { clearTimeout(pingTimer); pingTimer = null; }
             pings = 0;
             hero.classList.remove('is-playing');
@@ -2521,34 +2525,31 @@
             var id = trailerFor(items[current]);
             if (!id) return;
 
-            // The player is mounted at once and only revealed after the pause. That
-            // head start is the whole point: reveal it the instant it is created and
-            // the billboard shows YouTube's black frame and spinner while it buffers,
-            // which is precisely what the artwork is there to cover.
-            frame = document.createElement('iframe');
-            frame.allow = 'autoplay; encrypted-media';
-            frame.setAttribute('frameborder', '0');
-            // Jellyfin's index.html carries <meta name="referrer" content="no-referrer">,
-            // and YouTube refuses an embed that arrives with no referrer at all:
-            // "Error 153, video player configuration error". The attribute overrides
-            // the document policy for this one request. Verified both ways in the
-            // browser - without it the player never loads.
-            frame.referrerPolicy = 'strict-origin-when-cross-origin';
-            frame.src =
-                'https://www.youtube-nocookie.com/embed/' + id +
-                '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
-                '&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=' +
-                encodeURIComponent(location.origin);
-            videoBox.appendChild(frame);
-            pings = 0;
-            ping();
+            // Mounted after the pause so the artwork gets its moment, then held behind
+            // it until the player reports that it is running.
+            var delay = Math.max(0, cfg.heroTrailerDelaySeconds == null ? 3 : cfg.heroTrailerDelaySeconds);
+            mountTimer = setTimeout(function () {
+                mountTimer = null;
+                if (!document.body.contains(hero)) return;
 
-            var delay = Math.max(3, cfg.heroTrailerDelaySeconds == null ? 3 : cfg.heroTrailerDelaySeconds);
-            revealTimer = setTimeout(reveal, delay * 1000);
-
-            // Backstop: if the ended event never arrives - a dropped handshake, a
-            // player that stalls - the billboard must not sit on a dead frame.
-            trailerCap = setTimeout(stopTrailer, (delay + 40) * 1000);
+                frame = document.createElement('iframe');
+                frame.allow = 'autoplay; encrypted-media';
+                frame.setAttribute('frameborder', '0');
+                // Jellyfin's index.html carries <meta name="referrer" content="no-referrer">,
+                // and YouTube refuses an embed that arrives with no referrer at all:
+                // "Error 153, video player configuration error". The attribute overrides
+                // the document policy for this one request. Verified both ways in the
+                // browser - without it the player never loads.
+                frame.referrerPolicy = 'strict-origin-when-cross-origin';
+                frame.src =
+                    'https://www.youtube-nocookie.com/embed/' + id +
+                    '?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3' +
+                    '&playsinline=1&disablekb=1&fs=0&enablejsapi=1&origin=' +
+                    encodeURIComponent(location.origin);
+                videoBox.appendChild(frame);
+                pings = 0;
+                ping();
+            }, delay * 1000);
         }
 
         function onPlayerMessage(event) {
