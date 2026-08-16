@@ -1582,6 +1582,31 @@
         showPlayerChrome();
     }
 
+    /* Netflix closes these by walking away from them, so a panel that is left
+     * behind when the pointer moves off closes itself. A short grace period covers
+     * the gap between the button and the panel, which are not touching. */
+    function closeOnLeave(panel, button) {
+        var timer = null;
+        var cancel = function () {
+            clearTimeout(timer);
+            timer = null;
+        };
+        var arm = function () {
+            cancel();
+            timer = setTimeout(function () {
+                if (panel.parentNode) closePanels();
+            }, 220);
+        };
+        panel.addEventListener('mouseenter', cancel);
+        panel.addEventListener('mouseleave', arm);
+        if (button) {
+            button.addEventListener('mouseenter', cancel);
+            button.addEventListener('mouseleave', arm);
+        }
+        // Opened by hover, so the pointer may never enter it at all.
+        arm();
+    }
+
     function panelShell(title, cls) {
         var panel = el('div', 'nf-p-panel ' + cls);
         var head = el('div', 'nf-p-panel-head');
@@ -1639,6 +1664,7 @@
         var list = el('div', 'nf-p-panel-body');
         panel.appendChild(list);
         player.node.appendChild(panel);
+        closeOnLeave(panel, player.node.querySelector('.nf-p-episodes-btn'));
 
         var allSeasons = [];
 
@@ -1765,6 +1791,7 @@
         var body = el('div', 'nf-p-panel-body nf-p-tracks');
         panel.appendChild(body);
         player.node.appendChild(panel);
+        closeOnLeave(panel, player.node.querySelector('.nf-p-tracks-btn'));
 
         client
             .getItem(client.getCurrentUserId(), player.itemId)
@@ -2070,10 +2097,17 @@
             return button;
         };
 
-        right.appendChild(hoverPanel(playerButton('episodes', 'Episodi', openEpisodesPanel), openEpisodesPanel));
-        right.appendChild(
-            hoverPanel(playerButton('subtitles', 'Sottotitoli e audio', openTracksPanel), openTracksPanel)
-        );
+        // A film has no episodes, so it does not get the button. It is revealed once
+        // the item resolves and turns out to belong to a series - showing a control
+        // that answers nothing is worse than showing none.
+        var episodesBtn = hoverPanel(playerButton('episodes', 'Episodi', openEpisodesPanel), openEpisodesPanel);
+        episodesBtn.classList.add('nf-p-episodes-btn');
+        episodesBtn.hidden = true;
+        right.appendChild(episodesBtn);
+
+        var tracksBtn = hoverPanel(playerButton('subtitles', 'Sottotitoli e audio', openTracksPanel), openTracksPanel);
+        tracksBtn.classList.add('nf-p-tracks-btn');
+        right.appendChild(tracksBtn);
         right.appendChild(
             playerButton('fullscreen', 'Schermo intero', function () {
                 if (document.fullscreenElement) document.exitFullscreen();
@@ -2201,6 +2235,9 @@
             player.itemId = item.Id;
             if (item.SeriesId) player.seriesId = item.SeriesId;
             if (item.SeasonId) player.seasonId = item.SeasonId;
+
+            var episodesBtn = player.node.querySelector('.nf-p-episodes-btn');
+            if (episodesBtn) episodesBtn.hidden = !item.SeriesId;
             centre.textContent = item.SeriesName
                 ? item.SeriesName +
                   '  ' +
