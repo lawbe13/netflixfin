@@ -1714,7 +1714,7 @@
                     });
 
                     if (kind === 'Subtitle') {
-                        options = [{ Index: -1, DisplayTitle: 'Disattivati' }].concat(options);
+                        options = [{ Index: -1 }].concat(options);
                     }
 
                     var active = activeOf(kind);
@@ -1723,13 +1723,7 @@
                         var button = el('button', 'nf-p-track');
                         button.type = 'button';
                         button.appendChild(el('span', 'nf-p-tick'));
-                        button.appendChild(
-                            el(
-                                'span',
-                                null,
-                                stream.DisplayTitle || stream.Language || 'Traccia ' + stream.Index
-                            )
-                        );
+                        button.appendChild(el('span', null, trackLabel(stream, kind)));
                         if (stream.Index === active) button.classList.add('is-active');
                         button.addEventListener('click', function () {
                             apply(stream.Index, pm);
@@ -1760,6 +1754,62 @@
             .catch(function (err) {
                 log('tracks panel failed', err);
             });
+    }
+
+    /* Jellyfin's DisplayTitle is a technical string - "Italian - Italiano - AAC
+     * - 5.1 - Predefinito". Netflix names the language and nothing else, so the
+     * label is rebuilt from the stream's own fields. */
+    var ISO3 = {
+        ita: 'it', eng: 'en', fre: 'fr', fra: 'fr', ger: 'de', deu: 'de', spa: 'es',
+        por: 'pt', rus: 'ru', jpn: 'ja', chi: 'zh', zho: 'zh', kor: 'ko', ara: 'ar',
+        dut: 'nl', nld: 'nl', pol: 'pl', swe: 'sv', dan: 'da', nor: 'no', fin: 'fi',
+        tur: 'tr', ces: 'cs', cze: 'cs', ell: 'el', gre: 'el', heb: 'he', hin: 'hi',
+        hun: 'hu', ron: 'ro', rum: 'ro', ukr: 'uk', vie: 'vi', tha: 'th', ind: 'id'
+    };
+
+    var languageNames = null;
+    function languageName(code) {
+        if (!code) return null;
+        var key = String(code).toLowerCase();
+        var tag = key.length === 3 ? ISO3[key] || key : key;
+
+        if (languageNames === null) {
+            try {
+                languageNames = new Intl.DisplayNames(['it'], { type: 'language' });
+            } catch (err) {
+                languageNames = false;
+            }
+        }
+
+        var name = null;
+        if (languageNames) {
+            try {
+                name = languageNames.of(tag);
+            } catch (err) {
+                name = null;
+            }
+        }
+        if (!name || name === tag) return null;
+        return name.charAt(0).toUpperCase() + name.slice(1);
+    }
+
+    function trackLabel(stream, kind) {
+        if (stream.Index === -1) return 'Disattivati';
+
+        var name =
+            languageName(stream.Language) ||
+            (stream.Title && !/\b(aac|ac3|eac3|dts|truehd|flac|opus|mp3|srt|subrip|pgs|ass)\b/i.test(stream.Title)
+                ? stream.Title
+                : null) ||
+            stream.DisplayTitle ||
+            'Traccia ' + stream.Index;
+
+        var notes = [];
+        if (stream.IsForced) notes.push('forzati');
+        if (stream.IsHearingImpaired) notes.push('non udenti');
+        if (kind === 'Audio' && stream.ChannelLayout === '5.1') notes.push('5.1');
+
+        return notes.length ? name + ' (' + notes.join(', ') + ')' : name;
     }
 
     function proxyClick(selector) {
