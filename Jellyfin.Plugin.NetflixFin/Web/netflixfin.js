@@ -79,6 +79,56 @@
         })();
     }
 
+    /* Start playback without leaving the page.
+     *
+     * Navigating to #/details and pressing its play button worked, but the
+     * details page is itself styled as a card - so pressing play in a modal
+     * flashed up what looked like a second modal before the video began.
+     *
+     * jellyfin-web has no playbackManager on window here, but it does delegate
+     * clicks on elements carrying data-action="play"/"resume", reading the item
+     * from the nearest data-id. A real card is used when one is on screen;
+     * otherwise a hidden stand-in carrying the same attributes is clicked and
+     * removed. Navigation stays as the last resort. */
+    function playNow(id, serverId, type) {
+        if (!id) return;
+
+        var card = document.querySelector('.card[data-id="' + id + '"]');
+        var trigger =
+            card &&
+            card.querySelector('[data-action="resume"], [data-action="play"], .cardOverlayFab-primary');
+
+        if (trigger) {
+            trigger.click();
+        } else {
+            var proxy = el('div', 'card cardOverlayButton');
+            proxy.style.display = 'none';
+            proxy.setAttribute('data-id', id);
+            if (serverId) proxy.setAttribute('data-serverid', serverId);
+            if (type) proxy.setAttribute('data-type', type);
+            proxy.setAttribute('data-isfolder', 'false');
+
+            var button = el('button', 'cardOverlayButton');
+            button.type = 'button';
+            button.setAttribute('data-action', 'resume');
+            proxy.appendChild(button);
+
+            (document.querySelector('.itemsContainer') || document.body).appendChild(proxy);
+            button.click();
+            setTimeout(function () {
+                proxy.remove();
+            }, 0);
+        }
+
+        // If nothing started, fall back to the route that always worked.
+        setTimeout(function () {
+            if (!document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer')) {
+                log('playNow did not start playback, routing to details');
+                goToDetails(id, serverId, true);
+            }
+        }, 2500);
+    }
+
     function goToDetails(id, serverId, autoplay) {
         window.location.hash = '/details?id=' + id + '&serverId=' + serverId;
         if (!autoplay) return;
@@ -764,7 +814,7 @@
 
                                 row.addEventListener('click', function () {
                                     closeModal();
-                                    goToDetails(episode.Id, episode.ServerId, true);
+                                    playNow(episode.Id, episode.ServerId, episode.Type);
                                 });
 
                                 list.appendChild(row);
@@ -943,7 +993,7 @@
         play.appendChild(el('span', null, position ? 'Riprendi' : 'Riproduci'));
         play.addEventListener('click', function () {
             closeModal();
-            goToDetails(resumeOf.Id, resumeOf.ServerId, true);
+            playNow(resumeOf.Id, resumeOf.ServerId, resumeOf.Type);
         });
         actions.appendChild(play);
 
@@ -1176,7 +1226,7 @@
         play.appendChild(icon('play_arrow'));
         play.addEventListener('click', function () {
             destroyPreview();
-            goToDetails(item.Id, item.ServerId, true);
+            playNow(item.Id, item.ServerId, item.Type);
         });
 
         var fav = el('button', 'nf-circle');
@@ -1638,7 +1688,7 @@
 
                         row.addEventListener('click', function () {
                             closePanels();
-                            goToDetails(episode.Id, episode.ServerId, true);
+                            playNow(episode.Id, episode.ServerId, episode.Type);
                         });
 
                         list.appendChild(row);
@@ -2222,7 +2272,7 @@
         }
 
         play.addEventListener('click', function () {
-            goToDetails(items[current].Id, items[current].ServerId, true);
+            playNow(items[current].Id, items[current].ServerId, items[current].Type);
         });
         info.addEventListener('click', function () {
             openModal(items[current].Id);
