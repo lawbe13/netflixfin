@@ -2495,13 +2495,14 @@
             if (frame) hero.classList.add('is-playing');
         }
 
-        /* Trailers rot: providers keep the link long after YouTube has taken the video
-         * down, and the embed then sits on "Video unavailable" reporting state -1
-         * forever. Nothing is ever shown that has not actually started playing, so a
-         * dead link costs the billboard nothing but its artwork. */
-        function giveUp() {
-            revealTimer = null;
-            if (!hero.classList.contains('is-playing')) stopTrailer();
+        /* Trailers rot, and some were never embeddable to begin with: the link for
+         * L'alba dei morti dementi answers onError 150, "embedding disabled". Measured
+         * across 24 titles from this library, one was blocked. The player is not to be
+         * trusted about anything else - it reports buffering readily, almost never
+         * announces state 1, and its infoDelivery carries no clock - but onError is
+         * prompt and unambiguous, so that is what the billboard listens for. */
+        function playerFailed() {
+            stopTrailer();
         }
 
         function stopTrailer() {
@@ -2543,9 +2544,9 @@
                 pings = 0;
                 ping();
 
-                // The video is revealed only once its clock actually moves, so the
-                // billboard never shows YouTube's black frame, spinner or error card.
-                revealTimer = setTimeout(giveUp, 10000);
+                // Long enough for an onError to arrive first - it lands in about a
+                // second - so a blocked video is dropped before anything is shown.
+                revealTimer = setTimeout(reveal, 3000);
 
                 // Backstop: if the ended event never arrives - a blocked embed, a
                 // dropped handshake - the billboard must not sit on a dead frame.
@@ -2562,11 +2563,13 @@
                 try { data = JSON.parse(data); } catch (e) { return; }
             }
             if (!data) return;
+            if (data.event === 'onError') {
+                playerFailed();
+                return;
+            }
             var info = data.info;
             var state = data.event === 'onStateChange' ? info : (info && info.playerState);
-            // A moving clock is the only dependable "it is really playing" signal: this
-            // player reports buffering readily but rarely announces state 1.
-            if (state === 1 || (info && info.currentTime > 0.2)) reveal();
+            if (state === 1) reveal();
             if (state === 0) stopTrailer();
         }
 
