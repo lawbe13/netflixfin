@@ -5,6 +5,7 @@ using System.Text.Json;
 using Jellyfin.Plugin.NetflixFin.Awards;
 using Jellyfin.Plugin.NetflixFin.Configuration;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.NetflixFin.Api;
