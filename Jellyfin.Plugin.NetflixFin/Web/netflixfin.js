@@ -1451,6 +1451,16 @@
             remove.appendChild(svgIcon('close'));
             remove.addEventListener('click', function () {
                 var userId = client.getCurrentUserId();
+                /* Two different removals, because the row holds two different
+                 * things. A title you are part-way through is in the row purely
+                 * because PlaybackPositionTicks > 0, so zeroing that takes it out
+                 * and touches nothing else.
+                 *
+                 * A "next up" episode is not stored anywhere - Jellyfin computes
+                 * that part of the row from what you have watched - so there is
+                 * nothing to delete. The only thing that moves it is marking the
+                 * episode watched, and the series will then offer the episode after
+                 * it. Jellyfin has no per-series dismissal to borrow. */
                 var call = started
                     ? client.ajax({
                         type: 'POST',
@@ -2449,11 +2459,27 @@
         if (fromStream) return fromStream[1];
 
         var fromRoute = window.location.hash.match(/[?&]id=([^&]+)/);
-        return fromRoute ? fromRoute[1] : null;
+        if (fromRoute) return fromRoute[1];
+
+        // Jellyfin's own OSD shows the artwork of whatever is playing, and the id
+        // is in the URL of that image.
+        var art = document.querySelector(
+            '#videoOsdPage img[src*="/Items/"], .videoOsdBottom img[src*="/Items/"],'
+                + ' .videoOsdTop img[src*="/Items/"]'
+        );
+        var fromArt = art && /\/Items\/([0-9a-fA-F-]{32,36})\//.exec(art.src);
+        return fromArt ? fromArt[1] : null;
     }
 
     /* Resolved once per player and remembered, so a press that arrives before the
      * answer waits for it rather than being dropped. */
+    /* Resolved once per player and remembered - but only a real answer is
+     * remembered. Anything that comes back empty clears the memo, because the
+     * common case is asking too early: the player is built the instant the video
+     * element appears, before the server has a session to report and often before
+     * the element has a src. Keeping a resolved-null promise here is what made both
+     * panels dead for the life of the player - every retry short-circuited on the
+     * nothing that had been cached. */
     function ensureItem() {
         if (!player) return Promise.resolve(null);
         if (player.itemPromise) return player.itemPromise;
@@ -2461,49 +2487,54 @@
         var client = api();
         if (!client) return Promise.resolve(null);
 
+        var current = player;
+        var forget = function (value) {
+            if (player === current && !value) current.itemPromise = null;
+            return value || null;
+        };
+
         var id = currentItemId();
         if (!id) {
-            // Last resort, and the one that always knows: ask the server what this
-            // device is playing.
-            var waiting = player;
+            // The session knows however the media is being delivered, which the
+            // stream URL does not: a transcode arrives as a blob: with no id in it.
             player.itemPromise = client
-                .getSessions({ deviceId: client.deviceId() })
+                .getSessions({})
                 .then(function (sessions) {
-                    var mine = (sessions || []).filter(function (session) {
-                        return session.NowPlayingItem;
-                    })[0];
-                    if (!mine || player !== waiting) return null;
-                    waiting.sessionItemId = mine.NowPlayingItem.Id;
-                    waiting.itemPromise = null;
+                    var device = client.deviceId && client.deviceId();
+                    var playing = (sessions || []).filter(function (session) {
+                        return session.NowPlayingItem && session.NowPlayingItem.Id;
+                    });
+                    var mine = playing.filter(function (session) {
+                        return session.DeviceId === device;
+                    })[0] || playing[0];
+
+                    if (!mine || player !== current) return forget(null);
+                    current.sessionItemId = mine.NowPlayingItem.Id;
+                    current.itemPromise = null;
                     return ensureItem();
                 })
                 .catch(function (err) {
-                    if (player === waiting) waiting.itemPromise = null;
                     log('could not read the playback session', err);
-                    return null;
+                    return forget(null);
                 });
             return player.itemPromise;
         }
 
-        var current = player;
         player.itemPromise = client
             .getItem(client.getCurrentUserId(), id)
             .then(function (item) {
-                if (player === current && current.label) {
+                if (player === current && current.label && item && item.Id) {
                     try {
                         current.label(item);
                     } catch (err) {
                         log('could not label the player', err);
                     }
                 }
-                return item && item.Id ? item : null;
+                return forget(item && item.Id ? item : null);
             })
             .catch(function (err) {
-                // Clear it so the next press can try again rather than inheriting
-                // a rejected promise for the life of the player.
-                if (player === current) current.itemPromise = null;
                 log('could not resolve the playing item', err);
-                return null;
+                return forget(null);
             });
 
         return player.itemPromise;
