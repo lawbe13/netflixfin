@@ -1595,11 +1595,27 @@
         return panel;
     }
 
-    function openEpisodesPanel(hovered) {
+    /* Both panels need the item the player is showing, and that is resolved over the
+     * network. A press that lands before it arrives used to do nothing at all, with
+     * no retry and nothing on screen to say why - which is what a rebuilt player
+     * looked like until its request came back. They wait for it now. */
+    function waitForItem(reopen, retried) {
+        if (retried || !player || !player.ready) return;
+        var current = player;
+        player.ready.then(function () {
+            if (player === current) reopen();
+        });
+    }
+
+    function openEpisodesPanel(hovered, retried) {
         if (!player) return;
         var client = api();
+        if (!client) return;
         var seriesId = player.seriesId;
-        if (!client || !seriesId) return;
+        if (!seriesId) {
+            waitForItem(function () { openEpisodesPanel(hovered, true); }, retried);
+            return;
+        }
 
         var wasOpen = player.node.querySelector('.nf-p-panel-episodes');
         // Hover only ever opens; a click still toggles.
@@ -1728,10 +1744,14 @@
             });
     }
 
-    function openTracksPanel(hovered) {
+    function openTracksPanel(hovered, retried) {
         if (!player) return;
         var client = api();
-        if (!client || !player.itemId) return;
+        if (!client) return;
+        if (!player.itemId) {
+            waitForItem(function () { openTracksPanel(hovered, true); }, retried);
+            return;
+        }
 
         var wasOpen = player.node.querySelector('.nf-p-panel-tracks');
         if (wasOpen && hovered === true) return;
@@ -2212,11 +2232,18 @@
          * so the guard passes; on a rebuild - which is exactly what leaving
          * fullscreen causes - the title is already there, the guard fails, and the
          * two buttons go dead with nothing to show for it. */
-        if (client && !player.itemId) {
-            var match = window.location.hash.match(/[?&]id=([^&]+)/);
-            if (match) {
-                client.getItem(client.getCurrentUserId(), match[1]).then(label).catch(function () {});
-            }
+        var settle;
+        player.ready = new Promise(function (resolve) { settle = resolve; });
+
+        var match = client && !player.itemId && window.location.hash.match(/[?&]id=([^&]+)/);
+        if (match) {
+            client
+                .getItem(client.getCurrentUserId(), match[1])
+                .then(label)
+                .catch(function (err) { log('could not resolve the playing item', err); })
+                .then(settle);
+        } else {
+            settle();
         }
     }
 
