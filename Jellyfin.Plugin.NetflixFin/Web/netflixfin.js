@@ -1312,10 +1312,9 @@
                     ? "Per togliere la serie dalla riga Jellyfin ha un solo modo: segnarla " +
                       "come vista. " + episodes +
                       (episodes === 1
-                          ? ' episodio non visto verrà segnato'
-                          : ' episodi non visti verranno segnati') +
-                      ' come visto' + (episodes === 1 ? '' : 'i') +
-                      '. Non si torna indietro con precisione.'
+                          ? ' episodio non visto verrà segnato come visto.'
+                          : ' episodi non visti verranno segnati come visti.') +
+                      ' Non si torna indietro con precisione.'
                     : "Per togliere la serie dalla riga Jellyfin ha un solo modo: segnare " +
                       "come visti i suoi episodi. Non si torna indietro con precisione."
             )
