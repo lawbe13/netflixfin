@@ -162,8 +162,19 @@
         }
     }
 
+    /* Whether this is a touch device, decided once.
+     *
+     * `pointer: coarse` alone is not enough: an iPad with a Magic Keyboard or any
+     * trackpad reports `pointer: fine`, and would have been served the desktop
+     * layout - on the very device this was written for. maxTouchPoints does not
+     * lie about that. */
+    var IS_TOUCH =
+        window.matchMedia('(pointer: coarse)').matches ||
+        (navigator.maxTouchPoints || 0) > 1;
+
     function applyBodyFlags() {
-        document.body.classList.toggle('nf-hover-preview', !!cfg.enableHoverPreview);
+        document.body.classList.toggle('nf-touch', IS_TOUCH);
+        document.body.classList.toggle('nf-hover-preview', !!cfg.enableHoverPreview && !IS_TOUCH);
         document.body.classList.toggle('nf-hide-card-text', !!cfg.hideCardText);
         // nf-playing is managePlayer's alone - see the note there.
     }

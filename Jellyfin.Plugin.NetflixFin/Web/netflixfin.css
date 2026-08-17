@@ -2847,13 +2847,13 @@ body.nf-playing .skinHeader {
     font-weight: 600;
 }
 
-@media (max-width: 1279px) and (pointer: coarse), (max-width: 820px) {
-    .nf-tabbar {
+@media (max-width: 1279px) {
+    body.nf-touch .nf-tabbar {
         display: flex;
     }
 
     /* The bar floats over the page, so the page has to end above it. */
-    .mainAnimatedPages {
+    body.nf-touch .mainAnimatedPages {
         padding-bottom: calc(64px + 40px + env(safe-area-inset-bottom));
     }
 }
@@ -2997,20 +2997,20 @@ body.nf-playing .skinHeader {
    The iPad keeps the desktop billboard proportions and runs six 2:3 posters to a
    row at a stable ~217pt pitch, which is what Netflix has shipped across two
    design generations. Three tabs, not four: there is no Clips tab on iPad. */
-@media (min-width: 821px) and (max-width: 1279px) and (pointer: coarse) {
-    :root {
+@media (min-width: 821px) and (max-width: 1279px) {
+    body.nf-touch {
         --nf-tiles: 6;
         --nf-gutter: 20px;
     }
 
-    .nf-preview,
-    .nf-row-arrow-prev,
-    .nf-row-arrow-next {
+    body.nf-touch .nf-preview,
+    body.nf-touch .nf-row-arrow-prev,
+    body.nf-touch .nf-row-arrow-next {
         display: none !important;
     }
 
-    .sectionTitle,
-    .sectionTitleTextButton {
+    body.nf-touch .sectionTitle,
+    body.nf-touch .sectionTitleTextButton {
         font-size: 20px !important;
     }
 }
