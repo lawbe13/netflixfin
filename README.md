@@ -150,6 +150,25 @@ Three things it has to survive, all of them observed rather than guessed:
 
 Turn it off, or change the pause, under **Dashboard → Plugins → NetflixFin**.
 
+## The tab bar on phone and iPad
+
+Below 1280px the header's navigation moves into a floating capsule at the bottom, with
+Home, Cerca and a third entry pointing at your favourites — which live on tab 1 of the
+home page, not on a route of their own.
+
+This is the one part of the skin that is deliberately not Netflix. Netflix draws a flat
+`#222` bar with a `#2d2d2d` pill behind the active tab; this is liquid glass, carried
+across from another project on request, after Vadim Matveev's *Liquid Glass Switcher*:
+the same stack of inner shadows in `color-mix`, a drop that travels under the labels, a
+shrink to icons-only as you scroll down, and a drag. The SVG refraction filter is left
+out, because iOS `backdrop-filter` does not accept `url()`.
+
+The drop's position and width are driven by a damping loop rather than a CSS transition.
+The target moves: when the capsule resizes the entries shift while the drop is still in
+flight, so a transition would aim at where the entry used to be. The loop re-measures
+every frame, and a `ResizeObserver` on the capsule catches the two changes nothing else
+reports — the bar being measured before it is on screen, and the web font swapping in.
+
 ## Custom CSS only
 
 Without installing anything, paste this into **Dashboard → General → Custom CSS**:

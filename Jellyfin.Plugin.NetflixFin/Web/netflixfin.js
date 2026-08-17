@@ -654,6 +654,26 @@
         window.addEventListener('orientationchange', realign);
     }
 
+    /* The two events bound in bindTabScroll cover a rotation and a window resize,
+     * and neither fires for the two things that actually move these entries: the
+     * bar being measured before it is on screen, and the web font swapping in and
+     * changing every label's width. Watch the box itself instead. */
+    function bindTabResize(capsule) {
+        if (!window.ResizeObserver) return;
+        new ResizeObserver(function () {
+            if (tabBar.drag.active) return;
+            if (!tabBar.pos.ready) {
+                markActiveTab();
+                return;
+            }
+            // A travel already re-measures every frame, and the compact toggle
+            // starts its own stuck pass; stepping in would only fight them.
+            if (tabBar.raf !== null) return;
+            tabBar.stick = true;
+            tabAnimate();
+        }).observe(capsule);
+    }
+
     function buildTabBar() {
         if (tabBar.shell && tabBar.shell.isConnected) {
             markActiveTab();
@@ -698,6 +718,7 @@
         tabBar.pos = { x: 0, w: 0, ready: false };
 
         bindTabScroll();
+        bindTabResize(capsule);
         markActiveTab();
         // First paint: the capsule has just been appended and the browser has not
         // laid it out yet, so the measurement above may have come back empty.
