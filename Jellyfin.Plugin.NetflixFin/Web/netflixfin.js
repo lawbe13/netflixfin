@@ -277,6 +277,12 @@
             });
         }
 
+        /* Favourites are Jellyfin's stand-in for My List, and they are not a route
+         * of their own: they are tab 1 of the home page, normally reached from the
+         * tab strip that this skin hides. Hiding it made them unreachable, so the
+         * link is put back here. */
+        targets.push({ label: 'La mia lista', hash: '#/home?tab=1' });
+
         return targets;
     }
 
@@ -306,7 +312,7 @@
     var TABS = [
         { glyph: 'house', label: 'Home', route: '#/home', match: /#\/home|^#?\/?$/ },
         { glyph: 'search', label: 'Cerca', route: '#/search', match: /#\/search/ },
-        { glyph: 'profile', label: 'Il mio Netflix', route: '#/list?type=favorites', match: /favorit/i }
+        { glyph: 'profile', label: 'Il mio Netflix', route: '#/home?tab=1', match: /tab=1/ }
     ];
 
     function buildTabBar() {
@@ -324,11 +330,21 @@
             item.appendChild(el('span', null, tab.label));
             item.addEventListener('click', function () {
                 window.location.hash = tab.route;
+                // Jellyfin switches home tabs from its tab strip, which this skin
+                // hides; changing the hash alone leaves the old tab on screen. Its
+                // buttons are still in the DOM, so press the real one.
+                switchHomeTab(tab.route.indexOf('tab=1') > -1 ? 1 : 0);
+                markActiveTab();
             });
             bar.appendChild(item);
         });
         document.body.appendChild(bar);
         markActiveTab();
+    }
+
+    function switchHomeTab(index) {
+        var buttons = document.querySelectorAll('.headerTabs .emby-tab-button');
+        if (buttons[index]) buttons[index].click();
     }
 
     function markActiveTab() {
@@ -400,6 +416,16 @@
                 node = el('a', null, target.label);
                 node.href = target.hash;
                 node.setAttribute('data-nf-hash', target.hash);
+
+                // Home and its favourites tab share one route, so the hash alone
+                // does not move between them - the tab strip does, and this skin
+                // hides it. Press the real button behind the link.
+                if (target.hash.indexOf('#/home') === 0) {
+                    var wanted = target.hash.indexOf('tab=1') > -1 ? 1 : 0;
+                    node.addEventListener('click', function () {
+                        setTimeout(function () { switchHomeTab(wanted); }, 60);
+                    });
+                }
 
                 // A server split by genre has many libraries of one type. They
                 // hang off the matching nav item as a dropdown instead of being
