@@ -2781,3 +2781,8 @@ body.nf-playing [class*="pause-screen-progress"] {
     justify-content: flex-end;
     gap: 10px;
 }
+
+.nf-confirm-note {
+    padding-left: 12px;
+    border-left: 2px solid rgba(255, 255, 255, 0.25);
+}

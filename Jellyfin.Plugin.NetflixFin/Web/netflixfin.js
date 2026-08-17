@@ -1281,25 +1281,43 @@
      * Jellyfin records that an episode was watched, not that this button was what
      * said so, and marking the series unwatched afterwards would also clear the
      * episodes you really had seen. */
-    function confirmRemoval(title, episodes, proceed) {
+    function confirmRemoval(title, episodes, proceed, episodeLabel) {
         var scrim = el('div', 'nf-confirm-scrim');
         var box = el('div', 'nf-confirm');
 
         box.appendChild(el('h3', null, 'Rimuovere ' + title + ' dalla riga?'));
+
+        /* Spelling out that this tile is not an episode. In the "Prossimo" half the
+         * row holds series, not episodes: the tile is a bookmark saying where you
+         * are, so removing "just this one" moves the bookmark on and the series
+         * stays. That is not obvious from looking at it, and it is the difference
+         * between a harmless press and marking a whole series watched. */
+        if (episodeLabel) {
+            box.appendChild(
+                el(
+                    'p',
+                    'nf-confirm-note',
+                    'Questo riquadro non è un episodio in elenco: è il segnalibro ' +
+                        'della serie, fermo su ' + episodeLabel + '. Toglierlo da solo lo ' +
+                        'farebbe semplicemente avanzare all’episodio successivo.'
+                )
+            );
+        }
+
         box.appendChild(
             el(
                 'p',
                 null,
                 episodes
-                    ? "Jellyfin non sa nascondere una serie da \"Prossimo\": l’unico modo " +
-                      "per toglierla è segnarla come vista, quindi " + episodes +
+                    ? "Per togliere la serie dalla riga Jellyfin ha un solo modo: segnarla " +
+                      "come vista. " + episodes +
                       (episodes === 1
                           ? ' episodio non visto verrà segnato'
                           : ' episodi non visti verranno segnati') +
-                      ' come visti. Non si torna indietro con precisione.'
-                    : "Jellyfin non sa nascondere una serie da \"Prossimo\": l’unico modo " +
-                      "per toglierla è segnare come visti i suoi episodi. Non si torna " +
-                      "indietro con precisione."
+                      ' come visto' + (episodes === 1 ? '' : 'i') +
+                      '. Non si torna indietro con precisione.'
+                    : "Per togliere la serie dalla riga Jellyfin ha un solo modo: segnare " +
+                      "come visti i suoi episodi. Non si torna indietro con precisione."
             )
         );
 
@@ -1523,9 +1541,13 @@
                         .getItem(userId, item.SeriesId)
                         .then(function (series) {
                             var left = (series.UserData && series.UserData.UnplayedItemCount) || 0;
+                            var where = item.ParentIndexNumber && item.IndexNumber
+                                ? 'S' + item.ParentIndexNumber + 'E' + item.IndexNumber +
+                                  (item.Name ? ' – ' + item.Name : '')
+                                : item.Name;
                             confirmRemoval(series.Name, left, function () {
                                 doRemoval(userId, item.SeriesId);
-                            });
+                            }, where);
                         })
                         .catch(function () {
                             confirmRemoval(item.SeriesName || item.Name, 0, function () {
