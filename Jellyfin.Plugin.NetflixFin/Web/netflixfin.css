@@ -3053,10 +3053,86 @@ body.nf-playing .skinHeader {
         padding: 8px 12px !important;
     }
 
+    /* Everything was on one line: the drawer button, the logo, four pills and six
+       controls want about 820px, and an iPhone 15 Pro has 369px inside that
+       padding. .nf-nav can be squeezed - it scrolls - but .headerLeft cannot, so
+       the left group held its min-content width and carried .headerRight clean
+       off the right edge, taking search, cast and the account with it. Measured
+       at 393pt before this: .headerRight at x=544, and the document itself 814
+       wide.
+
+       Netflix's own iPhone build runs the logo and the controls on one line and
+       the chips on a second. So does this now: .headerLeft wraps, and the chip
+       row claims the whole of the second line. */
+    .skinHeader .headerTop {
+        height: auto !important;
+        min-height: 0 !important;
+        align-items: flex-start !important;
+        padding: 0 !important;
+    }
+
+    .headerLeft {
+        flex: 1 1 auto;
+        flex-wrap: wrap;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .headerRight {
+        flex: 0 0 auto;
+        align-self: flex-start;
+        gap: 4px;
+    }
+
+    /* Six controls, a drawer button and a wordmark share 369pt. At Netflix's
+       40pt hit area the controls alone eat 270 and leave the logo nothing. */
+    .headerRight .paper-icon-button-light,
+    .headerRight .headerButton {
+        width: 38px;
+        height: 38px;
+    }
+
+    .mainDrawerButton {
+        margin-inline-end: 2px !important;
+    }
+
+    /* 121pt is what the controls leave the left group, and the drawer button
+       takes 40 of it: at 76 the wordmark tipped onto a line of its own. */
+    .pageTitleWithDefaultLogo {
+        width: 68px;
+        height: 26px;
+        margin-right: 0.25rem;
+    }
+
+    /* The second line, edge to edge. .headerLeft is only as wide as what the
+       controls leave it, so sizing the chip row against it - a flex-basis of
+       100% - came out 123pt. The viewport width sizes it against the screen
+       instead, and pulling back the header's own padding lets the chips scroll
+       out to the edge rather than stopping short of it. */
     .nf-nav {
+        order: 3;
+        /* flex-shrink would pull it straight back to the width of the line it
+           just wrapped out of */
+        flex: 0 0 auto;
+        /* the padding has to come out of the 100vw, not sit outside it, or the
+           row is 24pt wider than the screen and the page scrolls sideways again */
+        box-sizing: border-box;
+        width: 100vw;
+        min-width: 0;
         gap: 8px;
+        margin: 8px 0 0 -12px;
+        padding: 2px 12px;
         overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+    }
+
+    /* Home and the favourites are the first and last entries of the bottom bar,
+       and Netflix's own top row on the phone carries only the category chips. */
+    .nf-nav > a[data-nf-hash="#/home"],
+    .nf-nav > a[data-nf-hash="#/home?tab=1"] {
+        display: none;
     }
 
     .nf-nav::-webkit-scrollbar {
@@ -3186,6 +3262,30 @@ body.nf-playing .skinHeader {
 @media (min-width: 821px) and (max-width: 1279px) {
     body.nf-touch {
         --nf-gutter: 20px;
+    }
+
+    /* One row still fits here, but only just: the left group wants about 550pt
+       and the controls 270, so an iPhone turned on its side - 852 - or an iPad
+       in a split view is a few library names away from carrying .headerRight off
+       the screen, which is the failure the phone block above exists to fix. The
+       chip row is allowed to scroll instead. */
+    body.nf-touch .headerLeft {
+        min-width: 0;
+    }
+
+    body.nf-touch .headerRight {
+        flex: 0 0 auto;
+    }
+
+    body.nf-touch .nf-nav {
+        min-width: 0;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+    }
+
+    body.nf-touch .nf-nav::-webkit-scrollbar {
+        display: none;
     }
 
     body.nf-touch .nf-preview,
