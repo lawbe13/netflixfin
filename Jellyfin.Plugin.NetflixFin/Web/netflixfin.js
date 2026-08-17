@@ -1277,6 +1277,66 @@
         clearTimeout(closeTimer);
     }
 
+    /* A confirmation, because the action behind it cannot be undone accurately:
+     * Jellyfin records that an episode was watched, not that this button was what
+     * said so, and marking the series unwatched afterwards would also clear the
+     * episodes you really had seen. */
+    function confirmRemoval(title, episodes, proceed) {
+        var scrim = el('div', 'nf-confirm-scrim');
+        var box = el('div', 'nf-confirm');
+
+        box.appendChild(el('h3', null, 'Rimuovere ' + title + ' dalla riga?'));
+        box.appendChild(
+            el(
+                'p',
+                null,
+                episodes
+                    ? "Jellyfin non sa nascondere una serie da \"Prossimo\": l’unico modo " +
+                      "per toglierla è segnarla come vista, quindi " + episodes +
+                      (episodes === 1
+                          ? ' episodio non visto verrà segnato'
+                          : ' episodi non visti verranno segnati') +
+                      ' come visti. Non si torna indietro con precisione.'
+                    : "Jellyfin non sa nascondere una serie da \"Prossimo\": l’unico modo " +
+                      "per toglierla è segnare come visti i suoi episodi. Non si torna " +
+                      "indietro con precisione."
+            )
+        );
+
+        var actions = el('div', 'nf-confirm-actions');
+        var cancel = el('button', 'nf-btn nf-btn-secondary');
+        cancel.type = 'button';
+        cancel.appendChild(el('span', null, 'Annulla'));
+        var ok = el('button', 'nf-btn nf-btn-primary');
+        ok.type = 'button';
+        ok.appendChild(el('span', null, 'Segna come vista'));
+        actions.appendChild(cancel);
+        actions.appendChild(ok);
+        box.appendChild(actions);
+
+        var close = function () {
+            scrim.remove();
+            document.removeEventListener('keydown', onKey);
+        };
+        var onKey = function (event) {
+            if (event.key === 'Escape') close();
+        };
+
+        cancel.addEventListener('click', close);
+        scrim.addEventListener('click', function (event) {
+            if (event.target === scrim) close();
+        });
+        document.addEventListener('keydown', onKey);
+        ok.addEventListener('click', function () {
+            close();
+            proceed();
+        });
+
+        scrim.appendChild(box);
+        document.body.appendChild(scrim);
+        ok.focus();
+    }
+
     function buildPreview(card, item, client) {
         var rect = card.getBoundingClientRect();
         var width = Math.round(rect.width * 1.38);
@@ -1453,6 +1513,32 @@
             remove.appendChild(svgIcon('close'));
             remove.addEventListener('click', function () {
                 var userId = client.getCurrentUserId();
+
+                /* Marking a series watched is not undoable in any precise way - there
+                 * is no record of which episodes you had actually seen - so it is
+                 * never done silently. It happened once, to a series of 250 episodes,
+                 * and the only warning was a tooltip. */
+                if (!started && item.SeriesId) {
+                    client
+                        .getItem(userId, item.SeriesId)
+                        .then(function (series) {
+                            var left = (series.UserData && series.UserData.UnplayedItemCount) || 0;
+                            confirmRemoval(series.Name, left, function () {
+                                doRemoval(userId, item.SeriesId);
+                            });
+                        })
+                        .catch(function () {
+                            confirmRemoval(item.SeriesName || item.Name, 0, function () {
+                                doRemoval(userId, item.SeriesId);
+                            });
+                        });
+                    return;
+                }
+
+                doRemoval(userId, null);
+            });
+
+            var doRemoval = function (userId, seriesId) {
                 /* Two different removals, because the row holds two different
                  * things.
                  *
@@ -1467,7 +1553,6 @@
                  * removes nothing; the series comes back the next day offering the
                  * episode after it, which is exactly what it was doing. The series
                  * has to be marked watched for it to actually leave. */
-                var series = !started && item.SeriesId ? item.SeriesId : null;
                 var call = started
                     ? client.ajax({
                         type: 'POST',
@@ -1476,7 +1561,7 @@
                         contentType: 'application/json',
                         dataType: 'json'
                     })
-                    : client.markPlayed(userId, series || item.Id, new Date());
+                    : client.markPlayed(userId, seriesId || item.Id, new Date());
                 call
                     .then(function () {
                         destroyPreview();
@@ -1487,7 +1572,7 @@
                     .catch(function (err) {
                         log('could not remove from continue watching', err);
                     });
-            });
+            };
         }
 
         var expand = el('button', 'nf-circle');

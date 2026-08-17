@@ -2742,3 +2742,42 @@ body.nf-playing [class*="pause-screen-progress"] {
 .nf-circle.is-rated svg {
     fill: #000;
 }
+
+/* --- Confirmation ---------------------------------------------------------
+   Only ever shown before something that cannot be undone accurately. */
+.nf-confirm-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.nf-confirm {
+    width: min(460px, 90vw);
+    padding: 28px 32px 24px;
+    border-radius: 8px;
+    background: #181818;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+    color: #fff;
+}
+
+.nf-confirm h3 {
+    margin: 0 0 12px;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.nf-confirm p {
+    margin: 0 0 22px;
+    font-size: 15px;
+    line-height: 21px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.nf-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
