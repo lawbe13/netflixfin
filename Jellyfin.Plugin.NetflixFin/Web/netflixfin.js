@@ -303,55 +303,428 @@
         });
     }
 
-    /* Netflix's phone and iPad builds put navigation in a floating capsule at the
-     * bottom: four tabs on the phone, three on the iPad - Clip has no counterpart
-     * here and Serie/Film live in the pill row, exactly as Netflix arranges them.
-     * Measured off the official App Store screenshots: capsule about 85% of the
-     * screen, 64pt tall, fully rounded, #222 with the active tab on a #2d2d2d pill,
-     * icons 24pt over 10pt labels. */
+    /* The phone and iPad builds put navigation in a floating capsule at the
+     * bottom. The capsule is not Netflix's - Netflix draws a flat #222 bar with a
+     * #2d2d2d pill behind the active tab - it is the bottom bar from the owner's
+     * Madeira app, carried across on request: liquid glass, a drop that travels
+     * under the labels, a shrink on scroll and a drag. The look lives in the
+     * stylesheet; what is here is the part CSS cannot do, which is a moving
+     * target (see tabAnimate).
+     *
+     * Icons are Lucide (ISC licence), the set Madeira draws with: outline, 20px,
+     * 1.9 stroke. Geometry copied verbatim from lucide-react v1.27.0 rather than
+     * traced by eye. */
+    var NAV_GLYPHS = {
+        house: [
+            ['path', 'M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8'],
+            ['path', 'M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']
+        ],
+        search: [
+            ['path', 'm21 21-4.34-4.34'],
+            ['circle', 11, 11, 8]
+        ],
+        user: [
+            ['circle', 12, 8, 5],
+            ['path', 'M20 21a8 8 0 0 0-16 0']
+        ]
+    };
+
+    function navIcon(name) {
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.9');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('class', 'nf-tab-icon');
+
+        (NAV_GLYPHS[name] || []).forEach(function (part) {
+            var node = document.createElementNS(ns, part[0]);
+            if (part[0] === 'circle') {
+                node.setAttribute('cx', String(part[1]));
+                node.setAttribute('cy', String(part[2]));
+                node.setAttribute('r', String(part[3]));
+            } else {
+                node.setAttribute('d', part[1]);
+            }
+            svg.appendChild(node);
+        });
+        return svg;
+    }
+
     var TABS = [
+        // #/home matches #/home?tab=1 as well, so the list is read from the end:
+        // the more specific entry is the later one.
         { glyph: 'house', label: 'Home', route: '#/home', match: /#\/home|^#?\/?$/ },
         { glyph: 'search', label: 'Cerca', route: '#/search', match: /#\/search/ },
-        { glyph: 'profile', label: 'Il mio Netflix', route: '#/home?tab=1', match: /tab=1/ }
+        { glyph: 'user', label: 'Il mio filmettino', route: '#/home?tab=1', match: /tab=1/ }
     ];
 
-    function buildTabBar() {
-        if (document.querySelector('.nf-tabbar')) {
-            markActiveTab();
+    /** Damping time constant of the drop, in milliseconds. At 190 it covers two
+     *  thirds of the distance in the first 190ms and settles in a little over half
+     *  a second: soft, without keeping you waiting. */
+    var TAB_TAU = 190;
+    /** How long the loop keeps re-measuring its target after being started. It has
+     *  to outlast --nf-nav-dur: when the capsule changes size the first frame finds
+     *  it still still, and without this the loop would close immediately, leaving
+     *  the drop at the wrong width. */
+    var TAB_TRACK_MS = 1200;
+    /** Past this much movement the gesture is a drag, not a tap. */
+    var TAB_DRAG_THRESHOLD = 6;
+    /** Minimum scroll before the bar shrinks or expands again. */
+    var TAB_SCROLL_STEP = 10;
+
+    var tabBar = {
+        shell: null,
+        capsule: null,
+        pill: null,
+        items: [],
+        /** Current position of the drop, in pixels inside the capsule. */
+        pos: { x: 0, w: 0, ready: false },
+        target: 0,
+        raf: null,
+        lastTs: 0,
+        aliveUntil: 0,
+        /* When the capsule changes size the active entry stays the same: the drop
+         * should be stuck to it, not chasing it. With damping on it fell behind and
+         * then caught up, and that lag reads as a wobble. */
+        stick: false,
+        compact: false,
+        drag: { active: false, startX: 0, startLeft: 0, moved: false, target: 0 }
+    };
+
+    /** Where the drop should be right now, measured live. */
+    function tabMeasure(index) {
+        var item = tabBar.items[index];
+        if (!tabBar.capsule || !item) return null;
+        var cr = tabBar.capsule.getBoundingClientRect();
+        // The bar is display:none on anything that is not a touch device, and a
+        // zero-width capsule would settle the drop at nothing.
+        if (!cr.width) return null;
+        var ir = item.getBoundingClientRect();
+        return { x: ir.left - cr.left, w: ir.width };
+    }
+
+    function tabPaint() {
+        if (!tabBar.pill) return;
+        tabBar.pill.style.translate = tabBar.pos.x + 'px 0';
+        tabBar.pill.style.width = tabBar.pos.w + 'px';
+    }
+
+    function tabMarkOn(index) {
+        tabBar.items.forEach(function (item, i) {
+            item.dataset.on = i === index ? 'true' : 'false';
+            if (i === index) {
+                item.setAttribute('aria-current', 'page');
+            } else {
+                item.removeAttribute('aria-current');
+            }
+        });
+        if (tabBar.capsule) tabBar.capsule.classList.toggle('is-idle', index < 0);
+    }
+
+    /* A single loop governs every movement of the drop.
+     *
+     * Not a CSS transition, because the target moves: when the capsule shrinks or
+     * grows the entries change position while the drop is still travelling. A
+     * transition would aim at the position measured when it started and land off
+     * target; here the target is re-measured every frame and the drop closes on it
+     * with exponential damping, which settles without bouncing. */
+    function tabAnimate() {
+        tabBar.aliveUntil = performance.now() + TAB_TRACK_MS;
+        if (tabBar.raf !== null) return;
+        tabBar.lastTs = performance.now();
+
+        var step = function (ts) {
+            var dt = Math.min(64, ts - tabBar.lastTs);
+            tabBar.lastTs = ts;
+
+            var target = tabMeasure(tabBar.target);
+            if (!target) {
+                tabBar.raf = null;
+                return;
+            }
+
+            // stuck: no inertia, the drop simply is the target
+            var alpha = tabBar.stick ? 1 : 1 - Math.exp(-dt / TAB_TAU);
+            var dx = target.x - tabBar.pos.x;
+            var dw = target.w - tabBar.pos.w;
+            tabBar.pos.x += dx * alpha;
+            tabBar.pos.w += dw * alpha;
+            tabPaint();
+
+            if (Math.abs(dx) < 0.2 && Math.abs(dw) < 0.2) {
+                tabBar.pos.x = target.x;
+                tabBar.pos.w = target.w;
+                tabPaint();
+                // closes only once the capsule has stopped moving too
+                if (ts > tabBar.aliveUntil) {
+                    tabBar.raf = null;
+                    return;
+                }
+            }
+            tabBar.raf = requestAnimationFrame(step);
+        };
+
+        tabBar.raf = requestAnimationFrame(step);
+    }
+
+    function tabGoTo(index, animated) {
+        tabBar.target = index;
+        tabMarkOn(index);
+
+        var here = tabMeasure(index);
+        if (!here) return;
+
+        if (!tabBar.pos.ready || !animated) {
+            tabBar.pos = { x: here.x, w: here.w, ready: true };
+            tabPaint();
             return;
         }
 
-        var bar = el('nav', 'nf-tabbar');
-        TABS.forEach(function (tab) {
-            var item = el('button', 'nf-tab');
-            item.type = 'button';
-            item.dataset.nfTab = tab.label;
-            item.appendChild(svgIcon(tab.glyph));
-            item.appendChild(el('span', null, tab.label));
-            item.addEventListener('click', function () {
-                window.location.hash = tab.route;
-                // Jellyfin switches home tabs from its tab strip, which this skin
-                // hides; changing the hash alone leaves the old tab on screen. Its
-                // buttons are still in the DOM, so press the real one.
-                switchHomeTab(tab.route.indexOf('tab=1') > -1 ? 1 : 0);
-                markActiveTab();
-            });
-            bar.appendChild(item);
-        });
-        document.body.appendChild(bar);
+        tabBar.stick = false;
+        tabAnimate();
+    }
+
+    function tabBounce() {
+        if (!tabBar.capsule) return;
+        tabBar.capsule.classList.remove('nf-tab-bounce');
+        void tabBar.capsule.offsetWidth;
+        tabBar.capsule.classList.add('nf-tab-bounce');
+    }
+
+    function tabSetCompact(on) {
+        if (!tabBar.shell || tabBar.compact === on) return;
+        tabBar.compact = on;
+        tabBar.shell.classList.toggle('is-compact', on);
+        tabBar.stick = true;
+        tabAnimate();
+    }
+
+    function activeTabIndex() {
+        var hash = window.location.hash || '';
+        for (var i = TABS.length - 1; i >= 0; i--) {
+            if (TABS[i].match.test(hash)) return i;
+        }
+        return -1;
+    }
+
+    function goToTab(index) {
+        var tab = TABS[index];
+        if (!tab) return;
+        window.location.hash = tab.route;
+        if (tab.route.indexOf('#/home') === 0) {
+            // Jellyfin switches home tabs from its tab strip, which this skin
+            // hides; changing the hash alone leaves the old tab on screen. Its
+            // buttons are still in the DOM, so press the real one.
+            switchHomeTab(tab.route.indexOf('tab=1') > -1 ? 1 : 0);
+        }
         markActiveTab();
     }
 
     function switchHomeTab(index) {
-        var buttons = document.querySelectorAll('.headerTabs .emby-tab-button');
-        if (buttons[index]) buttons[index].click();
+        // Coming from another page the home view is not mounted yet when the hash
+        // changes, so the strip is looked for over the next second or so rather
+        // than once.
+        var tries = 0;
+        var attempt = function () {
+            var buttons = document.querySelectorAll('.headerTabs .emby-tab-button');
+            var button = buttons[index];
+            if (button) {
+                if (!button.classList.contains('emby-tab-button-active')) button.click();
+                return;
+            }
+            if (++tries < 20) setTimeout(attempt, 60);
+        };
+        attempt();
+    }
+
+    /* The drop sits under the entries and would never see a pointer event, so the
+     * handlers live on the capsule. */
+    function bindTabDrag(capsule) {
+        capsule.addEventListener('pointerdown', function (event) {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            if (!tabBar.pill) return;
+
+            var pr = tabBar.pill.getBoundingClientRect();
+            if (event.clientX < pr.left || event.clientX > pr.right) return;
+
+            tabBar.drag = {
+                active: true,
+                startX: event.clientX,
+                startLeft: pr.left - capsule.getBoundingClientRect().left,
+                moved: false,
+                target: tabBar.target
+            };
+            capsule.setPointerCapture(event.pointerId);
+        });
+
+        capsule.addEventListener('pointermove', function (event) {
+            if (!tabBar.drag.active) return;
+            var dx = event.clientX - tabBar.drag.startX;
+            if (!tabBar.drag.moved && Math.abs(dx) < TAB_DRAG_THRESHOLD) return;
+
+            if (!tabBar.drag.moved) {
+                tabBar.drag.moved = true;
+                // the finger is in charge: stop the damping
+                if (tabBar.raf !== null) {
+                    cancelAnimationFrame(tabBar.raf);
+                    tabBar.raf = null;
+                }
+                tabBar.pill.classList.add('is-dragging');
+            }
+
+            var cr = capsule.getBoundingClientRect();
+            var pad = 6;
+            var left = Math.min(
+                Math.max(tabBar.drag.startLeft + dx, pad),
+                cr.width - tabBar.pos.w - pad
+            );
+            tabBar.pos.x = left;
+            tabPaint();
+
+            var centre = cr.left + left + tabBar.pos.w / 2;
+            var nearest = 0;
+            var best = Infinity;
+            tabBar.items.forEach(function (item, i) {
+                var r = item.getBoundingClientRect();
+                var d = Math.abs(r.left + r.width / 2 - centre);
+                if (d < best) {
+                    best = d;
+                    nearest = i;
+                }
+            });
+            tabMarkOn(nearest);
+            tabBar.drag.target = nearest;
+        });
+
+        var endDrag = function () {
+            if (!tabBar.drag.active) return;
+            var moved = tabBar.drag.moved;
+            var target = tabBar.drag.target;
+            tabBar.drag.active = false;
+            if (tabBar.pill) tabBar.pill.classList.remove('is-dragging');
+            if (!moved) return;
+
+            tabSetCompact(false);
+            tabBar.stick = false;
+            tabGoTo(target, true);
+            goToTab(target);
+        };
+
+        capsule.addEventListener('pointerup', endDrag);
+        capsule.addEventListener('pointercancel', endDrag);
+    }
+
+    function bindTabScroll() {
+        // Same reading as bindScrollState: the page scrolls in .mainAnimatedPages
+        // on some layouts and on the window in others.
+        var read = function () {
+            var scroller = document.querySelector('.mainAnimatedPages');
+            return window.scrollY || (scroller ? scroller.scrollTop : 0) || 0;
+        };
+
+        var last = read();
+        var ticking = false;
+
+        window.addEventListener('scroll', function () {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(function () {
+                var y = read();
+                var dy = y - last;
+                if (Math.abs(dy) > TAB_SCROLL_STEP) {
+                    if (dy > 0 && y > 60) tabSetCompact(true);
+                    else if (dy < 0) tabSetCompact(false);
+                    last = y;
+                }
+                if (y <= 60) tabSetCompact(false);
+                ticking = false;
+            });
+        }, { passive: true, capture: true });
+
+        var realign = function () {
+            tabBar.stick = true;
+            tabAnimate();
+        };
+        window.addEventListener('resize', realign);
+        window.addEventListener('orientationchange', realign);
+    }
+
+    function buildTabBar() {
+        if (tabBar.shell && tabBar.shell.isConnected) {
+            markActiveTab();
+            return;
+        }
+
+        var shell = el('nav', 'nf-tabbar');
+        var capsule = el('div', 'nf-tabbar-capsule');
+        var pill = el('span', 'nf-tabbar-pill');
+        pill.setAttribute('aria-hidden', 'true');
+        capsule.appendChild(pill);
+
+        var items = TABS.map(function (tab, index) {
+            var item = el('button', 'nf-tab');
+            item.type = 'button';
+            item.dataset.on = 'false';
+            item.appendChild(navIcon(tab.glyph));
+            item.appendChild(el('span', 'nf-tab-label', tab.label));
+            item.addEventListener('click', function () {
+                // a drag ends over an entry and would otherwise fire its click too
+                if (tabBar.drag.moved) {
+                    tabBar.drag.moved = false;
+                    return;
+                }
+                tabSetCompact(false);
+                tabGoTo(index, true);
+                tabBounce();
+                goToTab(index);
+            });
+            capsule.appendChild(item);
+            return item;
+        });
+
+        bindTabDrag(capsule);
+        shell.appendChild(capsule);
+        document.body.appendChild(shell);
+
+        tabBar.shell = shell;
+        tabBar.capsule = capsule;
+        tabBar.pill = pill;
+        tabBar.items = items;
+        tabBar.pos = { x: 0, w: 0, ready: false };
+
+        bindTabScroll();
+        markActiveTab();
+        // First paint: the capsule has just been appended and the browser has not
+        // laid it out yet, so the measurement above may have come back empty.
+        requestAnimationFrame(markActiveTab);
     }
 
     function markActiveTab() {
-        var hash = window.location.hash || '';
-        document.querySelectorAll('.nf-tab').forEach(function (item, i) {
-            item.classList.toggle('is-active', TABS[i].match.test(hash));
-        });
+        if (!tabBar.capsule) return;
+        var index = activeTabIndex();
+
+        if (index < 0) {
+            tabMarkOn(-1);
+            return;
+        }
+
+        if (!tabBar.pos.ready) {
+            tabGoTo(index, false);
+            return;
+        }
+
+        if (index === tabBar.target) {
+            tabMarkOn(index);
+            return;
+        }
+
+        tabGoTo(index, true);
+        tabBounce();
     }
 
     function buildNav() {

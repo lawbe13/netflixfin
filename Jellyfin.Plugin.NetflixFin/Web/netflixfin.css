@@ -2797,59 +2797,245 @@ body.nf-playing .skinHeader {
    their own interface. This is for Safari, including "Add to Home Screen".
    ========================================================================== */
 
-/* --- The floating tab bar ------------------------------------------------- */
+/* --- The floating tab bar -------------------------------------------------
+   This one is deliberately not Netflix's. Netflix draws a flat #222 capsule
+   with a #2d2d2d pill behind the active tab; the owner asked for the bottom
+   bar from the Madeira app instead, so the whole recipe is carried across
+   from there: liquid glass, a drop that travels under the labels, a shrink
+   on scroll and a drag.
+
+   The glass itself is after Vadim Matveev's "Liquid Glass Switcher" pen -
+   the same stack of inner shadows in color-mix, the same reflex variables,
+   the same horizontal deformation of the drop while it is dragged. One
+   omission, also Madeira's: the SVG refraction filter. iOS backdrop-filter
+   does not accept url(), so on the devices this section exists for it would
+   not be seen, and it costs ~40KB of base64.
+
+   Positions and widths of the drop are NOT in transition here. The target
+   moves while the capsule resizes, so a transition would aim at where the
+   tab used to be; the damping loop in netflixfin.js re-measures every frame
+   instead.
+   ------------------------------------------------------------------------ */
+:root {
+    --nf-nav-glass: #bbbbbc;
+    --nf-nav-light: #fff;
+    --nf-nav-dark: #000;
+    /* dark surroundings: the pen lifts the dark reflex and drops the light one */
+    --nf-nav-reflex-light: 0.3;
+    --nf-nav-reflex-dark: 2;
+    --nf-nav-saturation: 150%;
+
+    --nf-nav-fg: #8b9bab;
+    --nf-nav-fg-active: #fff;
+
+    --nf-nav-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --nf-nav-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --nf-nav-dur: 980ms;
+    --nf-nav-dur-pill: 820ms;
+
+    --nf-nav-edge-strong:
+        inset 0 0 0 1px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 10%), transparent),
+        inset 1.8px 3px 0px -2px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 90%), transparent),
+        inset -2px -2px 0px -2px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 80%), transparent),
+        inset -3px -8px 1px -6px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 60%), transparent),
+        inset -0.3px -1px 4px 0px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 12%), transparent),
+        inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 20%), transparent),
+        inset 0px 3px 4px -2px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 20%), transparent),
+        inset 2px -6.5px 1px -4px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 10%), transparent),
+        0px 1px 5px 0px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 10%), transparent),
+        0px 6px 16px 0px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 8%), transparent);
+
+    --nf-nav-edge-soft:
+        inset 0 0 0 1px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 10%), transparent),
+        inset 2px 1px 0px -1px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 90%), transparent),
+        inset -1.5px -1px 0px -1px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 80%), transparent),
+        inset -2px -6px 1px -5px color-mix(in srgb, var(--nf-nav-light) calc(var(--nf-nav-reflex-light) * 60%), transparent),
+        inset -1px 2px 3px -1px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 20%), transparent),
+        inset 0px -4px 1px -2px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 10%), transparent),
+        0px 3px 6px 0px color-mix(in srgb, var(--nf-nav-dark) calc(var(--nf-nav-reflex-dark) * 8%), transparent);
+}
+
 .nf-tabbar {
     display: none;
     position: fixed;
-    left: 50%;
-    bottom: calc(20px + env(safe-area-inset-bottom));
-    transform: translateX(-50%);
+    inset-inline: 0;
+    bottom: 0;
     z-index: 1050;
-    width: 85%;
-    max-width: 340px;
-    height: 64px;
-    padding: 0 8px;
-    border-radius: 9999px;
-    background: rgba(34, 34, 34, 0.92);
-    backdrop-filter: blur(20px) saturate(1.2);
-    -webkit-backdrop-filter: blur(20px) saturate(1.2);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    padding-inline: 0.75rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    /* the shell spans the screen so the capsule can centre in it; only the
+       capsule itself is allowed to take a tap */
+    pointer-events: none;
+}
+
+.nf-tabbar-capsule {
+    position: relative;
+    display: flex;
     align-items: center;
-    justify-content: space-around;
+    gap: 0.25rem;
+    margin-inline: auto;
+    max-width: 28rem;
+    padding: 5px 6px 6px;
+    border: none;
+    border-radius: 99em;
+    pointer-events: auto;
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    background-color: color-mix(in srgb, var(--nf-nav-glass) 12%, transparent);
+    backdrop-filter: blur(8px) saturate(var(--nf-nav-saturation));
+    -webkit-backdrop-filter: blur(8px) saturate(var(--nf-nav-saturation));
+    box-shadow: var(--nf-nav-edge-strong);
+    transition:
+        max-width var(--nf-nav-dur) var(--nf-nav-ease),
+        padding var(--nf-nav-dur) var(--nf-nav-ease),
+        background-color var(--nf-nav-dur) var(--nf-nav-ease),
+        box-shadow var(--nf-nav-dur) var(--nf-nav-ease);
+}
+
+/* the drop */
+.nf-tabbar-pill {
+    position: absolute;
+    /* left stays 0: the whole horizontal offset rides on translate, or the
+       capsule's padding would be counted twice */
+    left: 0;
+    top: 5px;
+    height: calc(100% - 11px);
+    border-radius: 99em;
+    z-index: 0;
+    pointer-events: none;
+    background-color: color-mix(in srgb, var(--nf-nav-glass) 36%, transparent);
+    box-shadow: var(--nf-nav-edge-soft);
+    transition:
+        top var(--nf-nav-dur) var(--nf-nav-ease),
+        height var(--nf-nav-dur) var(--nf-nav-ease),
+        opacity 220ms var(--nf-nav-ease-soft);
+}
+
+/* while you drag it, it follows the finger with no inertia */
+.nf-tabbar-pill.is-dragging {
+    scale: 1.04 0.98;
+}
+
+/* nothing in the bar matches the page - a detail view, the player: the drop
+   has nowhere to be, so it steps aside rather than sitting under a dead tab */
+.nf-tabbar-capsule.is-idle .nf-tabbar-pill {
+    opacity: 0;
 }
 
 .nf-tab {
+    position: relative;
+    z-index: 1;
     display: flex;
+    min-width: 0;
+    flex: 1 1 0;
+    width: 100%;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    padding: 6px 15px;
+    justify-content: center;
+    gap: 0.2rem;
     border: 0;
-    border-radius: 9999px;
+    border-radius: 99em;
+    padding: 0.5rem 0.15rem 0.45rem;
     background: none;
-    color: #b3b3b3;
     font-family: var(--nf-font);
-    font-size: 10px;
-    font-weight: 400;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.nf-tab svg {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
-}
-
-.nf-tab.is-active {
-    background: #2d2d2d;
-    color: #fff;
+    font-size: 0.66rem;
     font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--nf-nav-fg);
+    cursor: pointer;
+    transition: color var(--nf-nav-dur-pill) var(--nf-nav-ease-soft);
+}
+
+.nf-tab[data-on='true'] {
+    color: var(--nf-nav-fg-active);
+}
+
+.nf-tab-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    /* Lucide is an outline set: a fill here would blot every glyph out */
+    fill: none;
+    transition: scale 320ms var(--nf-nav-ease-soft);
+}
+
+.nf-tab:active .nf-tab-icon {
+    scale: 0.9;
+}
+
+.nf-tab-label {
+    width: 100%;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-height: 1rem;
+    opacity: 1;
+    transition:
+        max-height var(--nf-nav-dur) var(--nf-nav-ease),
+        opacity calc(var(--nf-nav-dur) * 0.6) var(--nf-nav-ease-soft),
+        margin var(--nf-nav-dur) var(--nf-nav-ease);
+}
+
+/* --- compact: the page is being scrolled down ----------------------------- */
+.nf-tabbar.is-compact .nf-tabbar-capsule {
+    max-width: 17rem;
+    padding: 4px 5px 5px;
+}
+
+.nf-tabbar.is-compact .nf-tab {
+    padding-block: 0.4rem;
+}
+
+.nf-tabbar.is-compact .nf-tab-label {
+    max-height: 0;
+    opacity: 0;
+    margin-top: -0.2rem;
+}
+
+.nf-tabbar.is-compact .nf-tabbar-pill {
+    top: 4px;
+    height: calc(100% - 9px);
+}
+
+/* the capsule bobs once when the page changes */
+@keyframes nf-tab-bounce {
+    0% {
+        scale: 1 1;
+    }
+
+    35% {
+        scale: 0.984 0.966;
+    }
+
+    70% {
+        scale: 1.006 1.011;
+    }
+
+    100% {
+        scale: 1 1;
+    }
+}
+
+.nf-tabbar-capsule.nf-tab-bounce {
+    animation: nf-tab-bounce var(--nf-nav-dur) var(--nf-nav-ease-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .nf-tabbar-capsule.nf-tab-bounce,
+    .nf-tab-icon {
+        animation: none;
+        transition: none;
+    }
 }
 
 @media (max-width: 1279px) {
     body.nf-touch .nf-tabbar {
-        display: flex;
+        display: block;
     }
 
     /* The bar floats over the page, so the page has to end above it. */
