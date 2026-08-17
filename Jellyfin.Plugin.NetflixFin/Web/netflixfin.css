@@ -2999,7 +2999,6 @@ body.nf-playing .skinHeader {
    design generations. Three tabs, not four: there is no Clips tab on iPad. */
 @media (min-width: 821px) and (max-width: 1279px) {
     body.nf-touch {
-        --nf-tiles: 6;
         --nf-gutter: 20px;
     }
 

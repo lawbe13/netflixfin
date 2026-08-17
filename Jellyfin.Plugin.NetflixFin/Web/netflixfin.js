@@ -150,11 +150,21 @@
      * winning on specificity. It is also the value the debug line below reads
      * back, so what is measured is what is applied. */
     function applyTileCount() {
-        // Two measured anchors: 1512 wants five, 1920 and 2133 want seven. The
-        // boundary therefore sits between them, not at 1400 - which is what put
-        // seven on the laptop.
         var width = window.innerWidth;
-        var tiles = width >= 1800 ? 7 : width >= 1200 ? 5 : width >= 700 ? 4 : 3;
+        var tiles;
+        if (IS_TOUCH && width <= 1279) {
+            /* An iPad runs six 2:3 posters at a ~217pt pitch, which Netflix has held
+             * across two design generations; a phone runs three and a bit, the peek
+             * being the scroll affordance. This is set here rather than in the
+             * stylesheet because this function writes --nf-tiles inline, and inline
+             * beats any rule. */
+            tiles = width >= 821 ? 6 : 3;
+        } else {
+            // Two measured anchors: 1512 wants five, 1920 and 2133 want seven. The
+            // boundary therefore sits between them, not at 1400 - which is what put
+            // seven on the laptop.
+            tiles = width >= 1800 ? 7 : width >= 1200 ? 5 : width >= 700 ? 4 : 3;
+        }
         var root = document.documentElement;
         if (root.style.getPropertyValue('--nf-tiles') !== String(tiles)) {
             root.style.setProperty('--nf-tiles', String(tiles));
