@@ -276,6 +276,47 @@
         });
     }
 
+    /* Netflix's phone and iPad builds put navigation in a floating capsule at the
+     * bottom: four tabs on the phone, three on the iPad - Clip has no counterpart
+     * here and Serie/Film live in the pill row, exactly as Netflix arranges them.
+     * Measured off the official App Store screenshots: capsule about 85% of the
+     * screen, 64pt tall, fully rounded, #222 with the active tab on a #2d2d2d pill,
+     * icons 24pt over 10pt labels. */
+    var TABS = [
+        { glyph: 'house', label: 'Home', route: '#/home', match: /#\/home|^#?\/?$/ },
+        { glyph: 'search', label: 'Cerca', route: '#/search', match: /#\/search/ },
+        { glyph: 'profile', label: 'Il mio Netflix', route: '#/list?type=favorites', match: /favorit/i }
+    ];
+
+    function buildTabBar() {
+        if (document.querySelector('.nf-tabbar')) {
+            markActiveTab();
+            return;
+        }
+
+        var bar = el('nav', 'nf-tabbar');
+        TABS.forEach(function (tab) {
+            var item = el('button', 'nf-tab');
+            item.type = 'button';
+            item.dataset.nfTab = tab.label;
+            item.appendChild(svgIcon(tab.glyph));
+            item.appendChild(el('span', null, tab.label));
+            item.addEventListener('click', function () {
+                window.location.hash = tab.route;
+            });
+            bar.appendChild(item);
+        });
+        document.body.appendChild(bar);
+        markActiveTab();
+    }
+
+    function markActiveTab() {
+        var hash = window.location.hash || '';
+        document.querySelectorAll('.nf-tab').forEach(function (item, i) {
+            item.classList.toggle('is-active', TABS[i].match.test(hash));
+        });
+    }
+
     function buildNav() {
         var left = document.querySelector('.headerLeft');
         if (!left) return;
@@ -1796,7 +1837,11 @@
             'M22 4h-3v11h3V4zM2.2 13.2c-.1.2-.2.5-.2.8v1c0 1.1.9 2 2 2h4.6l-.7 3.4v.3c0 .4.2.8.4 1.1L9.4 23l6.3-6.3c.4-.4.6-.9.6-1.4V6c0-1.1-.9-2-2-2H6c-.8 0-1.5.5-1.8 1.2L1.9 10.6c-.1.2-.1.4-.1.6v1c0 .4.1.7.1 1z',
         megaphone:
             'M20 3.5v17a1 1 0 01-1.6.8L11 15.6v3.9a2.5 2.5 0 01-5 0v-4H5a3 3 0 01-3-3v-1a3 3 0 013-3h6l7.4-5.7a1 1 0 011.6.7zM8 15.5v4a.5.5 0 001 0v-4H8z',
-        bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z'
+        bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z',
+        /* Netflix's own house: a pentagon roof over a short bar, not the iOS one. */
+        house: 'M12 2.6L2 11.2V21h7v-6h6v6h7v-9.8L12 2.6zm0 2.7l8 6.9V19h-3v-6H7v6H4v-6.8l8-6.9z',
+        profile:
+            'M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-4.4 0-8 2.7-8 6v2h16v-2c0-3.3-3.6-6-8-6z'
     };
 
     function svgIcon(name) {
@@ -3293,6 +3338,7 @@
         applyLogo();
         netflixHeaderIcons();
         buildNav();
+        buildTabBar();
         decorateDetail();
         mountHero();
         decorateTop10();

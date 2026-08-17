@@ -2783,3 +2783,234 @@ body.nf-playing .skinHeader {
     padding-left: 12px;
     border-left: 2px solid rgba(255, 255, 255, 0.25);
 }
+
+/* ==========================================================================
+   iPhone and iPad, in Safari
+   --------------------------------------------------------------------------
+   Netflix redesigned its mobile apps in April 2026 and the browse screen is now
+   a different shape from the web one, not a narrower version of it. Values below
+   were measured off Netflix's own App Store screenshots (Italian listing,
+   v18.45.0) as ratios of the screen width and normalised to a 393pt iPhone, so
+   they scale rather than pinning to one device.
+
+   The native Jellyfin iOS and iPadOS apps do not load any of this - they draw
+   their own interface. This is for Safari, including "Add to Home Screen".
+   ========================================================================== */
+
+/* --- The floating tab bar ------------------------------------------------- */
+.nf-tabbar {
+    display: none;
+    position: fixed;
+    left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 1050;
+    width: 85%;
+    max-width: 340px;
+    height: 64px;
+    padding: 0 8px;
+    border-radius: 9999px;
+    background: rgba(34, 34, 34, 0.92);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: space-around;
+}
+
+.nf-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 15px;
+    border: 0;
+    border-radius: 9999px;
+    background: none;
+    color: #b3b3b3;
+    font-family: var(--nf-font);
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.nf-tab svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+.nf-tab.is-active {
+    background: #2d2d2d;
+    color: #fff;
+    font-weight: 600;
+}
+
+@media (max-width: 1279px) and (pointer: coarse), (max-width: 820px) {
+    .nf-tabbar {
+        display: flex;
+    }
+
+    /* The bar floats over the page, so the page has to end above it. */
+    .mainAnimatedPages {
+        padding-bottom: calc(64px + 40px + env(safe-area-inset-bottom));
+    }
+}
+
+/* --- iPhone --------------------------------------------------------------- */
+@media (max-width: 820px) {
+    /* Jellyfin's header keeps the logo and the account controls; the navigation
+       in it is now the pill row and the tab bar, as on the app. */
+    .skinHeader {
+        height: auto !important;
+        padding: 8px 12px !important;
+    }
+
+    .nf-nav {
+        gap: 8px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .nf-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Netflix's shortcut chips: 40pt tall, fully rounded, hairline outline. */
+    .nf-nav > a,
+    .nf-nav > button,
+    .nf-nav-item {
+        flex: 0 0 auto;
+        height: 40px;
+        padding: 0 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 9999px;
+        font-size: 14px !important;
+        font-weight: 500;
+        line-height: 38px;
+    }
+
+    /* The billboard is 3:4 on the phone - portrait key art, not a 16:9 still -
+       inset about 6% each side, and it carries only two buttons. */
+    .nf-hero {
+        margin: 12px 6% 8px !important;
+        aspect-ratio: 3 / 4;
+        max-height: none;
+        min-height: 0;
+        border-radius: 15px;
+        box-shadow: none;
+    }
+
+    .nf-hero-media {
+        background-position: center top;
+    }
+
+    .nf-hero::before {
+        background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 26%, rgba(0, 0, 0, 0) 62%);
+    }
+
+    .nf-hero-content {
+        left: 15px;
+        right: 15px;
+        bottom: 15px;
+        width: auto;
+        align-items: center;
+        text-align: center;
+        gap: 10px;
+    }
+
+    .nf-hero-logo {
+        height: auto;
+        max-height: 90px;
+        object-position: center bottom;
+    }
+
+    .nf-hero-meta {
+        justify-content: center;
+        font-size: 13px;
+    }
+
+    /* The synopsis has no counterpart on the app: the genre line does that job. */
+    .nf-hero-overview {
+        display: none !important;
+    }
+
+    .nf-hero-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .nf-hero-buttons .nf-btn {
+        height: 41px;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .nf-btn-secondary {
+        background: rgba(255, 255, 255, 0.28) !important;
+    }
+
+    .nf-hero-badges {
+        right: 15px;
+        bottom: 70px;
+    }
+
+    /* Rows: portrait posters at roughly 5:7, three and a bit across - the peek is
+       the scroll affordance, so the count is deliberately not a whole number. */
+    :root {
+        --nf-gutter: 12px;
+        --nf-row-gap: 8px;
+    }
+
+    .homeSectionsContainer .itemsContainer.scrollSlider > .card,
+    .itemsContainer.scrollSlider > .card {
+        width: 27.4% !important;
+        min-width: 27.4% !important;
+    }
+
+    .card .cardPadder,
+    .card.nf-thumb .cardPadder {
+        padding-bottom: 139% !important;
+    }
+
+    .sectionTitle,
+    .sectionTitleTextButton {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+    }
+
+    /* Nothing hovers on a phone: a tap opens the title straight away, so the
+       preview card, the row arrows and the page dots have no job. */
+    .nf-preview,
+    .nf-row-arrow-prev,
+    .nf-row-arrow-next,
+    .nf-row-dots {
+        display: none !important;
+    }
+}
+
+/* --- iPad, landscape first ------------------------------------------------
+   The iPad keeps the desktop billboard proportions and runs six 2:3 posters to a
+   row at a stable ~217pt pitch, which is what Netflix has shipped across two
+   design generations. Three tabs, not four: there is no Clips tab on iPad. */
+@media (min-width: 821px) and (max-width: 1279px) and (pointer: coarse) {
+    :root {
+        --nf-tiles: 6;
+        --nf-gutter: 20px;
+    }
+
+    .nf-preview,
+    .nf-row-arrow-prev,
+    .nf-row-arrow-next {
+        display: none !important;
+    }
+
+    .sectionTitle,
+    .sectionTitleTextButton {
+        font-size: 20px !important;
+    }
+}
