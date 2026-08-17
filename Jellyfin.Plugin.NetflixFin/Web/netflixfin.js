@@ -1840,6 +1840,8 @@
         bell: 'M12 22a2.5 2.5 0 002.5-2.5h-5A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5.5-6.8V3a1.5 1.5 0 00-3 0v1.2A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z',
         /* Netflix's own house: a pentagon roof over a short bar, not the iOS one. */
         house: 'M12 2.6L2 11.2V21h7v-6h6v6h7v-9.8L12 2.6zm0 2.7l8 6.9V19h-3v-6H7v6H4v-6.8l8-6.9z',
+        plus: 'M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4z',
+        check: 'M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z',
         profile:
             'M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-4.4 0-8 2.7-8 6v2h16v-2c0-3.3-3.6-6-8-6z'
     };
@@ -2932,6 +2934,12 @@
 
             paintBadges();
             tintFrom(item, client);
+            if (isPhone()) {
+                paintListButton(item, info);
+            } else if (!info.querySelector('span') || info.textContent !== 'Altre info') {
+                info.textContent = '';
+                info.appendChild(el('span', null, 'Altre info'));
+            }
         }
 
         function paintBadges() {
@@ -3111,6 +3119,21 @@
             playNow(items[current].Id, items[current].ServerId, items[current].Type);
         });
         info.addEventListener('click', function () {
+            var item = items[current];
+            // On a phone the second button is Netflix's "La mia lista", not an info
+            // button - the app has no third button and reaches the details by
+            // tapping the artwork, which is wired below.
+            if (isPhone()) {
+                toggleFavourite(item, info);
+                return;
+            }
+            openModal(item.Id);
+        });
+
+        // Tapping the artwork opens the title, the way the app does.
+        hero.addEventListener('click', function (event) {
+            if (!isPhone()) return;
+            if (event.target.closest('.nf-hero-buttons, .nf-hero-mute')) return;
             openModal(items[current].Id);
         });
 
@@ -3134,6 +3157,36 @@
 
     var heroRequest = null;
     var tintCache = {};
+
+    function isPhone() {
+        return window.matchMedia('(max-width: 820px)').matches;
+    }
+
+    /* The phone billboard's second button. Jellyfin's favourite is the nearest
+     * thing it has to My List, and it is what the hover card's + already uses. */
+    function toggleFavourite(item, button) {
+        var client = api();
+        if (!client || !item) return;
+        var on = !(item.UserData && item.UserData.IsFavorite);
+        client
+            .updateFavoriteStatus(client.getCurrentUserId(), item.Id, on)
+            .then(function () {
+                item.UserData = item.UserData || {};
+                item.UserData.IsFavorite = on;
+                paintListButton(item, button);
+            })
+            .catch(function (err) {
+                log('could not update the list', err);
+            });
+    }
+
+    function paintListButton(item, button) {
+        if (!button) return;
+        var on = !!(item.UserData && item.UserData.IsFavorite);
+        button.textContent = '';
+        button.appendChild(svgIcon(on ? 'check' : 'plus'));
+        button.appendChild(el('span', null, 'La mia lista'));
+    }
 
     /* Netflix washes the page behind the billboard with a colour taken from the
      * current artwork - measured on netflix.com as an SVG radial gradient centred
