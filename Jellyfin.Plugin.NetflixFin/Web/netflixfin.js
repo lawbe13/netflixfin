@@ -5006,8 +5006,18 @@
         cover.style.setProperty('--nf-tv-tone', channel.tone);
     }
 
+    /* On air while the app is either on the programme's own page or in the
+     * player it opened from there. */
+    function tvOnAir() {
+        var hash = window.location.hash;
+        if (!tvState.route) return false;
+        return hash.indexOf(tvState.route) === 0 || hash.indexOf('#/video') === 0;
+    }
+
     function tvPressPlay(tries) {
         if (!tvState.channel) return;
+
+        if (window.location.hash.indexOf('#/video') === 0) return;
 
         var button = document.querySelector('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay');
         if (button && button.offsetParent !== null) {
@@ -5095,10 +5105,16 @@
     function tvTick() {
         if (!tvState.channel) return;
 
-        /* Left the programme's route: the channel is over. This is checked
-         * before anything about the player, because the player's leftovers
-         * outlive it. */
-        if (tvState.started && tvState.route && window.location.hash.indexOf(tvState.route) !== 0) {
+        /* Left the channel? The route says so - the player's leftovers outlive
+         * it, so nothing about the <video> can be trusted here.
+         *
+         * But the player has a route of its own. Starting playback moves the app
+         * to #/video, and reading that as "left" tore the channel down the
+         * instant it actually began: the watermark went with it, the guard came
+         * off, the pending seek was dropped so the programme ran from the start,
+         * and exiting landed on the details page rather than the TV page. All
+         * four of those were this one line. */
+        if (tvState.started && tvState.route && !tvOnAir()) {
             tvStop();
             return;
         }
