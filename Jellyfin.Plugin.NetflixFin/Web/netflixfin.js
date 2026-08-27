@@ -126,7 +126,11 @@
             }, 0);
         }
 
-        // If nothing started, fall back to the route that always worked.
+        // If nothing started, fall back to the route that always worked - except
+        // for a channel, where being dropped on a details page is worse than
+        // waiting, and tvTick gives up on its own.
+        if (action) return;
+
         setTimeout(function () {
             if (!document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer')) {
                 log('playNow did not start playback, routing to details');
@@ -4571,7 +4575,9 @@
         video: null,
         timer: null,
         guard: null,
-        pending: null
+        pending: null,
+        tunedAt: 0,
+        started: false
     };
 
     function tvGuardReporting(on) {
@@ -4880,6 +4886,8 @@
             // channel carries on from there - time-shifted, with a way back.
             tvState.shift = mode === 'restart' ? on.offset : 0;
             tvState.channel = channel.id;
+            tvState.tunedAt = Date.now();
+            tvState.started = false;
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
 
             tvGuardReporting(true);
@@ -4896,6 +4904,7 @@
         tvState.channel = null;
         tvState.shift = 0;
         tvState.pending = null;
+        tvState.started = false;
         if (tvState.timer) {
             clearInterval(tvState.timer);
             tvState.timer = null;
@@ -4957,11 +4966,23 @@
         if (!tvState.channel) return;
 
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+        if (video) tvState.started = true;
+
         if (!video) {
-            // The player is gone: so is the channel.
-            if (document.body.classList.contains('nf-tv-on') && !document.querySelector('.videoOsdBottom')) {
-                tvStop();
+            /* Playback has not started yet, or it has ended. Tearing down on the
+             * first tick without a video killed the channel a second after it
+             * was tuned: the player takes longer than that to appear, and a good
+             * deal longer when the file has to be transcoded. Wait for it to
+             * show up, and only then read its going away as the channel being
+             * left. Forty seconds without one at all and the tune-in failed. */
+            if (!tvState.started) {
+                if (Date.now() - tvState.tunedAt > 40000) {
+                    log('tv: nothing started, leaving the channel');
+                    tvStop();
+                }
+                return;
             }
+            if (!document.querySelector('.videoOsdBottom')) tvStop();
             return;
         }
 
