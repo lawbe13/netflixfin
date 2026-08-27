@@ -2879,10 +2879,17 @@ body.nf-playing .skinHeader {
     display: contents;
 }
 
+/* One line each, or the long ones wrap to two and the rows stop lining up -
+   "Everything Everywhere All at Once - La vita, il multiverso e tutto quanto" is
+   a real entry on this library. */
 .searchSuggestions .button-link {
-    display: inline-flex;
-    align-items: center;
+    display: inline-block;
+    max-width: 100%;
     height: 38px;
+    line-height: 38px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     margin: 0 !important;
     padding: 0 18px !important;
     border-radius: 12px;
@@ -3548,14 +3555,15 @@ body.nf-hide-card-text .searchResults .cardText {
 
     /* The app's own corner, measured off the 18.46.1 shots by walking the pixels
        of the white button - the arc runs from (7,2) to (1,11) on a button 83px
-       tall - is about 11% of the height, so 5px on a 48pt button. That is what
-       6px was. The owner reads that as a chamfer rather than a curve and asked
-       for rounder twice, so this is deliberately past the measurement: 10 on 40.
+       tall - is about 11% of the height: 5px on a 48pt button, which is what 6
+       and then 10 were near. The owner has called that a chamfer three times, so
+       these are fully rounded now, matching the wide layout's own buttons. It is
+       past the measurement on purpose.
        .nf-btn carries min-height: 48px, which is why height alone did nothing. */
     .nf-hero-buttons .nf-btn {
         height: 40px;
         min-height: 40px;
-        border-radius: 10px;
+        border-radius: 9999px;
         font-size: 16px;
         font-weight: 600;
         white-space: nowrap;
@@ -3690,7 +3698,7 @@ body.nf-hide-card-text .searchResults .cardText {
         flex: 1 0 100%;
         height: 44px;
         min-height: 44px;
-        border-radius: 10px;
+        border-radius: 9999px;
         font-size: 16px;
         font-weight: 600;
     }
