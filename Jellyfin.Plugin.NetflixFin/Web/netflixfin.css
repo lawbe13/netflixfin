@@ -2804,21 +2804,25 @@ body.nf-playing .skinHeader {
     padding: 22px var(--nf-gutter) 6px !important;
 }
 
+/* The app's field, not the website's bordered box: a filled rounded rectangle
+   in the same translucent white as the chips, no outline, the glyph dimmed to
+   match the placeholder. */
 .searchFields .searchFieldsInner {
     position: relative;
-    max-width: 720px;
-    margin: 0 auto;
+    max-width: 900px;
+    margin: 0;
     padding: 0 16px;
     gap: 12px;
-    background: rgba(0, 0, 0, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 0;
+    border-radius: 8px;
+    justify-content: flex-start !important;
 }
 
 .searchFields .searchfields-icon {
-    font-size: 24px !important;
-    color: #fff;
-    opacity: 0.9;
+    font-size: 22px !important;
+    color: rgba(255, 255, 255, 0.6);
+    opacity: 1;
 }
 
 .searchFields .inputContainer {
@@ -2850,8 +2854,8 @@ body.nf-playing .skinHeader {
    in its accent blue and stacks centred. As chips they read as what they are -
    things to tap - and they stop looking like a bug report. */
 .searchSuggestions {
-    max-width: 720px;
-    margin: 0 auto;
+    max-width: 900px;
+    margin: 0;
     padding: 8px var(--nf-gutter) 0;
 }
 
@@ -3304,6 +3308,17 @@ body.nf-hide-card-text .searchResults .cardText {
         padding-top: var(--nf-header-h, 113px) !important;
     }
 
+    /* Two rows that never move are a third of the first card gone. The app's bar
+       leaves on the way down and comes back on the way up; bindScrollState sets
+       the flag. The page keeps its padding, so nothing jumps. */
+    .skinHeader {
+        transition: transform 0.28s var(--nf-ease);
+    }
+
+    body.nf-header-away .skinHeader {
+        transform: translateY(-100%);
+    }
+
     /* Everything was on one line: the drawer button, the logo, four pills and six
        controls want about 820px, and an iPhone 15 Pro has 369px inside that
        padding. .nf-nav can be squeezed - it scrolls - but .headerLeft cannot, so
@@ -3643,17 +3658,9 @@ body.nf-hide-card-text .searchResults .cardText {
         pointer-events: none;
     }
 
-    body.nf-detail .itemBackdrop .detailLogo {
-        display: block !important;
-        position: absolute;
-        left: 8%;
-        right: 8%;
-        bottom: 6px;
-        height: 46%;
-        background-position: center bottom;
-        background-size: contain;
-        background-repeat: no-repeat;
-        z-index: 2;
+    /* The app sets the name in text under the art, not as a logo on it. */
+    body.nf-detail .detailLogo {
+        display: none !important;
     }
 
     /* The fixed one would otherwise show through as a second, larger copy. */
@@ -3666,9 +3673,14 @@ body.nf-hide-card-text .searchResults .cardText {
         padding: 0 var(--nf-gutter) !important;
     }
 
+    /* Everything on this page hangs off one left margin. Centring the name and
+       the metadata while the synopsis, the tags and the genres stayed left is
+       what read as "a bit centred, a bit right, a bit left". Measured off the
+       app's own title page: the button is 368 of 393pt, inset 13 each side,
+       which is this gutter. */
     body.nf-detail .infoWrapper {
         display: block !important;
-        text-align: center;
+        text-align: left;
     }
 
     /* The poster is redundant next to the art it was cropped from. */
@@ -3676,19 +3688,31 @@ body.nf-hide-card-text .searchResults .cardText {
         display: none !important;
     }
 
-    body.nf-detail-logo .nameContainer {
-        display: none !important;
+    body.nf-detail .nameContainer {
+        display: block !important;
+        text-align: left;
+    }
+
+    body.nf-detail .nameContainer .itemName {
+        font-size: 26px;
+        line-height: 1.15;
     }
 
     body.nf-detail .itemMiscInfo {
-        justify-content: center;
+        justify-content: flex-start;
         font-size: 13px;
+    }
+
+    body.nf-detail .detailSectionContent,
+    body.nf-detail .itemDetailsGroup,
+    body.nf-detail .detailPageContent .sectionTitle {
+        text-align: left;
     }
 
     body.nf-detail .mainDetailButtons {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 10px;
         margin-top: 14px;
     }
@@ -3718,6 +3742,40 @@ body.nf-hide-card-text .searchResults .cardText {
         font-size: 12px;
         font-weight: 400;
         color: var(--nf-text-dim);
+    }
+
+    /* Jellyfin Enhanced stamps a badge on the artwork in its own blue, which is
+       the loudest thing on a library page. Its own setting turns it off; this
+       only quiets it down. */
+    .jf-badge-container > * {
+        background: rgba(0, 0, 0, 0.6) !important;
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-family: var(--nf-font);
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        border-radius: 4px !important;
+        padding: 2px 6px !important;
+        box-shadow: none !important;
+    }
+
+    /* The injected "Providers streaming" row wraps to two tiles a line on a
+       phone, each one 273pt wide. It is a row: let it scroll like one. */
+    #custom-rows-wrapper .srow-scroll {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        scrollbar-width: none;
+        gap: 8px !important;
+        padding: 0 var(--nf-gutter);
+    }
+
+    #custom-rows-wrapper .srow-scroll::-webkit-scrollbar {
+        display: none;
+    }
+
+    #custom-rows-wrapper .srow-card {
+        flex: 0 0 auto !important;
+        width: 132px !important;
+        height: 56px !important;
     }
 
     /* Nothing hovers on a phone: a tap opens the title straight away, so the

@@ -206,10 +206,25 @@
     }
 
     function bindScrollState() {
+        var lastY = 0;
+
         var update = function () {
             var scroller = document.querySelector('.mainAnimatedPages') || document.documentElement;
             var y = window.scrollY || scroller.scrollTop || 0;
             document.body.classList.toggle('nf-scrolled', y > 60);
+
+            /* On a phone the bar is two rows - wordmark and controls, then the
+             * chips - and the page now starts below it rather than behind it, so
+             * a bar that never moves is a third of the first card gone for good.
+             * The app's leaves on the way down and comes back on the way up. */
+            var dy = y - lastY;
+            if (Math.abs(dy) > 8) {
+                if (isPhone()) {
+                    document.body.classList.toggle('nf-header-away', dy > 0 && y > 140);
+                }
+                lastY = y;
+            }
+            if (y <= 140) document.body.classList.remove('nf-header-away');
         };
         // Window's capture listener already sees every scroll in the document, so
         // one binding is enough; the second only ran the same callback twice.
@@ -946,10 +961,13 @@
              * goes into the fixed .backdropContainer behind the page, which this
              * skin covers - so the top of the page was a black band. Paint it, and
              * put the logo on it, which is the shape the app uses. */
+            /* The app's title page carries no logo on the art - the name is set
+             * in text underneath it, left aligned with everything else. Leaving
+             * the logo where Jellyfin put it keeps that simple. */
             var backdrop = document.querySelector('.itemBackdrop');
             var mark = document.querySelector('.detailLogo');
-            if (backdrop && mark && mark.parentElement !== backdrop) {
-                backdrop.appendChild(mark);
+            if (backdrop && mark && mark.parentElement === backdrop) {
+                container.appendChild(mark);
             }
             return;
         }
