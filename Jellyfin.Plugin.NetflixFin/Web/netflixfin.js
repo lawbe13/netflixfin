@@ -313,8 +313,148 @@
          * tab strip that this skin hides. Hiding it made them unreachable, so the
          * link is put back here. */
         targets.push({ label: 'La mia lista', hash: '#/home?tab=1' });
+        targets.push({ label: 'Categorie', genres: true });
 
         return targets;
+    }
+
+    var genreList = null;
+    var genreRequest = null;
+
+    /* Netflix's chip row ends in Categories. Jellyfin's equivalent is the genre
+     * list, and the route behind it is its own - #/list?genreId=&serverId=, with
+     * parentId optional. Verified live before it was written down: with no parent
+     * it answers across every library, which is what a global Categories menu
+     * wants. */
+    function loadGenres() {
+        if (genreList) return Promise.resolve(genreList);
+        if (genreRequest) return genreRequest;
+
+        var client = api();
+        if (!client) return Promise.resolve(null);
+
+        genreRequest = client
+            .getGenres(client.getCurrentUserId(), { SortBy: 'SortName', Limit: 200 })
+            .then(function (result) {
+                var items = (result && result.Items) || [];
+                // Only a real answer is kept: an empty one has to be askable again.
+                if (items.length) genreList = items;
+                genreRequest = null;
+                return genreList;
+            })
+            .catch(function (err) {
+                genreRequest = null;
+                log('could not read the genres', err);
+                return null;
+            });
+
+        return genreRequest;
+    }
+
+    function buildGenreChip(nav) {
+        var client = api();
+        if (!client) return;
+
+        var wrapper = el('div', 'nf-nav-item nf-nav-genres');
+        var button = el('button', null);
+        button.type = 'button';
+        button.appendChild(el('span', null, 'Categorie'));
+        button.appendChild(el('span', 'nf-nav-caret'));
+        wrapper.appendChild(button);
+
+        // On <body>, not in the header: nested there it lands in the header's
+        // stacking context and page content paints straight over it.
+        var menu = el('div', 'nf-nav-menu nf-nav-menu-genres');
+        document.body.appendChild(menu);
+
+        var fill = function (items) {
+            if (!items || menu.children.length) return;
+            items.forEach(function (genre) {
+                var link = el('a', null, genre.Name);
+                link.href = '#/list?genreId=' + genre.Id + '&serverId=' + client.serverId();
+                link.addEventListener('click', function () {
+                    menu.classList.remove('is-open');
+                });
+                menu.appendChild(link);
+            });
+        };
+
+        var place = function () {
+            var rect = button.getBoundingClientRect();
+            // Kept on screen: this is the last chip in the row, so on a phone it
+            // sits against the right edge.
+            var width = Math.min(260, window.innerWidth - 24);
+            var left = Math.min(Math.round(rect.left), window.innerWidth - width - 12);
+            menu.style.left = Math.max(12, left) + 'px';
+            menu.style.top = Math.round(rect.bottom + 6) + 'px';
+        };
+
+        var open = function () {
+            loadGenres().then(function (items) {
+                fill(items);
+                place();
+                menu.classList.add('is-open');
+            });
+        };
+
+        var close = function () {
+            setTimeout(function () {
+                if (!wrapper.matches(':hover') && !menu.matches(':hover')) {
+                    menu.classList.remove('is-open');
+                }
+            }, 120);
+        };
+
+        // A phone has no hover, so the chip is a toggle there and a tap anywhere
+        // else closes it.
+        button.addEventListener('click', function (event) {
+            event.stopPropagation();
+            if (menu.classList.contains('is-open')) {
+                menu.classList.remove('is-open');
+            } else {
+                open();
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!menu.contains(event.target) && !wrapper.contains(event.target)) {
+                menu.classList.remove('is-open');
+            }
+        });
+
+        if (!IS_TOUCH) {
+            wrapper.addEventListener('mouseenter', open);
+            wrapper.addEventListener('mouseleave', close);
+            menu.addEventListener('mouseenter', function () {
+                menu.classList.add('is-open');
+            });
+            menu.addEventListener('mouseleave', close);
+        }
+
+        nav.appendChild(wrapper);
+    }
+
+    /* The wordmark is the whole brand on a wide screen; on a phone the app runs a
+     * single letter with the name of the page beside it. Jellyfin leaves the home
+     * page's title empty because it draws its logo there instead, so that one is
+     * supplied here. */
+    function applyPhoneMark() {
+        var title = document.querySelector('.skinHeader .pageTitle');
+        var left = document.querySelector('.headerLeft');
+        if (!title || !left) return;
+
+        var mark = left.querySelector('.nf-mark');
+        if (!mark) {
+            mark = el('div', 'nf-mark', 'F');
+            mark.setAttribute('aria-hidden', 'true');
+        }
+        if (mark.nextElementSibling !== title || mark.parentElement !== left) {
+            left.insertBefore(mark, title);
+        }
+
+        if (!title.textContent.trim() && window.location.hash.indexOf('#/home') === 0) {
+            title.textContent = /tab=1/.test(window.location.hash) ? 'La mia lista' : 'Home';
+        }
     }
 
     function markActive(nav) {
@@ -831,12 +971,17 @@
         document.querySelectorAll('.nf-nav').forEach(function (node) {
             node.remove();
         });
+        clearGenreMenus();
 
         var nav = el('nav', 'nf-nav');
         nav.dataset.nfSignature = signature;
 
         targets.forEach(function (target, i) {
             var node;
+            if (target.genres) {
+                buildGenreChip(nav);
+                return;
+            }
             if (target.hash) {
                 node = el('a', null, target.label);
                 node.href = target.hash;
@@ -920,6 +1065,14 @@
 
         left.appendChild(nav);
         markActive(nav);
+    }
+
+    /* Rebuilt with the nav, so a previous build's menu does not stay on <body>
+       collecting listeners. */
+    function clearGenreMenus() {
+        document.querySelectorAll('.nf-nav-menu-genres').forEach(function (node) {
+            node.remove();
+        });
     }
 
     /* ------------------------------------------------------- detail page */
@@ -3962,6 +4115,7 @@
         applyTileCount();
         applyBodyFlags();
         publishHeaderHeight();
+        applyPhoneMark();
         applyLogo();
         netflixHeaderIcons();
         buildNav();

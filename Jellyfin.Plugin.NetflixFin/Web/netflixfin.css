@@ -270,6 +270,31 @@ body.nf-scrolled .skinHeader {
     display: block;
 }
 
+/* Netflix's chip row ends in Categories: the genre list behind it. */
+.nf-nav-caret {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+}
+
+.nf-nav-menu-genres {
+    columns: 2;
+    column-gap: 0;
+    min-width: 260px;
+}
+
+@media (max-width: 820px) {
+    .nf-nav-menu-genres {
+        columns: 1;
+        width: min(260px, calc(100vw - 24px));
+        min-width: 0;
+        max-height: 60vh;
+    }
+}
+
 /* Netflix hangs its menus off a small caret under the nav item. */
 .nf-nav-menu::before {
     content: "";
@@ -3318,12 +3343,15 @@ body.nf-hide-card-text .searchResults .cardText {
     .skinHeader {
         height: auto !important;
         padding: 8px 12px !important;
-        /* Two rows tall and fixed, over a page that started at y=0: scrolling ran
-           the billboard, its buttons and its title straight through the chips.
-           The wide layout can afford a transparent header because the billboard
-           is built to sit under one; this one cannot. */
-        background: var(--nf-bg) !important;
     }
+
+    /* The header keeps its gradient here. Painting it flat --nf-bg turned it into
+       a black slab against the page behind it, which carries the artwork's tint
+       (--nf-hero-tint, on .homePage.libraryPage) - and that tint runs under the
+       header, because the page reserves the header's height with padding rather
+       than starting behind it. What stops content showing through is the padding
+       and the bar leaving on the way down, not an opaque fill. Once the page has
+       actually moved, the existing body.nf-scrolled rule fills it in. */
 
     body.nf-touch .mainAnimatedPages,
     body.nf-touch .homePage.libraryPage {
@@ -3423,21 +3451,37 @@ body.nf-hide-card-text .searchResults .cardText {
         display: none !important;
     }
 
-    /* 176pt is what the controls leave the left group, and the drawer button
-       takes 41 of it. */
-    .pageTitleWithDefaultLogo {
-        width: 78px;
-        height: 26px;
-        margin-right: 0.25rem;
+    /* The app runs a single letter and the name of the page, not the wordmark:
+       at 393pt the wordmark and a title do not both fit beside five controls. */
+    .nf-mark {
+        display: block;
+        flex: 0 0 auto;
+        width: 20px;
+        margin-right: 8px;
+        color: var(--nf-accent);
+        font-family: var(--nf-font);
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 34px;
+        letter-spacing: -0.04em;
+        text-align: center;
     }
 
-    /* On a library or a detail page Jellyfin puts the page's name here instead of
-       the wordmark. A long one - a library called "Documentari e reportage" - has
-       to give way rather than fold the line. */
-    .skinHeader .pageTitle:not(.pageTitleWithLogo):not(.pageTitleWithDefaultLogo) {
-        max-width: 42vw;
-        margin: 0 0.25rem;
-        font-size: 17px;
+    .skinHeader .pageTitle,
+    .skinHeader .pageTitleWithLogo,
+    .skinHeader .pageTitleWithDefaultLogo {
+        width: auto !important;
+        height: auto !important;
+        min-width: 0;
+        margin: 0 0.5rem 0 0 !important;
+        background-image: none !important;
+        font-family: var(--nf-font);
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 34px;
+        color: var(--nf-text);
+        letter-spacing: -0.02em;
+        max-width: 44vw;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -3528,6 +3572,18 @@ body.nf-hide-card-text .searchResults .cardText {
 
     .nf-nav-item {
         padding: 0 !important;
+    }
+
+    .nf-nav-genres > button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+        padding: 0 18px !important;
+        border: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
     }
 
     .nf-nav-item > a {
