@@ -4123,6 +4123,384 @@
 
     var scheduled = null;
 
+    /* ==================================================================== TV
+     *
+     * Twelve channels that behave like a broadcaster's: a line-up that runs
+     * forever, is the same on every device, and can be read 24 hours ahead.
+     *
+     * Nothing about it is stored. The schedule for a channel on a day is a pure
+     * function of (channel, day): a shuffle seeded on both, laid end to end from
+     * midnight, each programme followed by a fixed ident slot. That one property
+     * buys everything the feature needs - two people tuning in see the same
+     * programme at the same second, a reload does not reshuffle the evening, the
+     * guide is just tomorrow's arithmetic, and there is no state to keep, migrate
+     * or repair.
+     *
+     * Days are independent on purpose. Carrying a programme over midnight would
+     * make day N depend on day N-1, and so on back to the epoch. Instead the last
+     * slot of a day is filled by the longest programme that still fits, so a day
+     * ends within a few minutes of midnight and nothing has to be remembered.
+     */
+
+    var TV_EPOCH = Date.UTC(2026, 0, 1);
+    var TV_DAY_MS = 86400000;
+    /* The ident between programmes. It is part of the timeline, not a pause in
+     * front of it, so someone tuning in during one is in sync with everyone
+     * else. */
+    var TV_IDENT_MS = 20000;
+    var TV_MIN_MS = 4 * 60000;
+
+    /* The line-up. Uno, Saghe, Classici and 24 are curations rather than genres;
+     * the rest are bouquets - unions of several genres - which is the shape a
+     * film channel actually takes. The pools overlap on purpose. */
+    var TV_CHANNELS = [
+        { id: 'uno', name: 'Uno', tone: '#1d3f8f', kind: 'movie', blurb: 'Il meglio della libreria',
+          test: function (m) { return (m.CommunityRating || 0) >= 7.5; } },
+        { id: 'action', name: 'Action', tone: '#a4161a', kind: 'movie', blurb: 'Azione e avventura',
+          genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'] },
+        { id: 'comedy', name: 'Comedy', tone: '#e09f3e', kind: 'movie', blurb: 'Da ridere, sempre',
+          genres: ['Commedia', 'Comedy'] },
+        { id: 'family', name: 'Family', tone: '#2a9d8f', kind: 'movie', blurb: 'Per tutta la famiglia',
+          genres: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'] },
+        { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', kind: 'movie', blurb: 'Fantascienza e fantasy',
+          genres: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Sci-Fi & Fantasy'] },
+        { id: 'suspense', name: 'Suspense', tone: '#3d0e12', kind: 'movie', blurb: 'Thriller, horror, crime',
+          genres: ['Thriller', 'Horror', 'Mistero', 'Mystery', 'Crime'] },
+        { id: 'drama', name: 'Drama', tone: '#264653', kind: 'movie', blurb: 'Storie e sentimenti',
+          genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'] },
+        { id: 'saghe', name: 'Saghe', tone: '#6a4c93', kind: 'boxset', blurb: 'Una saga per serata' },
+        { id: 'classici', name: 'Classici', tone: '#7f5539', kind: 'movie', blurb: 'Prima del 1990',
+          test: function (m) { return !!m.ProductionYear && m.ProductionYear < 1990; } },
+        { id: 'serie', name: 'Serie', tone: '#14213d', kind: 'episode', blurb: 'Episodi in ordine',
+          notGenres: ['Commedia', 'Comedy'] },
+        { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', kind: 'episode', blurb: 'Comedy a episodi',
+          genres: ['Commedia', 'Comedy'] },
+        { id: 'nonstop', name: '24', tone: '#495057', kind: 'movie', blurb: 'Tutto, senza sosta' }
+    ];
+
+    function tvChannel(id) {
+        return TV_CHANNELS.filter(function (c) { return c.id === id; })[0] || null;
+    }
+
+    /* ------------------------------------------------------------ the seed */
+
+    function tvHash(text) {
+        var h = 2166136261;
+        for (var i = 0; i < text.length; i++) {
+            h ^= text.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+    }
+
+    /* mulberry32: small, fast, and - the only property that matters here - the
+     * same sequence for the same seed in every browser, forever. Math.random
+     * would reshuffle the evening on every reload. */
+    function tvRandom(seed) {
+        var t = seed >>> 0;
+        return function () {
+            t = (t + 0x6d2b79f5) >>> 0;
+            var x = Math.imul(t ^ (t >>> 15), t | 1);
+            x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+            return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function tvShuffle(list, seed) {
+        var out = list.slice();
+        var rnd = tvRandom(seed);
+        for (var i = out.length - 1; i > 0; i--) {
+            var j = Math.floor(rnd() * (i + 1));
+            var swap = out[i];
+            out[i] = out[j];
+            out[j] = swap;
+        }
+        return out;
+    }
+
+    function tvDayOf(time) {
+        return Math.floor((time - TV_EPOCH) / TV_DAY_MS);
+    }
+
+    function tvDayStart(day) {
+        return TV_EPOCH + day * TV_DAY_MS;
+    }
+
+    /* ------------------------------------------------------------- the pool */
+
+    var tvPools = {};
+    var tvPoolRequests = {};
+
+    function tvRuntime(item) {
+        return Math.round((item.RunTimeTicks || 0) / 10000);
+    }
+
+    function tvKeep(item) {
+        var ms = tvRuntime(item);
+        return ms >= TV_MIN_MS;
+    }
+
+    function tvMatches(channel, item) {
+        if (channel.test && !channel.test(item)) return false;
+
+        var genres = item.Genres || [];
+        if (channel.genres) {
+            var wanted = channel.genres;
+            if (!genres.some(function (g) { return wanted.indexOf(g) > -1; })) return false;
+        }
+        if (channel.notGenres) {
+            var unwanted = channel.notGenres;
+            if (genres.some(function (g) { return unwanted.indexOf(g) > -1; })) return false;
+        }
+        return true;
+    }
+
+    /* One item per programme, carrying only what the schedule needs. Sorted by
+     * Id, because the shuffle has to start from the same order everywhere. */
+    function tvEntry(item) {
+        return {
+            id: item.Id,
+            name: item.Name,
+            ms: tvRuntime(item),
+            type: item.Type,
+            series: item.SeriesName || null,
+            season: item.ParentIndexNumber || null,
+            episode: item.IndexNumber || null
+        };
+    }
+
+    function tvSort(list) {
+        return list.sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
+    }
+
+    function tvLoadPool(channel) {
+        if (tvPools[channel.id]) return Promise.resolve(tvPools[channel.id]);
+        if (tvPoolRequests[channel.id]) return tvPoolRequests[channel.id];
+
+        var client = api();
+        if (!client) return Promise.resolve(null);
+        var user = client.getCurrentUserId();
+
+        var request;
+        if (channel.kind === 'episode') {
+            /* Episodes are asked for by series, so a channel can keep a series
+             * together and in order - which is the point of Serie and Sitcom. */
+            request = client
+                .getItems(user, {
+                    IncludeItemTypes: 'Series',
+                    Recursive: true,
+                    Fields: 'Genres',
+                    Limit: 500
+                })
+                .then(function (result) {
+                    var shows = (result.Items || []).filter(function (s) {
+                        return tvMatches(channel, s);
+                    });
+                    return Promise.all(
+                        shows.map(function (show) {
+                            return client
+                                .getItems(user, {
+                                    ParentId: show.Id,
+                                    IncludeItemTypes: 'Episode',
+                                    Recursive: true,
+                                    Fields: 'RunTimeTicks',
+                                    SortBy: 'ParentIndexNumber,IndexNumber',
+                                    SortOrder: 'Ascending',
+                                    Limit: 400
+                                })
+                                .then(function (eps) {
+                                    return {
+                                        id: show.Id,
+                                        name: show.Name,
+                                        episodes: (eps.Items || []).filter(tvKeep).map(tvEntry)
+                                    };
+                                })
+                                .catch(function () { return null; });
+                        })
+                    );
+                })
+                .then(function (shows) {
+                    return {
+                        kind: 'episode',
+                        shows: tvSort(shows.filter(function (s) { return s && s.episodes.length; }))
+                    };
+                });
+        } else if (channel.kind === 'boxset') {
+            request = client
+                .getItems(user, { IncludeItemTypes: 'BoxSet', Recursive: true, Limit: 300 })
+                .then(function (result) {
+                    return Promise.all(
+                        (result.Items || []).map(function (set) {
+                            return client
+                                .getItems(user, {
+                                    ParentId: set.Id,
+                                    IncludeItemTypes: 'Movie',
+                                    Recursive: true,
+                                    Fields: 'RunTimeTicks,ProductionYear',
+                                    SortBy: 'PremiereDate,ProductionYear,SortName',
+                                    SortOrder: 'Ascending',
+                                    Limit: 60
+                                })
+                                .then(function (films) {
+                                    return {
+                                        id: set.Id,
+                                        name: set.Name,
+                                        // A saga worth an evening has more than one film in it.
+                                        episodes: (films.Items || []).filter(tvKeep).map(tvEntry)
+                                    };
+                                })
+                                .catch(function () { return null; });
+                        })
+                    );
+                })
+                .then(function (sets) {
+                    return {
+                        kind: 'boxset',
+                        shows: tvSort(sets.filter(function (s) { return s && s.episodes.length > 1; }))
+                    };
+                });
+        } else {
+            request = client
+                .getItems(user, {
+                    IncludeItemTypes: 'Movie',
+                    Recursive: true,
+                    Fields: 'Genres,RunTimeTicks,ProductionYear,CommunityRating',
+                    Limit: 2000
+                })
+                .then(function (result) {
+                    var films = (result.Items || []).filter(function (m) {
+                        return tvKeep(m) && tvMatches(channel, m);
+                    });
+                    return { kind: 'movie', items: tvSort(films.map(tvEntry)) };
+                });
+        }
+
+        tvPoolRequests[channel.id] = request
+            .then(function (pool) {
+                var full = pool && (pool.items ? pool.items.length : pool.shows.length);
+                // Only a real answer is kept: an empty one has to be askable again.
+                if (full) tvPools[channel.id] = pool;
+                tvPoolRequests[channel.id] = null;
+                return tvPools[channel.id] || null;
+            })
+            .catch(function (err) {
+                tvPoolRequests[channel.id] = null;
+                log('tv: could not read the pool for ' + channel.id, err);
+                return null;
+            });
+
+        return tvPoolRequests[channel.id];
+    }
+
+    /* ---------------------------------------------------------- the line-up */
+
+    /* A day of one channel. Deterministic, self-contained, and laid out so it
+     * ends near midnight: the last slot takes the longest programme that still
+     * fits rather than overrunning into a day that knows nothing about it. */
+    function tvDaySchedule(channel, pool, day) {
+        if (!pool) return [];
+
+        var seed = tvHash(channel.id + ':' + day);
+        var slots = [];
+        var start = tvDayStart(day);
+        var end = start + TV_DAY_MS;
+        var at = start;
+
+        if (pool.kind === 'movie') {
+            var order = tvShuffle(pool.items, seed);
+            var i = 0;
+            while (at < end && order.length) {
+                var film = order[i % order.length];
+                var span = film.ms + TV_IDENT_MS;
+
+                if (at + span > end) {
+                    // Closing slot: the longest that still fits, so the day lands
+                    // on midnight instead of trampling the next one.
+                    var room = end - at;
+                    var fits = order.filter(function (m) { return m.ms + TV_IDENT_MS <= room; });
+                    if (!fits.length) break;
+                    film = fits[fits.length - 1];
+                    span = film.ms + TV_IDENT_MS;
+                }
+
+                slots.push({ item: film, start: at, end: at + film.ms, identEnd: at + span });
+                at += span;
+                i++;
+            }
+            return slots;
+        }
+
+        /* Series and sagas: in order, and carrying on across days. The starting
+         * point is arithmetic rather than history - day N begins where N days of
+         * an average day's worth of episodes would have left it - so no day has
+         * to look up the one before it. */
+        var shows = pool.shows;
+        if (!shows.length) return [];
+
+        var pick = tvShuffle(shows, tvHash(channel.id + ':show:' + day))[0];
+        var flat = pick.episodes;
+        var average = flat.reduce(function (sum, e) { return sum + e.ms + TV_IDENT_MS; }, 0) / flat.length;
+        var perDay = Math.max(1, Math.floor(TV_DAY_MS / average));
+        var cursor = ((day * perDay) % flat.length + flat.length) % flat.length;
+
+        while (at < end) {
+            var episode = flat[cursor % flat.length];
+            var length = episode.ms + TV_IDENT_MS;
+            if (at + length > end) break;
+            slots.push({
+                item: episode,
+                show: pick.name,
+                start: at,
+                end: at + episode.ms,
+                identEnd: at + length
+            });
+            at += length;
+            cursor++;
+        }
+        return slots;
+    }
+
+    /* What is on, and how far in. Returns null while the pool is still loading. */
+    function tvNow(channel, pool, when) {
+        var time = when || Date.now();
+        var slots = tvDaySchedule(channel, pool, tvDayOf(time));
+        for (var i = 0; i < slots.length; i++) {
+            if (time >= slots[i].start && time < slots[i].identEnd) {
+                return {
+                    slot: slots[i],
+                    next: slots[i + 1] || null,
+                    offset: Math.max(0, time - slots[i].start),
+                    inIdent: time >= slots[i].end
+                };
+            }
+        }
+        return null;
+    }
+
+    /* The next 24 hours, which is today's tail and tomorrow's head. */
+    function tvGuide(channel, pool, when) {
+        var time = when || Date.now();
+        var day = tvDayOf(time);
+        var slots = tvDaySchedule(channel, pool, day).concat(tvDaySchedule(channel, pool, day + 1));
+        return slots.filter(function (s) {
+            return s.identEnd > time && s.start < time + TV_DAY_MS;
+        });
+    }
+
+    /* A handle for checking the line-up without a UI in front of it. */
+    window.nfTv = {
+        channels: TV_CHANNELS,
+        pool: function (id) { return tvLoadPool(tvChannel(id)); },
+        now: function (id, when) {
+            var c = tvChannel(id);
+            return tvLoadPool(c).then(function (pool) { return tvNow(c, pool, when); });
+        },
+        guide: function (id, when) {
+            var c = tvChannel(id);
+            return tvLoadPool(c).then(function (pool) { return tvGuide(c, pool, when); });
+        }
+    };
+
     function refresh() {
         applyTileCount();
         applyBodyFlags();
