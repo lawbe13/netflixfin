@@ -3509,7 +3509,9 @@ body.nf-tv {
 .nf-tv-cover {
     position: fixed;
     inset: 0;
-    z-index: 1100;
+    /* Above the player's own chrome. At 1100 the controls and the progress bar
+       of the programme being left behind were drawn over the tuning card. */
+    z-index: 4000;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3540,7 +3542,7 @@ body.nf-tv {
 .nf-tv-skin {
     position: fixed;
     inset: 0;
-    z-index: 1200;
+    z-index: 3000;
     pointer-events: none;
     display: none;
 }
@@ -3558,10 +3560,13 @@ body.nf-tv-on .nf-tv-skin {
 }
 
 /* The watermark, bottom right, where a broadcaster puts it. */
+/* Lifted clear of the control bar, which is what a bug at 26px from the bottom
+   sat inside. Proportional rather than fixed: a broadcaster's mark lives about a
+   tenth of the way up, and that is also above the controls at any size. */
 .nf-tv-bug {
     position: absolute;
-    bottom: 26px;
-    right: 26px;
+    bottom: 9%;
+    right: 3%;
     display: inline-flex;
     align-items: center;
     gap: 9px;
