@@ -3688,18 +3688,30 @@ body.nf-hide-card-text .searchResults .cardText {
         display: none !important;
     }
 
+    /* Jellyfin reserves the poster's column here with a 134pt padding on
+       .infoWrapper, and centres the name and the metadata inside what is left -
+       so hiding the poster was not enough to bring them back to the margin. */
+    body.nf-detail .infoWrapper {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
     body.nf-detail .nameContainer {
         display: block !important;
         text-align: left;
     }
 
-    body.nf-detail .nameContainer .itemName {
+    body.nf-detail .itemName,
+    body.nf-detail .nameContainer h1,
+    body.nf-detail .nameContainer h3 {
+        text-align: left !important;
         font-size: 26px;
         line-height: 1.15;
     }
 
     body.nf-detail .itemMiscInfo {
-        justify-content: flex-start;
+        text-align: left !important;
+        justify-content: flex-start !important;
         font-size: 13px;
     }
 
