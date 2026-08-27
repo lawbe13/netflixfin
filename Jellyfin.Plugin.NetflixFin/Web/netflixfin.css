@@ -3421,6 +3421,34 @@ body.nf-tv {
     font-size: 12.5px;
 }
 
+/* Over the details page while a channel is starting. That page is how playback
+   is reached on this build, not somewhere anyone asked to go. */
+.nf-tv-cover {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--nf-tv-tone, #111);
+    font-family: var(--nf-font);
+}
+
+.nf-tv-cover .nf-tv-logo {
+    transform: scale(1.4);
+}
+
+.nf-tv-cover .nf-tv-kicker {
+    animation: nf-tv-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes nf-tv-breathe {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+}
+
 /* --- the station skin over the player ------------------------------------- */
 
 .nf-tv-skin {

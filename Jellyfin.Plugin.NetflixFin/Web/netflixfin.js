@@ -1037,6 +1037,16 @@
                     });
                 }
 
+                /* The hash may already be this one - it is left alone while a
+                 * channel plays - and setting it to itself fires nothing, so the
+                 * entry would do nothing at all. Open the page directly. */
+                if (target.hash.indexOf('nftv=1') > -1) {
+                    node.addEventListener('click', function () {
+                        if (tvState.channel) tvStop();
+                        setTimeout(tvOpen, 30);
+                    });
+                }
+
                 // A server split by genre has many libraries of one type. They
                 // hang off the matching nav item as a dropdown instead of being
                 // dropped, so every catalogue page is one hover away.
@@ -4592,7 +4602,7 @@
         tunedAt: 0,
         started: false,
         retried: false,
-        from: null
+        route: null
     };
 
     function tvGuardReporting(on) {
@@ -4901,7 +4911,6 @@
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
 
             tvGuardReporting(true);
-            tvState.from = window.location.hash;
             /* Only the panel comes down. Navigating away from the hash - which
              * this used to do - rebuilt the page underneath while playNow was
              * still looking for something to click, so pressing Guarda landed you
@@ -4922,11 +4931,45 @@
      * channel puts the hash back where it was. */
     function tvPlay(item, offset) {
         var client = api();
-        var route = '#/details?id=' + item.id + (client ? '&serverId=' + client.serverId() : '');
-        if (window.location.hash.indexOf('#/details?id=' + item.id) !== 0) {
-            window.location.hash = route;
+        var route = '#/details?id=' + item.id;
+
+        /* The route is also how the channel knows it is still being watched.
+         * Jellyfin leaves a <video> behind after you exit - 427x194, connected,
+         * paused - so its presence proves nothing, and the OSD lingers too. The
+         * hash does not: while a programme plays it is that programme's details
+         * route, and the moment you stop, Jellyfin goes back and it is not. */
+        tvState.route = route;
+
+        if (window.location.hash.indexOf(route) !== 0) {
+            window.location.hash = route + (client ? '&serverId=' + client.serverId() : '');
         }
+        tvCover(true);
         tvPressPlay(0);
+    }
+
+    /* The details page is a means, not a destination: it is covered until the
+     * player is up, so pressing Guarda shows the channel starting rather than a
+     * title card flashing past. */
+    function tvCover(on) {
+        var cover = document.querySelector('.nf-tv-cover');
+        if (!on) {
+            if (cover) cover.remove();
+            return;
+        }
+
+        var channel = tvChannel(tvState.channel);
+        if (!channel) return;
+
+        if (!cover) {
+            cover = el('div', 'nf-tv-cover');
+            var badge = el('div', 'nf-tv-logo');
+            badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
+            badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
+            cover.appendChild(badge);
+            cover.appendChild(el('div', 'nf-tv-kicker', 'Sintonizzazione'));
+            document.body.appendChild(cover);
+        }
+        cover.style.setProperty('--nf-tv-tone', channel.tone);
     }
 
     function tvPressPlay(tries) {
@@ -4946,8 +4989,7 @@
     }
 
     function tvStop() {
-        var back = tvState.from;
-        tvState.from = null;
+        tvState.route = null;
         tvState.channel = null;
         tvState.shift = 0;
         tvState.pending = null;
@@ -4959,11 +5001,12 @@
         }
         tvGuardReporting(false);
         document.body.classList.remove('nf-tv-on');
+        tvCover(false);
         var skin = document.querySelector('.nf-tv-skin');
         if (skin) skin.remove();
-
-        // Back to where the channel was tuned from, which is the TV page.
-        if (back && window.location.hash !== back) window.location.hash = back;
+        /* No hash of our own is put back. Stopping sends Jellyfin back a step,
+         * which is the TV page it came from, and forcing it would hijack the
+         * navigation of someone who left the channel on purpose. */
     }
 
     /* The overlay that makes it a channel rather than a file: the watermark, and
@@ -5016,8 +5059,19 @@
     function tvTick() {
         if (!tvState.channel) return;
 
+        /* Left the programme's route: the channel is over. This is checked
+         * before anything about the player, because the player's leftovers
+         * outlive it. */
+        if (tvState.started && tvState.route && window.location.hash.indexOf(tvState.route) !== 0) {
+            tvStop();
+            return;
+        }
+
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
-        if (video) tvState.started = true;
+        if (video) {
+            tvState.started = true;
+            tvCover(false);
+        }
 
         if (!video) {
             /* Playback has not started yet, or it has ended. Tearing down on the
@@ -5046,7 +5100,7 @@
                 }
                 return;
             }
-            if (!document.querySelector('.videoOsdBottom')) tvStop();
+            tvStop();
             return;
         }
 
@@ -5091,6 +5145,7 @@
             tvState.retried = false;
             tvState.tunedAt = Date.now();
             tvPlay(on.slot.item, on.offset);
+            return;
         }
     }
 
