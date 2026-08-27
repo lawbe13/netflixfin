@@ -901,12 +901,32 @@
         var container = document.querySelector('.detailPagePrimaryContainer');
         if (!container) return;
 
-        var match = window.location.hash.match(/[?&]id=([^&]+)/);
-        if (!match) return;
-        var id = match[1];
+        var id = currentDetailId();
+        if (!id) return;
 
         var client = api();
         if (!client) return;
+
+        // The logo is worth painting at any width; the card is not.
+        paintDetailLogo(id, client);
+
+        /* Netflix's title card - 16:9 art with the logo and the actions laid on
+         * it - is a wide-screen shape, and the app gives the phone a different
+         * page entirely. Building the card there anyway left a 107pt black band
+         * above Jellyfin's own layout with the action row overlapping it. Until
+         * that page is drawn properly the phone keeps Jellyfin's, which at least
+         * holds together. */
+        if (isPhone()) {
+            var stale = container.querySelector('.nf-detail-art');
+            if (stale) {
+                var oldRibbon = stale.querySelector('.detailRibbon');
+                if (oldRibbon) container.appendChild(oldRibbon);
+                var oldLogo = stale.querySelector('.detailLogo');
+                if (oldLogo) container.appendChild(oldLogo);
+                stale.remove();
+            }
+            return;
+        }
 
         var art = container.querySelector('.nf-detail-art');
         if (!art || art.dataset.nfId !== id) {
@@ -925,8 +945,6 @@
         if (logo && logo.parentElement !== art) {
             art.appendChild(logo);
         }
-
-        paintDetailLogo(id, client);
 
         var ribbon = document.querySelector('.detailRibbon');
         if (ribbon && ribbon.parentElement !== art) {

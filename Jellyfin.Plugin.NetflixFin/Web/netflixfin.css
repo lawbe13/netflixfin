@@ -2856,6 +2856,7 @@ body.nf-playing .skinHeader {
 }
 
 .searchSuggestions .sectionTitle {
+    margin: 18px 0 12px !important;
     text-align: center;
     font-size: 16px !important;
     font-weight: 500 !important;
@@ -3308,15 +3309,44 @@ body.nf-hide-card-text .searchResults .cardText {
     .headerRight {
         flex: 0 0 auto;
         align-self: flex-start;
-        gap: 4px;
+        gap: 3px;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
-    /* Six controls, a drawer button and a wordmark share 369pt. At Netflix's
-       40pt hit area the controls alone eat 270 and leave the logo nothing. */
+    /* Five controls, a drawer button and a wordmark share 369pt, and the
+       controls are not all Jellyfin's own - the row here also carries one
+       injected by another script, in its own wrapper div. Measured on this
+       server: at a 38pt hit area with Jellyfin's margins the group came to 246
+       and the wordmark still went to a line of its own. 34 with the margins
+       zeroed brings it to 182, which leaves the left group 176 for a 41pt
+       drawer button and a 78pt wordmark. */
+    .headerRight > * {
+        margin: 0 !important;
+    }
+
     .headerRight .paper-icon-button-light,
     .headerRight .headerButton {
-        width: 38px;
-        height: 38px;
+        width: 34px;
+        height: 34px;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .headerRight .material-icons {
+        font-size: 22px !important;
+    }
+
+    .headerRight .nf-header-icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* The avatar is a background-image on a child that keeps its own size. */
+    .headerRight .headerUserButton > * {
+        width: 34px !important;
+        height: 34px !important;
+        background-size: cover !important;
     }
 
     .mainDrawerButton {
@@ -3332,10 +3362,10 @@ body.nf-hide-card-text .searchResults .cardText {
         display: none !important;
     }
 
-    /* 121pt is what the controls leave the left group, and the drawer button
-       takes 40 of it: at 76 the wordmark tipped onto a line of its own. */
+    /* 176pt is what the controls leave the left group, and the drawer button
+       takes 41 of it. */
     .pageTitleWithDefaultLogo {
-        width: 68px;
+        width: 78px;
         height: 26px;
         margin-right: 0.25rem;
     }
@@ -3375,6 +3405,11 @@ body.nf-hide-card-text .searchResults .cardText {
     .searchSuggestions .searchSuggestionsList {
         justify-content: flex-start;
         padding: 0 var(--nf-gutter);
+    }
+
+    .searchSuggestions .sectionTitle {
+        padding: 0 var(--nf-gutter) !important;
+        text-align: left;
     }
 
     /* The second line, edge to edge. .headerLeft is only as wide as what the
