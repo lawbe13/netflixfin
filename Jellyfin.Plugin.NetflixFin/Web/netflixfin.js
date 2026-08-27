@@ -271,6 +271,14 @@
         document.querySelectorAll('.pageTitleWithDefaultLogo, .pageTitleWithLogo').forEach(function (node) {
             node.style.backgroundImage = 'url("' + cfg.logoUrl + '")';
         });
+
+        /* The single letter in the phone header, on a channel's badge and in the
+         * watermark is the wordmark's own first glyph, shown by cropping the
+         * image rather than by setting an F in some other typeface. A drawn
+         * letter is a different letter. Without a configured logo the text
+         * fallback stands. */
+        document.documentElement.style.setProperty('--nf-logo', 'url("' + cfg.logoUrl + '")');
+        document.documentElement.classList.add('nf-has-logo');
     }
 
     /* ---------------------------------------------------------------- nav */
@@ -3040,10 +3048,17 @@
      * case there is nothing to be done, so the player is left where it is rather
      * than throwing on appendChild. */
     function hostPlayer() {
-        if (!player) return;
         var target = document.fullscreenElement || document.webkitFullscreenElement;
         if (target && target.tagName === 'VIDEO') return;
         var host = target || document.body;
+
+        /* Fullscreen renders only the subtree of the element that went
+         * fullscreen, so anything left on <body> - the controls, and the
+         * channel's watermark - simply is not there. Both move in. */
+        var skin = document.querySelector('.nf-tv-skin');
+        if (skin && skin.parentNode !== host) host.appendChild(skin);
+
+        if (!player) return;
         if (player.node.parentNode !== host) host.appendChild(player.node);
     }
 
@@ -5050,6 +5065,8 @@
         }
         skin.classList.toggle('is-shifted', tvState.shift > 0);
 
+        hostPlayer();
+
         if (tvState.timer) clearInterval(tvState.timer);
         tvState.timer = setInterval(tvTick, 1000);
     }
@@ -5104,13 +5121,31 @@
             return;
         }
 
+        /* One seek at readyState 1 was not enough: the player applies its own
+         * start position after the metadata lands, so the programme went back to
+         * the beginning a moment after being put in the right place. The seek is
+         * repeated until the video actually sits within fifteen seconds of where
+         * the channel is, and the target is recomputed from the line-up each time
+         * so a slow start does not land in the past. */
         var pending = tvState.pending;
         if (pending && video.readyState >= 1) {
-            /* Always, even to zero: the details page's button is a resume, and a
-             * title the owner had already started would otherwise pick up at
-             * their bookmark rather than where the channel is. */
-            seekTo(video, pending.offset / 1000);
-            tvState.pending = null;
+            var live = tvNow(tvChannel(tvState.channel), tvPools[tvState.channel], tvClock());
+            var wanted = live && live.slot.item.id === pending.slot.item.id ? live.offset : pending.offset;
+            // "Dall'inizio" means zero and stays zero.
+            if (pending.offset === 0) wanted = 0;
+
+            var here = video.currentTime * 1000;
+            if (Math.abs(here - wanted) > 15000) {
+                pending.tries = (pending.tries || 0) + 1;
+                if (pending.tries <= 25) {
+                    seekTo(video, wanted / 1000);
+                } else {
+                    log('tv: the seek would not hold, leaving it where it is');
+                    tvState.pending = null;
+                }
+            } else {
+                tvState.pending = null;
+            }
         }
 
         var channel = tvChannel(tvState.channel);

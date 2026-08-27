@@ -3265,6 +3265,23 @@ body.nf-tv {
     -webkit-text-stroke: 0.6px var(--nf-accent);
 }
 
+/* Filmettino's own letter, cropped out of the wordmark, wherever the mark
+   appears - header, channel badge, watermark. A letter drawn in another
+   typeface is a different letter. */
+.nf-has-logo .nf-mark,
+.nf-has-logo .nf-tv-logo-mark {
+    color: transparent;
+    -webkit-text-stroke: 0;
+    background-image: var(--nf-logo);
+    background-size: auto 118%;
+    background-position: left center;
+    background-repeat: no-repeat;
+}
+
+.nf-has-logo .nf-tv-logo-mark {
+    width: 15px;
+}
+
 .nf-tv-logo-name {
     font-size: 15px;
     font-weight: 700;
@@ -3459,15 +3476,23 @@ body.nf-tv {
     display: none;
 }
 
+/* Fullscreen paints only the subtree of the fullscreen element, so hostPlayer
+   moves the skin inside it; this keeps it filling that element rather than the
+   viewport it is no longer measured against. */
+:fullscreen .nf-tv-skin,
+:-webkit-full-screen .nf-tv-skin {
+    position: absolute;
+}
+
 body.nf-tv-on .nf-tv-skin {
     display: block;
 }
 
-/* The watermark. Every channel has one and it never leaves the corner. */
+/* The watermark, bottom right, where a broadcaster puts it. */
 .nf-tv-bug {
     position: absolute;
-    top: 18px;
-    right: 22px;
+    bottom: 26px;
+    right: 26px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
