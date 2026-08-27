@@ -4336,6 +4336,7 @@
             ms: tvRuntime(item),
             type: item.Type,
             series: item.SeriesName || null,
+            seriesId: item.SeriesId || null,
             season: item.ParentIndexNumber || null,
             episode: item.IndexNumber || null
         };
@@ -4636,7 +4637,8 @@
         tunedAt: 0,
         started: false,
         retried: false,
-        route: null
+        route: null,
+        slotId: null
     };
 
     function tvGuardReporting(on) {
@@ -4738,6 +4740,13 @@
 
     function tvArt(entry, client, shape) {
         if (!entry || !client) return '';
+
+        /* An episode has no wide art of its own - the backdrop belongs to the
+         * series - so the two channels made of episodes showed empty cards. */
+        if (entry.type === 'Episode' && entry.seriesId) {
+            return client.getImageUrl(entry.seriesId, { type: 'Backdrop', maxWidth: 780 });
+        }
+
         return client.getImageUrl(entry.id, {
             type: shape === 'wide' ? 'Backdrop' : 'Primary',
             maxWidth: shape === 'wide' ? 780 : 400
@@ -4986,6 +4995,7 @@
          * hash does not: while a programme plays it is that programme's details
          * route, and the moment you stop, Jellyfin goes back and it is not. */
         tvState.route = route;
+        tvState.slotId = item.id;
 
         if (window.location.hash.indexOf(route) !== 0) {
             window.location.hash = route + (client ? '&serverId=' + client.serverId() : '');
@@ -5048,6 +5058,7 @@
     function tvStop() {
         var route = tvState.route;
         tvState.route = null;
+        tvState.slotId = null;
         tvState.channel = null;
         tvState.shift = 0;
         tvState.pending = null;
@@ -5118,24 +5129,23 @@
         tvState.timer = setInterval(tvTick, 1000);
     }
 
-    /* One second at a time: seek to the offset once the video can take it, then
-     * watch for the end of the programme. */
+    /* One second at a time. The order matters: the line-up is read before the
+     * player, because between two programmes there is no player at all and that
+     * is the schedule working, not the viewer leaving. */
     function tvTick() {
         if (!tvState.channel) return;
 
         /* Left the channel? The route says so - the player's leftovers outlive
-         * it, so nothing about the <video> can be trusted here.
-         *
-         * But the player has a route of its own. Starting playback moves the app
-         * to #/video, and reading that as "left" tore the channel down the
-         * instant it actually began: the watermark went with it, the guard came
-         * off, the pending seek was dropped so the programme ran from the start,
-         * and exiting landed on the details page rather than the TV page. All
-         * four of those were this one line. */
+         * it, so nothing about the <video> can be trusted here. The player has a
+         * route of its own, #/video, and that counts as being on air. */
         if (tvState.started && tvState.route && !tvOnAir()) {
             tvStop();
             return;
         }
+
+        var channel = tvChannel(tvState.channel);
+        var pool = tvPools[channel.id];
+        var on = pool ? tvNow(channel, pool, tvClock()) : null;
 
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
         if (video) {
@@ -5143,20 +5153,15 @@
             tvCover(false);
         }
 
+        tvPaintIdent(on);
+
         if (!video) {
-            /* Playback has not started yet, or it has ended. Tearing down on the
-             * first tick without a video killed the channel a second after it
-             * was tuned: the player takes longer than that to appear, and a good
-             * deal longer when the file has to be transcoded. Wait for it to
-             * show up, and only then read its going away as the channel being
-             * left. Forty seconds without one at all and the tune-in failed. */
             if (!tvState.started) {
                 var waited = Date.now() - tvState.tunedAt;
 
                 /* One retry. The click that starts playback is delegated by
-                 * jellyfin-web, and a click that lands while the page is still
-                 * settling reaches nothing at all - silently, with no error to
-                 * catch. Asking twice costs nothing and covers it. */
+                 * jellyfin-web, and one that lands while the page is still
+                 * settling reaches nothing at all - silently. */
                 if (waited > 6000 && !tvState.retried && tvState.pending) {
                     tvState.retried = true;
                     log('tv: nothing started yet, asking again');
@@ -5170,20 +5175,32 @@
                 }
                 return;
             }
+
+            /* No player, on a channel that has been running. Jellyfin takes the
+             * player down when a programme ends, and reading that as a departure
+             * is what sent the viewer back to the TV page exactly as the ident
+             * came up. Only a stop in the middle of a programme, with nothing
+             * else under way, is someone leaving. */
+            if (tvState.pending) return;
+            if (on && on.inIdent) return;
+            if (on && tvState.slotId && on.slot.item.id !== tvState.slotId) {
+                tvHandOver(on);
+                return;
+            }
+
             tvStop();
             return;
         }
 
         /* One seek at readyState 1 was not enough: the player applies its own
-         * start position after the metadata lands, so the programme went back to
-         * the beginning a moment after being put in the right place. The seek is
-         * repeated until the video actually sits within fifteen seconds of where
-         * the channel is, and the target is recomputed from the line-up each time
-         * so a slow start does not land in the past. */
+         * start position once the metadata lands, so the programme went back to
+         * the beginning a moment after being put in the right place. It repeats
+         * until the video sits within fifteen seconds of where the channel is,
+         * and the target is recomputed each time so a slow start lands on the
+         * clock rather than in the past. */
         var pending = tvState.pending;
         if (pending && video.readyState >= 1) {
-            var live = tvNow(tvChannel(tvState.channel), tvPools[tvState.channel], tvClock());
-            var wanted = live && live.slot.item.id === pending.slot.item.id ? live.offset : pending.offset;
+            var wanted = on && on.slot.item.id === pending.slot.item.id ? on.offset : pending.offset;
             // "Dall'inizio" means zero and stays zero.
             if (pending.offset === 0) wanted = 0;
 
@@ -5201,40 +5218,41 @@
             }
         }
 
+        if (!on || on.inIdent || tvState.pending) return;
+
+        // The line-up has moved on while the last programme was still on screen.
+        if (tvState.slotId && on.slot.item.id !== tvState.slotId) {
+            tvHandOver(on);
+        }
+    }
+
+    function tvHandOver(on) {
         var channel = tvChannel(tvState.channel);
-        var pool = tvPools[channel.id];
-        if (!pool) return;
+        log('tv: handing over to ' + on.slot.item.name);
+        tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
+        tvState.started = false;
+        tvState.retried = false;
+        tvState.tunedAt = Date.now();
+        tvPlay(on.slot.item, on.offset);
+    }
 
-        var on = tvNow(channel, pool, tvClock());
+    /* The card that covers the ident slot, with what is coming on it. */
+    function tvPaintIdent(on) {
         var skin = document.querySelector('.nf-tv-skin');
-        if (!skin) return;
+        if (!skin || !on) return;
 
-        if (!on) return;
-
-        var identCard = skin.querySelector('.nf-tv-ident');
-        if (on.inIdent) {
-            if (!skin.classList.contains('is-ident')) {
-                skin.classList.add('is-ident');
-                identCard.querySelector('h2').textContent = on.next ? on.next.item.name : '';
-                identCard.querySelector('.nf-tv-meta').textContent = on.next && on.next.show
-                    ? on.next.show
-                    : channel.name;
-            }
+        if (!on.inIdent) {
+            skin.classList.remove('is-ident');
             return;
         }
+        if (skin.classList.contains('is-ident')) return;
 
-        skin.classList.remove('is-ident');
-
-        // A programme has handed over: start the next one where the line-up says.
-        var playing = currentItemId();
-        if (playing && playing !== on.slot.item.id) {
-            tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
-            tvState.started = false;
-            tvState.retried = false;
-            tvState.tunedAt = Date.now();
-            tvPlay(on.slot.item, on.offset);
-            return;
-        }
+        var card = skin.querySelector('.nf-tv-ident');
+        var channel = tvChannel(tvState.channel);
+        skin.classList.add('is-ident');
+        card.querySelector('h2').textContent = on.next ? on.next.item.name : '';
+        card.querySelector('.nf-tv-meta').textContent =
+            (on.next && on.next.show) || (channel && channel.name) || '';
     }
 
     function refresh() {
