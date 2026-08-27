@@ -3021,9 +3021,7 @@ body.nf-hide-card-text .searchResults .cardText {
 }
 
 .libraryPage .paging .paper-icon-button-light,
-.libraryPage .listPaging .paper-icon-button-light,
-.libraryPage .btnShuffle,
-.libraryPage .btnPlay {
+.libraryPage .listPaging .paper-icon-button-light {
     width: 36px;
     height: 36px;
     color: var(--nf-text) !important;
@@ -3034,6 +3032,60 @@ body.nf-hide-card-text .searchResults .cardText {
 .libraryPage .paging .paper-icon-button-light:hover,
 .libraryPage .listPaging .paper-icon-button-light:hover {
     background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* The toolbar over a library grid. Jellyfin ships two of every control here - a
+   text one and an icon one, .listTextButton-autohide and .listIconButton-autohide,
+   swapped by width - and the icon ones are the pair that is hidden on a wide
+   screen. Sizing .btnPlay and .btnShuffle to 36 square hit the TEXT ones, so
+   "Play All" and "Shuffle" were clipped to a square each and their labels ran
+   straight into "Sort by Folders". Measured before this: Shuffle occupied
+   1092-1128 while Sort began at 1128.
+
+   Netflix has no toolbar to copy, so this is only made orderly: one row against
+   the page gutter rather than floating in the middle of it, each control sized to
+   its own label. */
+.itemsViewSettingsContainer {
+    justify-content: flex-start !important;
+    gap: 8px;
+    padding: 10px var(--nf-gutter) 14px !important;
+}
+
+.itemsViewSettingsContainer .paging,
+.itemsViewSettingsContainer .listPaging {
+    padding: 0 !important;
+    margin-right: 6px;
+}
+
+.libraryPage .listTextButton-autohide {
+    width: auto;
+    min-width: 0;
+    height: 36px;
+    min-height: 36px;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--nf-text) !important;
+    font-family: var(--nf-font);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.libraryPage .listTextButton-autohide:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.libraryPage .listIconButton-autohide {
+    width: 36px;
+    height: 36px;
+    margin: 0 !important;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--nf-text) !important;
 }
 
 .libraryPage .alphaPicker {
