@@ -4882,6 +4882,7 @@
             tvState.channel = channel.id;
             tvState.tunedAt = Date.now();
             tvState.started = false;
+            tvState.retried = false;
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
 
             tvGuardReporting(true);
@@ -4904,6 +4905,7 @@
         tvState.shift = 0;
         tvState.pending = null;
         tvState.started = false;
+        tvState.retried = false;
         if (tvState.timer) {
             clearInterval(tvState.timer);
             tvState.timer = null;
@@ -4975,7 +4977,26 @@
              * show up, and only then read its going away as the channel being
              * left. Forty seconds without one at all and the tune-in failed. */
             if (!tvState.started) {
-                if (Date.now() - tvState.tunedAt > 40000) {
+                var waited = Date.now() - tvState.tunedAt;
+
+                /* One retry. The click that starts playback is delegated by
+                 * jellyfin-web, and a click that lands while the page is still
+                 * settling reaches nothing at all - silently, with no error to
+                 * catch. Asking twice costs nothing and covers it. */
+                if (waited > 6000 && !tvState.retried && tvState.pending) {
+                    tvState.retried = true;
+                    var again = api();
+                    log('tv: nothing started yet, asking again');
+                    playNow(
+                        tvState.pending.slot.item.id,
+                        again && again.serverId(),
+                        tvState.pending.slot.item.type,
+                        'play'
+                    );
+                    return;
+                }
+
+                if (waited > 40000) {
                     log('tv: nothing started, leaving the channel');
                     tvStop();
                 }
