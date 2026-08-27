@@ -4385,10 +4385,18 @@
      * guide is just tomorrow's arithmetic, and there is no state to keep, migrate
      * or repair.
      *
-     * Days are independent on purpose. Carrying a programme over midnight would
-     * make day N depend on day N-1, and so on back to the epoch. Instead the last
-     * slot of a day is filled by the longest programme that still fits, so a day
-     * ends within a few minutes of midnight and nothing has to be remembered.
+     * Days are independent on purpose. A day is laid out from its own midnight
+     * and never looks at the day before it, so no schedule depends on a chain of
+     * schedules going back to the epoch.
+     *
+     * The last programme of a day is allowed to run past midnight rather than
+     * being cut to fit. Filling the tail with whatever was short enough still
+     * left a gap - a library's shortest film is over an hour, so a day could end
+     * an hour early, and that hour became a station ident nobody could sit
+     * through. Overrunning costs nothing: the day after is laid out from its own
+     * midnight as always, and someone watching at half past twelve is simply
+     * joining its first programme late, which is what a channel running behind
+     * looks like anyway.
      */
 
     var TV_EPOCH = Date.UTC(2026, 0, 1);
@@ -4398,6 +4406,24 @@
      * else. */
     var TV_IDENT_MS = 20000;
     var TV_MIN_MS = 4 * 60000;
+    /* How close to the end of a programme the player may disappear and still be
+     * the programme finishing rather than the viewer leaving. */
+    var TV_TAIL_MS = 3 * 60000;
+    /* How far past midnight the last programme of a day may run. Whatever runs
+     * over eats into the first programme of the day after, so the closing slot
+     * is picked to overshoot by less than this where the library allows it. */
+    var TV_OVERRUN_MS = 45 * 60000;
+
+    /* Animation and family films play on Family and nowhere else. A channel that
+     * bills itself as Action and then shows Gli Incredibili, or Sci-Fi and then
+     * Totoro, is not a channel - the genre tags are right and the bouquet is
+     * wrong - so the bouquets refuse them and Family asks for them. */
+    var TV_ANIMATION = ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'];
+
+    /* A sitcom is comedy at half an hour or under. Genre alone put Sweetpea on
+     * the sitcom channel - comedy-drama, three quarters of an hour - and Slow
+     * Horses with it. Length is what actually separates the two shapes. */
+    var TV_SITCOM_MS = 35 * 60000;
 
     /* The line-up. Uno, Saghe, Classici and 24 are curations rather than genres;
      * the rest are bouquets - unions of several genres - which is the shape a
@@ -4406,24 +4432,28 @@
         { id: 'uno', name: 'Uno', tone: '#1d3f8f', kind: 'movie', blurb: 'Il meglio della libreria',
           test: function (m) { return (m.CommunityRating || 0) >= 7.5; } },
         { id: 'action', name: 'Action', tone: '#a4161a', kind: 'movie', blurb: 'Azione e avventura',
-          genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'] },
+          genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'], notGenres: TV_ANIMATION },
         { id: 'comedy', name: 'Comedy', tone: '#e09f3e', kind: 'movie', blurb: 'Da ridere, sempre',
-          genres: ['Commedia', 'Comedy'] },
+          genres: ['Commedia', 'Comedy'], notGenres: TV_ANIMATION },
         { id: 'family', name: 'Family', tone: '#2a9d8f', kind: 'movie', blurb: 'Per tutta la famiglia',
           genres: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'] },
         { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', kind: 'movie', blurb: 'Fantascienza e fantasy',
-          genres: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Sci-Fi & Fantasy'] },
+          genres: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Sci-Fi & Fantasy'],
+          notGenres: TV_ANIMATION },
         { id: 'suspense', name: 'Suspense', tone: '#3d0e12', kind: 'movie', blurb: 'Thriller, horror, crime',
-          genres: ['Thriller', 'Horror', 'Mistero', 'Mystery', 'Crime'] },
+          genres: ['Thriller', 'Horror', 'Mistero', 'Mystery', 'Crime'], notGenres: TV_ANIMATION },
         { id: 'drama', name: 'Drama', tone: '#264653', kind: 'movie', blurb: 'Storie e sentimenti',
-          genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'] },
+          genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'], notGenres: TV_ANIMATION },
         { id: 'saghe', name: 'Saghe', tone: '#6a4c93', kind: 'boxset', blurb: 'Una saga per serata' },
         { id: 'classici', name: 'Classici', tone: '#7f5539', kind: 'movie', blurb: 'Prima del 1990',
           test: function (m) { return !!m.ProductionYear && m.ProductionYear < 1990; } },
+        /* The two episode channels split on shape rather than on genre alone, and
+         * they split on the same test, so whatever Sitcom does not take Serie
+         * gets and nothing falls between them. */
         { id: 'serie', name: 'Serie', tone: '#14213d', kind: 'episode', blurb: 'Episodi in ordine',
-          notGenres: ['Commedia', 'Comedy'] },
+          showTest: function (genres, episodes) { return !tvIsSitcom(genres, episodes); } },
         { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', kind: 'episode', blurb: 'Comedy a episodi',
-          genres: ['Commedia', 'Comedy'] },
+          genres: ['Commedia', 'Comedy'], showTest: tvIsSitcom },
         { id: 'nonstop', name: '24', tone: '#495057', kind: 'movie', blurb: 'Tutto, senza sosta' }
     ];
 
@@ -4504,6 +4534,23 @@
         return true;
     }
 
+    function tvMedian(numbers) {
+        if (!numbers.length) return 0;
+        var sorted = numbers.slice().sort(function (a, b) { return a - b; });
+        return sorted[Math.floor(sorted.length / 2)];
+    }
+
+    /* Comedy at half an hour or under. The median rather than the average, so a
+     * feature-length finale does not move a show off the channel. */
+    function tvIsSitcom(genres, episodes) {
+        var comedy = (genres || []).some(function (g) {
+            return g === 'Commedia' || g === 'Comedy';
+        });
+        if (!comedy) return false;
+
+        return tvMedian(episodes.map(function (e) { return e.ms; })) <= TV_SITCOM_MS;
+    }
+
     /* One item per programme, carrying only what the schedule needs. Sorted by
      * Id, because the shuffle has to start from the same order everywhere. */
     function tvEntry(item) {
@@ -4562,6 +4609,9 @@
                                     return {
                                         id: show.Id,
                                         name: show.Name,
+                                        // Kept for showTest, which cannot run
+                                        // before the episodes are here.
+                                        genres: show.Genres || [],
                                         episodes: (eps.Items || []).filter(tvKeep).map(tvEntry)
                                     };
                                 })
@@ -4570,10 +4620,12 @@
                     );
                 })
                 .then(function (shows) {
-                    return {
-                        kind: 'episode',
-                        shows: tvSort(shows.filter(function (s) { return s && s.episodes.length; }))
-                    };
+                    var keep = shows.filter(function (s) {
+                        if (!s || !s.episodes.length) return false;
+                        if (!channel.showTest) return true;
+                        return channel.showTest(s.genres, s.episodes);
+                    });
+                    return { kind: 'episode', shows: tvSort(keep) };
                 });
         } else if (channel.kind === 'boxset') {
             request = client
@@ -4647,8 +4699,24 @@
     /* A day of one channel. Deterministic, self-contained, and laid out so it
      * ends near midnight: the last slot takes the longest programme that still
      * fits rather than overrunning into a day that knows nothing about it. */
+    /* A day is asked for several times a second - the clock, the guide, the two
+     * days either side of midnight - and it is the same answer every time. */
+    var tvDayCache = {};
+
     function tvDaySchedule(channel, pool, day) {
         if (!pool) return [];
+
+        var key = channel.id + ':' + day;
+        if (tvDayCache[key] && tvDayCache[key].pool === pool) return tvDayCache[key].slots;
+
+        var slots = tvBuildDay(channel, pool, day);
+        // Yesterday, today, tomorrow, and room to spare while the date turns.
+        if (Object.keys(tvDayCache).length > 48) tvDayCache = {};
+        tvDayCache[key] = { pool: pool, slots: slots };
+        return slots;
+    }
+
+    function tvBuildDay(channel, pool, day) {
 
         var seed = tvHash(channel.id + ':' + day);
         var slots = [];
@@ -4665,12 +4733,30 @@
                 var span = film.ms + TV_IDENT_MS;
 
                 if (at + span > end) {
-                    // Closing slot: the longest that still fits, so the day lands
-                    // on midnight instead of trampling the next one.
+                    /* Closing slot: the longest that still fits, which keeps the
+                     * day tight. When nothing fits, this one plays anyway and
+                     * runs into tomorrow. */
                     var room = end - at;
                     var fits = order.filter(function (m) { return m.ms + TV_IDENT_MS <= room; });
-                    if (!fits.length) break;
-                    film = fits[fits.length - 1];
+                    if (fits.length) {
+                        film = fits.reduce(function (longest, m) {
+                            return m.ms > longest.ms ? m : longest;
+                        });
+                    } else {
+                        /* Nothing fits, so something has to run over. The first
+                         * in the day's own order that only just overshoots -
+                         * which is a different film each night, where taking the
+                         * shortest in the library would have been the same one
+                         * every night. */
+                        var near = order.filter(function (m) {
+                            return m.ms + TV_IDENT_MS <= room + TV_OVERRUN_MS;
+                        });
+                        film = near.length
+                            ? near[0]
+                            : order.reduce(function (shortest, m) {
+                                return m.ms < shortest.ms ? m : shortest;
+                            });
+                    }
                     span = film.ms + TV_IDENT_MS;
                 }
 
@@ -4678,7 +4764,7 @@
                 at += span;
                 i++;
             }
-            return tvCloseDay(slots, day);
+            return slots;
         }
 
         /* Series and sagas: in order within a title, and carrying on across days.
@@ -4700,21 +4786,62 @@
         var taken = 0;
         var cursors = {};
 
+        /* Where a title stands today: N days of an average day's episodes on
+         * from the epoch, so no day has to look up the one before it. */
+        function cursorFor(show) {
+            if (cursors[show.id] === undefined) {
+                var episodes = show.episodes;
+                var average = episodes.reduce(function (sum, e) {
+                    return sum + e.ms + TV_IDENT_MS;
+                }, 0) / episodes.length;
+                var perDay = Math.max(1, Math.floor(TV_DAY_MS / average));
+                cursors[show.id] = ((day * perDay) % episodes.length + episodes.length) % episodes.length;
+            }
+            return cursors[show.id];
+        }
+
         while (at < end && showAt < order.length * 4) {
             var show = order[showAt % order.length];
             var flat = show.episodes;
 
-            if (cursors[show.id] === undefined) {
-                var average = flat.reduce(function (sum, e) {
-                    return sum + e.ms + TV_IDENT_MS;
-                }, 0) / flat.length;
-                var perDay = Math.max(1, Math.floor(TV_DAY_MS / average));
-                cursors[show.id] = ((day * perDay) % flat.length + flat.length) % flat.length;
-            }
+            cursorFor(show);
 
             var episode = flat[cursors[show.id] % flat.length];
             var length = episode.ms + TV_IDENT_MS;
-            if (at + length > end) break;
+
+            if (at + length > end) {
+                /* What this show has next is too long for the evening that is
+                 * left. Giving the remainder to the closing ident is what left
+                 * Saghe showing a title card for half an hour, so the longest
+                 * episode that does fit takes the slot, from whichever show is
+                 * waiting - the tail of a day is where a channel stops being in
+                 * order and starts being a channel. */
+                var room = end - at;
+                var best = null;
+                order.forEach(function (other) {
+                    var candidate = other.episodes[cursorFor(other) % other.episodes.length];
+                    if (candidate.ms + TV_IDENT_MS > room) return;
+                    if (!best || candidate.ms > best.episode.ms) {
+                        best = { show: other, episode: candidate };
+                    }
+                });
+                /* Nothing short enough is waiting, so something runs into
+                 * tomorrow: whichever show overshoots least. */
+                if (!best) {
+                    order.forEach(function (other) {
+                        var candidate = other.episodes[cursorFor(other) % other.episodes.length];
+                        if (!best || candidate.ms < best.episode.ms) {
+                            best = { show: other, episode: candidate };
+                        }
+                    });
+                }
+                if (best) {
+                    show = best.show;
+                    flat = show.episodes;
+                    episode = best.episode;
+                    length = episode.ms + TV_IDENT_MS;
+                }
+            }
 
             slots.push({
                 item: episode,
@@ -4736,27 +4863,41 @@
                 taken = 0;
             }
         }
-        return tvCloseDay(slots, day);
-    }
-
-    /* The closing slot leaves a few minutes over - two, on the first run - and
-     * dead air is worse than a long station ident. The last one of the day runs
-     * to midnight, where the next day's first programme is already waiting. */
-    function tvCloseDay(slots, day) {
-        if (!slots.length) return slots;
-        slots[slots.length - 1].identEnd = tvDayStart(day + 1);
         return slots;
     }
 
-    /* What is on, and how far in. Returns null while the pool is still loading. */
+    /* What is on, and how far in. Returns null while the pool is still loading.
+     *
+     * Yesterday is consulted first: its last programme is allowed to run past
+     * midnight, and while it does, it is what is on. Today's line-up carries on
+     * underneath from its own midnight, so the moment the overrun ends the
+     * viewer joins today's first programme already under way. */
     function tvNow(channel, pool, when) {
         var time = when || Date.now();
-        var slots = tvDaySchedule(channel, pool, tvDayOf(time));
+        var today = tvDaySchedule(channel, pool, tvDayOf(time));
+
+        var yesterday = tvDaySchedule(channel, pool, tvDayOf(time) - 1);
+        var over = yesterday[yesterday.length - 1];
+        if (over && time >= over.start && time < over.identEnd) {
+            return {
+                slot: over,
+                next: today[0] || null,
+                offset: Math.max(0, time - over.start),
+                inIdent: time >= over.end
+            };
+        }
+
+        var slots = today;
         for (var i = 0; i < slots.length; i++) {
             if (time >= slots[i].start && time < slots[i].identEnd) {
+                var next = slots[i + 1] || null;
+                // The last ident of the day has tomorrow's first programme
+                // after it, not nothing.
+                if (!next) next = tvDaySchedule(channel, pool, tvDayOf(time) + 1)[0] || null;
+
                 return {
                     slot: slots[i],
-                    next: slots[i + 1] || null,
+                    next: next,
                     offset: Math.max(0, time - slots[i].start),
                     inIdent: time >= slots[i].end
                 };
@@ -4769,9 +4910,18 @@
     function tvGuide(channel, pool, when) {
         var time = when || Date.now();
         var day = tvDayOf(time);
-        var slots = tvDaySchedule(channel, pool, day).concat(tvDaySchedule(channel, pool, day + 1));
+        var slots = tvDaySchedule(channel, pool, day - 1)
+            .concat(tvDaySchedule(channel, pool, day))
+            .concat(tvDaySchedule(channel, pool, day + 1));
+
+        /* A programme that ran past midnight covers the start of the day it ran
+         * into, so what it covered is not listed: the guide says what a viewer
+         * would actually see, in the order they would see it. */
+        var on = tvNow(channel, pool, time);
+        var floor = on ? on.slot.start : time;
+
         return slots.filter(function (s) {
-            return s.identEnd > time && s.start < time + TV_DAY_MS;
+            return s.identEnd > time && s.start >= floor && s.start < time + TV_DAY_MS;
         });
     }
 
@@ -4816,7 +4966,8 @@
         retried: false,
         route: null,
         slotId: null,
-        ambient: false
+        ambient: false,
+        ended: false
     };
 
     function tvGuardReporting(on) {
@@ -5154,6 +5305,7 @@
             tvState.retried = false;
             tvState.pipTried = false;
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
+        tvState.ended = false;
 
             tvGuardReporting(true);
             /* Only the panel comes down. Navigating away from the hash - which
@@ -5233,8 +5385,15 @@
     function tvLiveVideo() {
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
         if (!video) return null;
-        if (video.readyState < 1 && video.paused) return null;
-        return video;
+
+        /* Reading "not paused" as playing was too generous: between pressing
+         * play and the first frame - which on a transcode is a good while - the
+         * element is unpaused with nothing loaded and no source, and taking that
+         * for a running programme retired the retries that would have started
+         * it. Something decoded, or a clock that has moved. */
+        if (video.readyState >= 2) return video;
+        if (video.currentTime > 0) return video;
+        return null;
     }
 
     function tvPressPlay(tries) {
@@ -5276,6 +5435,7 @@
         tvState.pending = null;
         tvState.started = false;
         tvState.retried = false;
+        tvState.ended = false;
         if (tvState.timer) {
             clearInterval(tvState.timer);
             tvState.timer = null;
@@ -5411,7 +5571,7 @@
                     return;
                 }
 
-                // Still nothing at twenty seconds: ask once more before giving up.
+                // Still nothing at twenty seconds: ask again.
                 if (waited > 20000 && tvState.retried !== 'twice' && tvState.pending) {
                     tvState.retried = 'twice';
                     log('tv: still nothing, one more');
@@ -5419,7 +5579,19 @@
                     return;
                 }
 
-                if (waited > 40000) {
+                /* And once more at forty-five. A hand-over asks the server for a
+                 * new transcode with nobody watching the request, and forty
+                 * seconds of patience was short enough that a slow one ended the
+                 * evening: the channel gave up and put the viewer back on the TV
+                 * page, one programme in. */
+                if (waited > 45000 && tvState.retried !== 'thrice' && tvState.pending) {
+                    tvState.retried = 'thrice';
+                    log('tv: still nothing at forty-five seconds, asking again');
+                    tvPressPlay(0);
+                    return;
+                }
+
+                if (waited > 90000) {
                     log('tv: nothing started, leaving the channel');
                     tvStop();
                 }
@@ -5437,6 +5609,22 @@
                 tvHandOver(on);
                 return;
             }
+
+            /* The player is gone while the line-up still has this programme on.
+             * The two do not end on the same second - the seek is allowed
+             * fifteen seconds of slack and a file rarely runs to the length its
+             * metadata claims - so the last minutes of a programme are exactly
+             * where its ending looks like someone leaving. Near the end it is
+             * the ending: the ident comes up early and the channel waits for
+             * what is next instead of dropping the viewer on the TV page. */
+            if (on && on.slot.end - tvClock() < TV_TAIL_MS) {
+                tvState.ended = true;
+                tvPaintIdent(on);
+                return;
+            }
+
+            // No line-up at all is a pool still loading, not a departure.
+            if (!on) return;
 
             tvStop();
             return;
@@ -5506,6 +5694,7 @@
         var channel = tvChannel(tvState.channel);
         log('tv: handing over to ' + on.slot.item.name);
         tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
+        tvState.ended = false;
         tvState.started = false;
         tvState.retried = false;
         tvState.tunedAt = Date.now();
@@ -5517,7 +5706,7 @@
         var skin = document.querySelector('.nf-tv-skin');
         if (!skin || !on) return;
 
-        if (!on.inIdent) {
+        if (!on.inIdent && !tvState.ended) {
             skin.classList.remove('is-ident');
             return;
         }
