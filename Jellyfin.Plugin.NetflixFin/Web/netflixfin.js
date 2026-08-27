@@ -4641,6 +4641,25 @@
         document.body.classList.remove('nf-tv');
         var panel = document.querySelector('.nf-tv-page');
         if (panel) panel.remove();
+        tvCardUpdates = [];
+        if (tvGridTimer) {
+            clearInterval(tvGridTimer);
+            tvGridTimer = null;
+        }
+    }
+
+    /* The grid is painted once, so what is on it has to keep itself current: the
+     * programme changes while you are looking at the page, and the first pass can
+     * land before ApiClient has a user, which is what left every channel reading
+     * "Fuori onda" for good. Each card keeps its own updater and they all run
+     * again every twenty seconds. */
+    var tvCardUpdates = [];
+    var tvGridTimer = null;
+
+    function tvRunUpdates() {
+        tvCardUpdates.forEach(function (update) {
+            update();
+        });
     }
 
     function tvOnPage() {
@@ -4668,6 +4687,7 @@
 
     function tvPaintGrid(panel) {
         panel.textContent = '';
+        tvCardUpdates = [];
 
         var head = el('div', 'nf-tv-head');
         head.appendChild(el('h1', null, 'TV'));
@@ -4705,24 +4725,39 @@
             });
             grid.appendChild(card);
 
-            tvLoadPool(channel).then(function (pool) {
-                var on = tvNow(channel, pool, Date.now());
-                if (!on) {
-                    line.textContent = 'Fuori onda';
-                    return;
-                }
-                line.textContent = on.inIdent ? 'A seguire: ' + (on.next ? on.next.item.name : '—') : on.slot.item.name;
-                sub.textContent = on.slot.show
-                    ? on.slot.show + ' · fino alle ' + tvTimeLabel(on.slot.end)
-                    : 'Fino alle ' + tvTimeLabel(on.slot.end);
-                var span = on.slot.end - on.slot.start;
-                fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
-                if (client) {
-                    card.style.setProperty('--nf-tv-art', 'url("' + tvArt(on.slot.item, client, 'wide') + '")');
-                    card.classList.add('has-art');
-                }
-            });
+            var update = function () {
+                tvLoadPool(channel).then(function (pool) {
+                    // No pool yet is not the same as nothing on: keep waiting.
+                    if (!pool) return;
+
+                    var on = tvNow(channel, pool, Date.now());
+                    if (!on) {
+                        line.textContent = 'Fuori onda';
+                        return;
+                    }
+                    line.textContent = on.inIdent
+                        ? 'A seguire: ' + (on.next ? on.next.item.name : '—')
+                        : on.slot.item.name;
+                    sub.textContent = on.slot.show
+                        ? on.slot.show + ' · fino alle ' + tvTimeLabel(on.slot.end)
+                        : 'Fino alle ' + tvTimeLabel(on.slot.end);
+                    var span = on.slot.end - on.slot.start;
+                    fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
+
+                    var art = api();
+                    if (art) {
+                        card.style.setProperty('--nf-tv-art', 'url("' + tvArt(on.slot.item, art, 'wide') + '")');
+                        card.classList.add('has-art');
+                    }
+                });
+            };
+
+            tvCardUpdates.push(update);
+            update();
         });
+
+        if (tvGridTimer) clearInterval(tvGridTimer);
+        tvGridTimer = setInterval(tvRunUpdates, 20000);
     }
 
     function tvPaintChannel(panel, id) {
@@ -4739,6 +4774,12 @@
         back.addEventListener('click', function () {
             tvPaintGrid(panel);
         });
+
+        tvCardUpdates = [];
+        if (tvGridTimer) {
+            clearInterval(tvGridTimer);
+            tvGridTimer = null;
+        }
         panel.appendChild(back);
 
         var hero = el('div', 'nf-tv-hero');
@@ -4751,6 +4792,14 @@
         var client = api();
 
         tvLoadPool(channel).then(function (pool) {
+            if (!pool) {
+                // Nothing to draw yet; the next pass will have it.
+                setTimeout(function () {
+                    if (panel.isConnected) tvPaintChannel(panel, id);
+                }, 1200);
+                return;
+            }
+
             var on = tvNow(channel, pool, Date.now());
             hero.textContent = '';
 
