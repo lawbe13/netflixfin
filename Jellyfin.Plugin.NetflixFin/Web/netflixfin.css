@@ -3581,6 +3581,33 @@ body.nf-tv-on .nf-tv-skin {
     font-size: 20px;
 }
 
+/* Offered only when the browser turned the corner window down. */
+.nf-tv-corner {
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    display: none;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-family: var(--nf-font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.nf-tv-skin.is-ambient.needs-pip .nf-tv-corner {
+    display: block;
+}
+
+/* Left on in the background: the ident's full-screen card would be shouting. */
+.nf-tv-skin.is-ambient.is-ident .nf-tv-ident {
+    display: none;
+}
+
 .nf-tv-live {
     position: absolute;
     top: 18px;
@@ -3600,6 +3627,10 @@ body.nf-tv-on .nf-tv-skin {
 
 .nf-tv-skin.is-shifted .nf-tv-live {
     display: block;
+}
+
+.nf-tv-skin.is-ambient.needs-pip.is-shifted .nf-tv-live {
+    left: 190px;
 }
 
 /* Covers the ident slot: a real clip goes here, and the title of what is coming

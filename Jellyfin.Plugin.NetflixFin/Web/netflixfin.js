@@ -2219,11 +2219,20 @@
         });
 
         /* Netflix's rating control is one button that opens three: thumb down, thumb
-         * up, and a double thumb up for "love this". Jellyfin models this as
-         * UserData.Likes, a nullable boolean - null unrated, false down, true up -
-         * so the third option has nowhere to be stored and is left out rather than
-         * faked. */
+         * up, and a double thumb up for "love this".
+         *
+         * Likes is a nullable boolean and holds only two of those, but UserData
+         * carries a per-user Rating as well, and that is where the third goes:
+         * liked and rated ten. Checked against the server before it was built -
+         * it round-trips, and it is per-user rather than a change to the item, so
+         * nothing is written into anyone else's metadata.
+         *
+         * Clearing needs DELETE. A POST to UserData applies the fields it is
+         * given and ignores nulls, so sending Rating: null leaves the rating
+         * exactly where it was; DELETE on Rating drops both it and Likes. Every
+         * change therefore clears first and then sets. */
         var liked = item.UserData ? item.UserData.Likes : null;
+        var loved = !!(item.UserData && liked === true && (item.UserData.Rating || 0) >= 10);
         var rate = el('div', 'nf-rate');
         var rateBtn = el('button', 'nf-circle nf-rate-open');
         rateBtn.type = 'button';
@@ -2231,43 +2240,58 @@
         rateBtn.title = '';
 
         var paintRate = function () {
-            rateBtn.replaceChildren(svgIcon(liked === false ? 'thumbdown' : 'thumbup'));
+            rateBtn.replaceChildren(
+                svgIcon(loved ? 'thumblove' : liked === false ? 'thumbdown' : 'thumbup')
+            );
             rateBtn.classList.toggle('is-rated', liked === true || liked === false);
-            rateBtn.title =
-                liked === true ? 'Valutazione pollice alzato'
-                    : liked === false ? 'Valutazione pollice verso' : '';
+            rateBtn.title = loved
+                ? 'Adoro!'
+                : liked === true ? 'Mi piace'
+                    : liked === false ? 'Non fa per me' : '';
         };
 
-        var setRating = function (value) {
+        var setRating = function (choice) {
             var userId = client.getCurrentUserId();
-            // Pressing the choice you already hold clears it, which is how Netflix
+
+            // Pressing the one you already hold clears it, which is how Netflix
             // un-rates a title.
-            var next = liked === value ? null : value;
-            var call =
-                next === null
-                    ? client.ajax({
-                        type: 'DELETE',
-                        url: client.getUrl('UserItems/' + item.Id + '/Rating', { userId: userId })
-                    })
-                    : client.ajax({
+            var held = loved ? 'love' : liked === true ? 'up' : liked === false ? 'down' : null;
+            var next = held === choice ? null : choice;
+
+            client
+                .ajax({
+                    type: 'DELETE',
+                    url: client.getUrl('UserItems/' + item.Id + '/Rating', { userId: userId })
+                })
+                .then(function () {
+                    if (next === null) return null;
+                    var data = { Likes: next !== 'down' };
+                    if (next === 'love') data.Rating = 10;
+                    return client.ajax({
                         type: 'POST',
-                        url: client.getUrl('UserItems/' + item.Id + '/Rating', {
-                            userId: userId,
-                            likes: next
-                        })
+                        url: client.getUrl('UserItems/' + item.Id + '/UserData'),
+                        data: JSON.stringify(data),
+                        contentType: 'application/json'
                     });
-            call.then(function () {
-                liked = next;
-                paintRate();
-            }).catch(function (err) {
-                log('could not save the rating', err);
-            });
+                })
+                .then(function () {
+                    liked = next === null ? null : next !== 'down';
+                    loved = next === 'love';
+                    item.UserData = item.UserData || {};
+                    item.UserData.Likes = liked;
+                    item.UserData.Rating = loved ? 10 : null;
+                    paintRate();
+                })
+                .catch(function (err) {
+                    log('could not save the rating', err);
+                });
         };
 
         var options = el('div', 'nf-rate-options');
         [
-            { glyph: 'thumbdown', label: 'Valutazione pollice verso', value: false },
-            { glyph: 'thumbup', label: 'Valutazione pollice alzato', value: true }
+            { glyph: 'thumbdown', label: 'Non fa per me', value: 'down' },
+            { glyph: 'thumbup', label: 'Mi piace', value: 'up' },
+            { glyph: 'thumblove', label: 'Adoro!', value: 'love' }
         ].forEach(function (choice) {
             var button = el('button', 'nf-circle nf-rate-choice');
             button.type = 'button';
@@ -2603,6 +2627,13 @@
         /* And a megaphone for "new season" / "new episode". */
         thumbup:
             'M2 20h3V9H2v11zm19.8-9.2c.1-.2.2-.5.2-.8v-1c0-1.1-.9-2-2-2h-4.6l.7-3.4v-.3c0-.4-.2-.8-.4-1.1L14.6 1 8.3 7.3c-.4.4-.6.9-.6 1.4V18c0 1.1.9 2 2 2h8c.8 0 1.5-.5 1.8-1.2l2.3-5.4c.1-.2.1-.4.1-.6v-1c0-.4-.1-.7-.1-1z',
+        /* "Adoro!" is Netflix's double thumb - the same one twice, offset. */
+        thumblove: [
+            { d: 'M2 20h3V9H2v11zm19.8-9.2c.1-.2.2-.5.2-.8v-1c0-1.1-.9-2-2-2h-4.6l.7-3.4v-.3c0-.4-.2-.8-.4-1.1L14.6 1 8.3 7.3c-.4.4-.6.9-.6 1.4V18c0 1.1.9 2 2 2h8c.8 0 1.5-.5 1.8-1.2l2.3-5.4c.1-.2.1-.4.1-.6v-1c0-.4-.1-.7-.1-1z',
+              transform: 'translate(-1.2 6.2) scale(0.6)' },
+            { d: 'M2 20h3V9H2v11zm19.8-9.2c.1-.2.2-.5.2-.8v-1c0-1.1-.9-2-2-2h-4.6l.7-3.4v-.3c0-.4-.2-.8-.4-1.1L14.6 1 8.3 7.3c-.4.4-.6.9-.6 1.4V18c0 1.1.9 2 2 2h8c.8 0 1.5-.5 1.8-1.2l2.3-5.4c.1-.2.1-.4.1-.6v-1c0-.4-.1-.7-.1-1z',
+              transform: 'translate(9.4 -0.6) scale(0.6)' }
+        ],
         thumbdown:
             'M22 4h-3v11h3V4zM2.2 13.2c-.1.2-.2.5-.2.8v1c0 1.1.9 2 2 2h4.6l-.7 3.4v.3c0 .4.2.8.4 1.1L9.4 23l6.3-6.3c.4-.4.6-.9.6-1.4V6c0-1.1-.9-2-2-2H6c-.8 0-1.5.5-1.8 1.2L1.9 10.6c-.1.2-.1.4-.1.6v1c0 .4.1.7.1 1z',
         megaphone:
@@ -2617,12 +2648,22 @@
     };
 
     function svgIcon(name) {
-        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
         svg.setAttribute('viewBox', '0 0 24 24');
         svg.setAttribute('aria-hidden', 'true');
-        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', GLYPHS[name] || GLYPHS.play);
-        svg.appendChild(path);
+
+        // A glyph is one path, or several when it is built out of a repeated one.
+        var glyph = GLYPHS[name] || GLYPHS.play;
+        var parts = typeof glyph === 'string' ? [{ d: glyph }] : glyph;
+
+        parts.forEach(function (part) {
+            var path = document.createElementNS(ns, 'path');
+            path.setAttribute('d', part.d);
+            if (part.transform) path.setAttribute('transform', part.transform);
+            svg.appendChild(path);
+        });
+
         return svg;
     }
 
@@ -4638,7 +4679,8 @@
         started: false,
         retried: false,
         route: null,
-        slotId: null
+        slotId: null,
+        ambient: false
     };
 
     function tvGuardReporting(on) {
@@ -4919,6 +4961,14 @@
                 tvTune(channel.id, 'live');
             });
 
+            var ambient = el('button', 'nf-btn nf-btn-secondary nf-tv-ambient-btn');
+            ambient.type = 'button';
+            ambient.appendChild(svgIcon('mute'));
+            ambient.appendChild(el('span', null, 'Sottofondo'));
+            ambient.addEventListener('click', function () {
+                tvTune(channel.id, 'ambient');
+            });
+
             var restart = el('button', 'nf-btn nf-btn-secondary');
             restart.type = 'button';
             restart.appendChild(svgIcon('back10'));
@@ -4929,6 +4979,7 @@
 
             actions.appendChild(watch);
             actions.appendChild(restart);
+            actions.appendChild(ambient);
             hero.appendChild(actions);
 
             guide.appendChild(el('h3', null, 'Le prossime 24 ore'));
@@ -4960,10 +5011,12 @@
             // Restarting steps the clock back by however far in we were, and the
             // channel carries on from there - time-shifted, with a way back.
             tvState.shift = mode === 'restart' ? on.offset : 0;
+            tvState.ambient = mode === 'ambient';
             tvState.channel = channel.id;
             tvState.tunedAt = Date.now();
             tvState.started = false;
             tvState.retried = false;
+            tvState.pipTried = false;
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
 
             tvGuardReporting(true);
@@ -5077,6 +5130,11 @@
         var route = tvState.route;
         tvState.route = null;
         tvState.slotId = null;
+        tvState.ambient = false;
+
+        if (document.pictureInPictureElement) {
+            document.exitPictureInPicture().catch(function () {});
+        }
         tvState.channel = null;
         tvState.shift = 0;
         tvState.pending = null;
@@ -5112,6 +5170,20 @@
         mark.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
         mark.appendChild(el('span', 'nf-tv-logo-name', ''));
         skin.appendChild(mark);
+
+        var corner = el('button', 'nf-tv-corner');
+        corner.type = 'button';
+        corner.textContent = 'Riduci a finestra';
+        corner.addEventListener('click', function () {
+            var video = tvLiveVideo();
+            if (!video) return;
+            video.requestPictureInPicture().then(function () {
+                skin.classList.remove('needs-pip');
+            }).catch(function (err) {
+                log('tv: the corner window is not available here', err);
+            });
+        });
+        skin.appendChild(corner);
 
         var live = el('button', 'nf-tv-live');
         live.type = 'button';
@@ -5184,6 +5256,7 @@
         if (video) {
             tvState.started = true;
             tvCover(false);
+            if (tvState.ambient) tvAmbient(video);
         }
 
         tvPaintIdent(on);
@@ -5265,6 +5338,32 @@
         if (tvState.slotId && on.slot.item.id !== tvState.slotId) {
             tvHandOver(on);
         }
+    }
+
+    /* Left on rather than watched: muted, and in the browser's own corner window
+     * where there is one. Picture-in-Picture wants a gesture it can trace back to
+     * the viewer, and this is several steps and a page load away from the button
+     * that started it, so a refusal is expected rather than exceptional - the
+     * skin then offers a button, and a tap on that is a gesture by definition.
+     *
+     * The corner window lives on the same element the player owns. Navigating far
+     * enough for Jellyfin to tear that element down takes the window with it, and
+     * the channel stops the way it does anywhere else. */
+    function tvAmbient(video) {
+        video.muted = true;
+
+        var skin = document.querySelector('.nf-tv-skin');
+        if (skin) skin.classList.add('is-ambient');
+
+        if (tvState.pipTried || !document.pictureInPictureEnabled) return;
+        if (document.pictureInPictureElement) return;
+        if (video.readyState < 2) return;
+
+        tvState.pipTried = true;
+        video.requestPictureInPicture().catch(function (err) {
+            log('tv: the corner window was refused, offering the button', err);
+            if (skin) skin.classList.add('needs-pip');
+        });
     }
 
     function tvHandOver(on) {
