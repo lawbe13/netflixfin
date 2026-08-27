@@ -4624,13 +4624,16 @@
 
     /* ------------------------------------------------------------ the page */
 
+    /* refresh() runs on every DOM mutation, and the page is on the page: painting
+     * here unconditionally rebuilt the grid a moment after a channel was opened,
+     * so the channel view never survived its own click. It paints once, when the
+     * panel is made; after that the view belongs to whoever is looking at it. */
     function tvOpen() {
         document.body.classList.add('nf-tv');
-        var panel = document.querySelector('.nf-tv-page');
-        if (!panel) {
-            panel = el('div', 'nf-tv-page');
-            document.body.appendChild(panel);
-        }
+        if (document.querySelector('.nf-tv-page')) return;
+
+        var panel = el('div', 'nf-tv-page');
+        document.body.appendChild(panel);
         tvPaintGrid(panel);
     }
 
