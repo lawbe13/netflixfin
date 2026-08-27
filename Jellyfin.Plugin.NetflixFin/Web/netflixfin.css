@@ -3547,6 +3547,11 @@ body.nf-hide-card-text .searchResults .cardText {
     .skinHeader .pageTitle,
     .skinHeader .pageTitleWithLogo,
     .skinHeader .pageTitleWithDefaultLogo {
+        /* .headerLeft wraps, and a flex line wraps before it shrinks: a title
+           whose own width did not fit went to a line of its own and made the
+           header three rows deep on every library page. A basis of zero means it
+           never causes the wrap - it takes what is left and ellipsises. */
+        flex: 1 1 0 !important;
         width: auto !important;
         height: auto !important;
         min-width: 0;
@@ -3562,6 +3567,13 @@ body.nf-hide-card-text .searchResults .cardText {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
+    }
+
+    /* A page with a back arrow does not get the mark: the arrow, the drawer
+       button and five controls leave the name about 50pt otherwise, and the app
+       drops its own logo on a sub-page too. */
+    .headerLeft:has(.headerBackButton) .nf-mark {
+        display: none;
     }
 
     .headerLeft .headerBackButton {
