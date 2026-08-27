@@ -189,6 +189,22 @@
         // nf-playing is managePlayer's alone - see the note there.
     }
 
+    /* The header is fixed and, on a phone, two rows tall - the wordmark and the
+     * controls, then the chip row. Nothing reserved that height, so every page
+     * started at y=0 underneath it: scrolling ran the billboard, its buttons and
+     * its title straight through the chips. The height is measured rather than
+     * guessed because a long page title, a second line of chips or a large text
+     * setting all change it. */
+    function publishHeaderHeight() {
+        var header = document.querySelector('.skinHeader');
+        if (!header) return;
+        var height = Math.round(header.getBoundingClientRect().height);
+        if (!height) return;
+        if (publishHeaderHeight.last === height) return;
+        publishHeaderHeight.last = height;
+        document.documentElement.style.setProperty('--nf-header-h', height + 'px');
+    }
+
     function bindScrollState() {
         var update = function () {
             var scroller = document.querySelector('.mainAnimatedPages') || document.documentElement;
@@ -925,6 +941,16 @@
                 if (oldLogo) container.appendChild(oldLogo);
                 stale.remove();
             }
+
+            /* In Jellyfin's mobile layout .itemBackdrop is an empty div - the art
+             * goes into the fixed .backdropContainer behind the page, which this
+             * skin covers - so the top of the page was a black band. Paint it, and
+             * put the logo on it, which is the shape the app uses. */
+            var backdrop = document.querySelector('.itemBackdrop');
+            var mark = document.querySelector('.detailLogo');
+            if (backdrop && mark && mark.parentElement !== backdrop) {
+                backdrop.appendChild(mark);
+            }
             return;
         }
 
@@ -962,6 +988,19 @@
     function paintDetailLogo(id, client) {
         var apply = function (item) {
             if (currentDetailId() !== id) return;
+
+            if (isPhone()) {
+                var backdrop = document.querySelector('.itemBackdrop');
+                var wide = item && item.BackdropImageTags && item.BackdropImageTags[0];
+                if (backdrop && wide) {
+                    var art = client.getImageUrl(id, { type: 'Backdrop', maxWidth: 900, tag: wide });
+                    if (backdrop.dataset.nfArt !== art) {
+                        backdrop.dataset.nfArt = art;
+                        backdrop.style.backgroundImage = 'url("' + art + '")';
+                    }
+                }
+            }
+
             var logo = document.querySelector('.detailLogo');
             var tag = item && item.ImageTags && item.ImageTags.Logo;
             if (logo && tag) {
@@ -3904,6 +3943,7 @@
     function refresh() {
         applyTileCount();
         applyBodyFlags();
+        publishHeaderHeight();
         applyLogo();
         netflixHeaderIcons();
         buildNav();
@@ -3931,6 +3971,7 @@
             'resize',
             function () {
                 applyTileCount();
+                publishHeaderHeight();
                 // The rows' arrows and page dots are sized off the viewport, and this
                 // is the one place that redraws them - the alternative was a listener
                 // per row, which leaked.

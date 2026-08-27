@@ -2850,23 +2850,28 @@ body.nf-playing .skinHeader {
    in its accent blue and stacks centred. As chips they read as what they are -
    things to tap - and they stop looking like a bug report. */
 .searchSuggestions {
-    max-width: 900px;
+    max-width: 720px;
     margin: 0 auto;
-    padding-top: 8px;
+    padding: 8px var(--nf-gutter) 0;
 }
 
 .searchSuggestions .sectionTitle {
-    margin: 18px 0 12px !important;
-    text-align: center;
+    margin: 22px 0 12px !important;
+    padding: 0 !important;
+    text-align: left;
     font-size: 16px !important;
     font-weight: 500 !important;
     color: var(--nf-text-dim);
 }
 
+/* Centred wrapping rows come out ragged - every line a different width, none of
+   them lined up with anything else on the page. Left aligned they read as a
+   list, which is what they are. */
 .searchSuggestions .searchSuggestionsList {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: flex-start;
     gap: 10px;
 }
 
@@ -3279,6 +3284,17 @@ body.nf-hide-card-text .searchResults .cardText {
     .skinHeader {
         height: auto !important;
         padding: 8px 12px !important;
+        /* Two rows tall and fixed, over a page that started at y=0: scrolling ran
+           the billboard, its buttons and its title straight through the chips.
+           The wide layout can afford a transparent header because the billboard
+           is built to sit under one; this one cannot. */
+        background: var(--nf-bg) !important;
+    }
+
+    body.nf-touch .mainAnimatedPages,
+    body.nf-touch .homePage.libraryPage {
+        /* published by publishHeaderHeight(), measured rather than guessed */
+        padding-top: var(--nf-header-h, 113px) !important;
     }
 
     /* Everything was on one line: the drawer button, the logo, four pills and six
@@ -3402,14 +3418,8 @@ body.nf-hide-card-text .searchResults .cardText {
         font-size: 15px;
     }
 
-    .searchSuggestions .searchSuggestionsList {
-        justify-content: flex-start;
-        padding: 0 var(--nf-gutter);
-    }
-
-    .searchSuggestions .sectionTitle {
-        padding: 0 var(--nf-gutter) !important;
-        text-align: left;
+    .searchSuggestions {
+        padding: 4px var(--nf-gutter) 0;
     }
 
     /* The second line, edge to edge. .headerLeft is only as wide as what the
@@ -3536,11 +3546,16 @@ body.nf-hide-card-text .searchResults .cardText {
         width: 100%;
     }
 
-    /* 149 x 40pt with a 6pt radius, measured off the 18.46.1 shots. 4px read as
-       a square corner next to the app's, which is what it was. */
+    /* The app's own corner, measured off the 18.46.1 shots by walking the pixels
+       of the white button - the arc runs from (7,2) to (1,11) on a button 83px
+       tall - is about 11% of the height, so 5px on a 48pt button. That is what
+       6px was. The owner reads that as a chamfer rather than a curve and asked
+       for rounder twice, so this is deliberately past the measurement: 10 on 40.
+       .nf-btn carries min-height: 48px, which is why height alone did nothing. */
     .nf-hero-buttons .nf-btn {
         height: 40px;
-        border-radius: 6px;
+        min-height: 40px;
+        border-radius: 10px;
         font-size: 16px;
         font-weight: 600;
         white-space: nowrap;
@@ -3595,6 +3610,106 @@ body.nf-hide-card-text .searchResults .cardText {
     .sectionTitleTextButton {
         font-size: 17px !important;
         font-weight: 700 !important;
+    }
+
+    /* --- the title page ---------------------------------------------------
+       Jellyfin's mobile layout puts a poster beside the name, a small Play and
+       a wall of keyword tags. Netflix's is art across the top with the logo on
+       it, then one full-width Riproduci. The art is painted by mountDetailArt:
+       .itemBackdrop is an empty div here, because Jellyfin puts the image in the
+       fixed .backdropContainer behind the page, which this skin covers over. */
+    body.nf-detail .itemBackdrop {
+        position: relative;
+        height: auto;
+        padding-top: 56.25%;
+        margin-bottom: 0;
+        background-size: cover;
+        background-position: center;
+    }
+
+    body.nf-detail .itemBackdrop::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(0deg, var(--nf-bg) 1%, rgba(20, 20, 20, 0) 55%);
+        pointer-events: none;
+    }
+
+    body.nf-detail .itemBackdrop .detailLogo {
+        display: block !important;
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        bottom: 6px;
+        height: 46%;
+        background-position: center bottom;
+        background-size: contain;
+        background-repeat: no-repeat;
+        z-index: 2;
+    }
+
+    /* The fixed one would otherwise show through as a second, larger copy. */
+    body.nf-detail .backdropContainer,
+    body.nf-detail .backdropImage {
+        display: none !important;
+    }
+
+    body.nf-detail .detailRibbon {
+        padding: 0 var(--nf-gutter) !important;
+    }
+
+    body.nf-detail .infoWrapper {
+        display: block !important;
+        text-align: center;
+    }
+
+    /* The poster is redundant next to the art it was cropped from. */
+    body.nf-detail .infoWrapper .detailImageContainer {
+        display: none !important;
+    }
+
+    body.nf-detail-logo .nameContainer {
+        display: none !important;
+    }
+
+    body.nf-detail .itemMiscInfo {
+        justify-content: center;
+        font-size: 13px;
+    }
+
+    body.nf-detail .mainDetailButtons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    body.nf-detail .mainDetailButtons .btnPlay,
+    body.nf-detail .mainDetailButtons .btnResume {
+        flex: 1 0 100%;
+        height: 44px;
+        min-height: 44px;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    body.nf-detail .detailPagePrimaryContent {
+        padding: 14px var(--nf-gutter) 0 !important;
+    }
+
+    body.nf-detail .detailSection {
+        padding: 0 !important;
+    }
+
+    /* Keyword tags are Jellyfin's, not Netflix's, and there are twenty of them.
+       Kept - they are real metadata - but at the weight of a caption. */
+    body.nf-detail .detailSectionContent > div:last-child,
+    body.nf-detail .itemDetailsGroup {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--nf-text-dim);
     }
 
     /* Nothing hovers on a phone: a tap opens the title straight away, so the
