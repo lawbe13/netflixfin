@@ -5121,10 +5121,25 @@
         });
         skin.appendChild(live);
 
+        /* The ident is a real clip, played by an element of ours rather than
+         * through Jellyfin's player: it is already in a format every browser
+         * takes, so there is nothing to transcode and no fake item in anyone's
+         * library. What is coming next stays as text over it, because a video
+         * per hand-over would be a file per hand-over. */
         var card = el('div', 'nf-tv-ident');
-        card.appendChild(el('div', 'nf-tv-kicker', 'A seguire'));
-        card.appendChild(el('h2', null, ''));
-        card.appendChild(el('div', 'nf-tv-meta', ''));
+
+        var clip = el('video', 'nf-tv-ident-clip');
+        clip.muted = false;
+        clip.playsInline = true;
+        clip.preload = 'auto';
+        card.appendChild(clip);
+
+        var copy = el('div', 'nf-tv-ident-copy');
+        copy.appendChild(el('div', 'nf-tv-kicker', 'A seguire'));
+        copy.appendChild(el('h2', null, ''));
+        copy.appendChild(el('div', 'nf-tv-meta', ''));
+        card.appendChild(copy);
+
         skin.appendChild(card);
 
         document.body.appendChild(skin);
@@ -5279,6 +5294,26 @@
         card.querySelector('h2').textContent = on.next ? on.next.item.name : '';
         card.querySelector('.nf-tv-meta').textContent =
             (on.next && on.next.show) || (channel && channel.name) || '';
+
+        var clip = card.querySelector('.nf-tv-ident-clip');
+        if (clip && channel) {
+            var source = '/NetflixFin/tv/ident/' + channel.id;
+            if (clip.getAttribute('data-nf-ident') !== channel.id) {
+                clip.setAttribute('data-nf-ident', channel.id);
+                clip.src = source;
+            }
+            clip.currentTime = 0;
+            /* Started by the hand-over, which the viewer set going, so the
+             * browser counts it as wanted rather than as an advert starting
+             * itself. If it is refused anyway the card stands on its own. */
+            var playing = clip.play();
+            if (playing && playing.catch) {
+                playing.catch(function () {
+                    clip.muted = true;
+                    clip.play().catch(function () {});
+                });
+            }
+        }
     }
 
     function refresh() {

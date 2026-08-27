@@ -25,6 +25,10 @@
     <EmbeddedResource Include="Configuration\configPage.html" />
     <EmbeddedResource Include="Web\netflixfin.css" />
     <EmbeddedResource Include="Web\netflixfin.js" />
+    <!-- One station ident per channel, eight seconds each. Built from the
+         server's own wordmark and a synthesised chord, so nothing here is
+         downloaded or licensed. -->
+    <EmbeddedResource Include="Web\tv\*.mp4" />
   </ItemGroup>
 
 </Project>

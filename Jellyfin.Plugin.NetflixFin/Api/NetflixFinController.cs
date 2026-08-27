@@ -188,6 +188,49 @@ public class NetflixFinController : ControllerBase
         return new JsonResult(new { updatedUtc = service.UpdatedUtc, titles = service.Titles }, _json);
     }
 
+    /// <summary>
+    /// Gets a channel's station ident.
+    /// </summary>
+    /// <remarks>
+    /// The clips are played by a video element of the theme's own rather than
+    /// through Jellyfin's player: they are already in a format every browser
+    /// takes, so there is nothing to transcode, and they never become items in
+    /// anybody's library.
+    /// </remarks>
+    /// <param name="channel">The channel's id, as the theme knows it.</param>
+    [HttpGet("tv/ident/{channel}")]
+    [Produces("video/mp4")]
+    public ActionResult GetIdent(string channel)
+    {
+        // The name goes into a resource path, so it is matched rather than trusted.
+        if (string.IsNullOrEmpty(channel) || !Channels.Contains(channel, StringComparer.Ordinal))
+        {
+            return NotFound();
+        }
+
+        var assembly = typeof(NetflixFinController).Assembly;
+        var name = typeof(Plugin).Namespace + ".Web.tv." + channel + ".mp4";
+        var stream = assembly.GetManifestResourceStream(name);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        // They never change between builds, so they are worth keeping.
+        Response.Headers.CacheControl = "public, max-age=604800, immutable";
+        return File(stream, "video/mp4");
+    }
+
+    /// <summary>
+    /// The channels the theme defines, mirrored here only so that a request for
+    /// an ident cannot ask for an arbitrary embedded resource.
+    /// </summary>
+    private static readonly string[] Channels =
+    {
+        "uno", "action", "comedy", "family", "scifi", "suspense",
+        "drama", "saghe", "classici", "serie", "sitcom", "nonstop"
+    };
+
     private static string Sanitize(string? value, string fallback)
     {
         if (string.IsNullOrWhiteSpace(value))

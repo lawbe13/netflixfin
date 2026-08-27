@@ -3622,6 +3622,25 @@ body.nf-tv-on .nf-tv-skin {
     display: flex;
 }
 
+.nf-tv-ident-clip {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: var(--nf-tv-tone, #111);
+}
+
+/* The clip carries the channel; the copy carries what is coming. It sits low so
+   the ident's own lockup has the middle of the frame to itself. */
+.nf-tv-ident-copy {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: 12%;
+    text-align: center;
+}
+
 .nf-tv-ident h2 {
     margin: 0;
     max-width: 70vw;
