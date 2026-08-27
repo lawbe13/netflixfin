@@ -3519,7 +3519,10 @@ body.nf-tv {
     font-family: var(--nf-font);
 }
 
+/* .nf-tv-logo carries align-self: flex-start for the places it sits in a
+   corner, which in this centred column put it against the left edge. */
 .nf-tv-cover .nf-tv-logo {
+    align-self: center;
     transform: scale(1.4);
 }
 

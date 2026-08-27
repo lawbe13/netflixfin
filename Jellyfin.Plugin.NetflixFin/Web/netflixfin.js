@@ -5037,18 +5037,36 @@
         return hash.indexOf(tvState.route) === 0 || hash.indexOf('#/video') === 0;
     }
 
-    function tvPressPlay(tries) {
-        if (!tvState.channel) return;
+    /* A programme that has finished leaves its <video> behind - connected,
+     * paused, with nothing loaded. Taking that for a running player is what
+     * wedged the hand-over on the tuning card: the channel believed the next
+     * programme had started, so it stopped waiting for it and stopped trying. */
+    function tvLiveVideo() {
+        var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+        if (!video) return null;
+        if (video.readyState < 1 && video.paused) return null;
+        return video;
+    }
 
-        if (window.location.hash.indexOf('#/video') === 0) return;
+    function tvPressPlay(tries) {
+        if (!tvState.channel || !tvState.route) return;
+
+        /* Still in the player the last programme was in. Leaving it is this
+         * function's job rather than a reason to give up - returning here left
+         * the hand-over with nobody to press anything, and the retry a second
+         * later hit the same wall. */
+        if (window.location.hash.indexOf('#/video') === 0) {
+            window.location.hash = tvState.route;
+        }
 
         var button = document.querySelector('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay');
         if (button && button.offsetParent !== null) {
             button.click();
             return;
         }
+
         // The page has to render first, and a transcoding server is not quick.
-        if (tries < 60) {
+        if (tries < 80) {
             setTimeout(function () {
                 tvPressPlay(tries + 1);
             }, 250);
@@ -5147,7 +5165,7 @@
         var pool = tvPools[channel.id];
         var on = pool ? tvNow(channel, pool, tvClock()) : null;
 
-        var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+        var video = tvLiveVideo();
         if (video) {
             tvState.started = true;
             tvCover(false);
@@ -5165,6 +5183,14 @@
                 if (waited > 6000 && !tvState.retried && tvState.pending) {
                     tvState.retried = true;
                     log('tv: nothing started yet, asking again');
+                    tvPressPlay(0);
+                    return;
+                }
+
+                // Still nothing at twenty seconds: ask once more before giving up.
+                if (waited > 20000 && tvState.retried !== 'twice' && tvState.pending) {
+                    tvState.retried = 'twice';
+                    log('tv: still nothing, one more');
                     tvPressPlay(0);
                     return;
                 }
