@@ -5561,32 +5561,22 @@
             if (!tvState.started) {
                 var waited = Date.now() - tvState.tunedAt;
 
-                /* One retry. The click that starts playback is delegated by
-                 * jellyfin-web, and one that lands while the page is still
-                 * settling reaches nothing at all - silently. */
-                if (waited > 6000 && !tvState.retried && tvState.pending) {
-                    tvState.retried = true;
-                    log('tv: nothing started yet, asking again');
-                    tvPressPlay(0);
-                    return;
-                }
-
-                // Still nothing at twenty seconds: ask again.
-                if (waited > 20000 && tvState.retried !== 'twice' && tvState.pending) {
-                    tvState.retried = 'twice';
-                    log('tv: still nothing, one more');
-                    tvPressPlay(0);
-                    return;
-                }
-
-                /* And once more at forty-five. A hand-over asks the server for a
-                 * new transcode with nobody watching the request, and forty
-                 * seconds of patience was short enough that a slow one ended the
-                 * evening: the channel gave up and put the viewer back on the TV
-                 * page, one programme in. */
-                if (waited > 45000 && tvState.retried !== 'thrice' && tvState.pending) {
-                    tvState.retried = 'thrice';
-                    log('tv: still nothing at forty-five seconds, asking again');
+                /* Asking again, on a ladder. The click that starts playback is
+                 * delegated by jellyfin-web, and one that lands while the page
+                 * is still settling reaches nothing at all - silently - so the
+                 * first rung is early. The later ones are for the hand-over,
+                 * which asks the server for a new transcode with nobody
+                 * watching the request: forty seconds of patience was short
+                 * enough that a slow one ended the evening.
+                 *
+                 * Counted rather than named. Naming the rungs let a later one
+                 * satisfy an earlier one's test, so the channel pressed play
+                 * every second and never reached the point of giving up. */
+                var rungs = [6000, 20000, 45000];
+                var asked = tvState.retried || 0;
+                if (asked < rungs.length && waited > rungs[asked] && tvState.pending) {
+                    tvState.retried = asked + 1;
+                    log('tv: nothing started yet, asking again (' + (asked + 1) + ')');
                     tvPressPlay(0);
                     return;
                 }
