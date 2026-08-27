@@ -452,8 +452,20 @@
             left.insertBefore(mark, title);
         }
 
-        if (!title.textContent.trim() && window.location.hash.indexOf('#/home') === 0) {
-            title.textContent = /tab=1/.test(window.location.hash) ? 'La mia lista' : 'Home';
+        /* Only the home page needs one supplied, and only on a phone: the wide
+         * layout still draws the wordmark there, and a title written into the
+         * same element paints straight over it. Ours is flagged so a real title
+         * from Jellyfin is never the one being cleared. */
+        if (window.location.hash.indexOf('#/home') !== 0) return;
+
+        if (isPhone()) {
+            if (!title.textContent.trim()) {
+                title.textContent = /tab=1/.test(window.location.hash) ? 'La mia lista' : 'Home';
+                title.dataset.nfTitle = '1';
+            }
+        } else if (title.dataset.nfTitle) {
+            title.textContent = '';
+            delete title.dataset.nfTitle;
         }
     }
 

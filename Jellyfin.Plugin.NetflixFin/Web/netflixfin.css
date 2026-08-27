@@ -310,6 +310,12 @@ body.nf-scrolled .skinHeader {
     }
 }
 
+/* The phone's mark. The wide layout keeps the wordmark, so this is off there -
+   without it the letter and the page name paint on top of the logo image. */
+.nf-mark {
+    display: none;
+}
+
 /* Netflix hangs its menus off a small caret under the nav item. */
 .nf-nav-menu::before {
     content: "";
