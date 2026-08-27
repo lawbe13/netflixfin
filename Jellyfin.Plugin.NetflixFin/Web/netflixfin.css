@@ -2809,6 +2809,10 @@ body.nf-playing .skinHeader {
    match the placeholder. */
 .searchFields .searchFieldsInner {
     position: relative;
+    box-sizing: border-box;
+    /* Jellyfin's label and input stack to 68px inside this box, which left the
+       glyph sitting 21px below the centre line. One height, set here. */
+    height: 52px;
     max-width: 900px;
     margin: 0;
     padding: 0 16px;
@@ -2816,11 +2820,26 @@ body.nf-playing .skinHeader {
     background: rgba(255, 255, 255, 0.12);
     border: 0;
     border-radius: 8px;
+    align-items: center !important;
     justify-content: flex-start !important;
 }
 
+.searchFields .inputLabel {
+    display: none !important;
+}
+
 .searchFields .searchfields-icon {
+    /* Jellyfin aligns this glyph to flex-end, to sit on the baseline of an input
+       that is taller than the one here. That is the 15px it was riding low by. */
+    align-self: center !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    margin: 0 !important;
+    padding: 0 !important;
     font-size: 22px !important;
+    line-height: 1 !important;
     color: rgba(255, 255, 255, 0.6);
     opacity: 1;
 }
@@ -2831,7 +2850,7 @@ body.nf-playing .skinHeader {
 }
 
 .searchFields .emby-input {
-    height: 48px;
+    height: 100%;
     padding: 0 !important;
     border: 0 !important;
     border-radius: 0;
@@ -2872,6 +2891,10 @@ body.nf-playing .skinHeader {
    them lined up with anything else on the page. Left aligned they read as a
    list, which is what they are. */
 .searchSuggestions .searchSuggestionsList {
+    /* .padded-left/.padded-right are 1.4% of the viewport on top of the gutter
+       this section already has: the chips began 30px right of the field. */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
@@ -3490,13 +3513,17 @@ body.nf-hide-card-text .searchResults .cardText {
         flex: 0 0 auto;
         height: 44px;
         padding: 0 18px !important;
-        border: 0;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.12);
+        /* The current design outlines them: a dark translucent fill with a
+           hairline a shade lighter than itself, corners at about 30% of the
+           height. The App Store shot reads as borderless at that size; the
+           design screens Lorenzo sent show the hairline clearly. */
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.1);
         color: #fff;
         font-size: 15px !important;
         font-weight: 500;
-        line-height: 44px;
+        line-height: 42px;
     }
 
     .nf-nav-item {
@@ -3504,13 +3531,14 @@ body.nf-hide-card-text .searchResults .cardText {
     }
 
     .nf-nav-item > a {
-        border-radius: 12px;
-        line-height: 44px;
+        border-radius: 14px;
+        line-height: 42px;
     }
 
     .nf-nav > .is-active,
     .nf-nav > .nf-nav-item > a.is-active {
-        background: rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.35);
     }
 
     /* The billboard is 3:4 on the phone - portrait key art, not a 16:9 still -
@@ -3578,7 +3606,10 @@ body.nf-hide-card-text .searchResults .cardText {
     .nf-hero-buttons .nf-btn {
         height: 40px;
         min-height: 40px;
-        border-radius: 9999px;
+        /* The design screens settle this: the corner is a good deal rounder than
+           the 11% the App Store shot measured, but it is still a rounded
+           rectangle and not a pill. 12 on 40 is what those screens show. */
+        border-radius: 12px;
         font-size: 16px;
         font-weight: 600;
         white-space: nowrap;
@@ -3734,7 +3765,7 @@ body.nf-hide-card-text .searchResults .cardText {
         flex: 1 0 100%;
         height: 44px;
         min-height: 44px;
-        border-radius: 9999px;
+        border-radius: 12px;
         font-size: 16px;
         font-weight: 600;
     }
