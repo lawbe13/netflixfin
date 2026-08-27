@@ -246,11 +246,17 @@ body.nf-scrolled .skinHeader {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* Library dropdowns hanging off "Serie TV" and "Film". */
+/* Library dropdowns hanging off "Serie TV" and "Film", and the Categorie menu.
+   The padding belongs to the link or button inside: left on the wrapper as well
+   it is applied twice, and those entries sat 32px wider than the plain ones. */
 .nf-nav-item {
     position: relative;
     display: flex;
     align-items: center;
+}
+
+.nf-nav > .nf-nav-item {
+    padding: 0 !important;
 }
 
 /* The header clips its own overflow, so an absolutely positioned dropdown was
@@ -3569,13 +3575,6 @@ body.nf-hide-card-text .searchResults .cardText {
         text-overflow: ellipsis;
     }
 
-    /* A page with a back arrow does not get the mark: the arrow, the drawer
-       button and five controls leave the name about 50pt otherwise, and the app
-       drops its own logo on a sub-page too. */
-    .headerLeft:has(.headerBackButton) .nf-mark {
-        display: none;
-    }
-
     .headerLeft .headerBackButton {
         width: 34px;
         height: 34px;
@@ -3604,8 +3603,14 @@ body.nf-hide-card-text .searchResults .cardText {
        controls leave it, so sizing the chip row against it - a flex-basis of
        100% - came out 123pt. The viewport width sizes it against the screen
        instead, and pulling back the header's own padding lets the chips scroll
-       out to the edge rather than stopping short of it. */
+       out to the edge rather than stopping short of it.
+
+       Three entries on a phone, so they sit in the middle. "safe" keeps the
+       first one reachable if a server ever has enough libraries to overflow the
+       row - centred content that overflows is otherwise clipped at both ends. */
     .nf-nav {
+        justify-content: center;
+        justify-content: safe center;
         order: 3;
         /* flex-shrink would pull it straight back to the width of the line it
            just wrapped out of */
@@ -3646,13 +3651,15 @@ body.nf-hide-card-text .searchResults .cardText {
         flex: 0 0 auto;
         height: 44px;
         padding: 0 18px !important;
-        /* The current design outlines them: a dark translucent fill with a
-           hairline a shade lighter than itself, corners at about 30% of the
-           height. The App Store shot reads as borderless at that size; the
-           design screens Lorenzo sent show the hairline clearly. */
+        /* Glass, as the design screens show them: a translucent fill over a
+           blur, a hairline a shade lighter than the fill, and ends rounded at
+           about 36% of the height. The App Store shot reads as flat and
+           borderless at that size, which is what the first pass copied. */
         border: 1px solid rgba(255, 255, 255, 0.22);
-        border-radius: 14px;
+        border-radius: 16px;
         background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(12px) saturate(1.4);
+        -webkit-backdrop-filter: blur(12px) saturate(1.4);
         color: #fff;
         font-size: 15px !important;
         font-weight: 500;
@@ -3667,8 +3674,9 @@ body.nf-hide-card-text .searchResults .cardText {
         padding: 0 18px !important;
     }
 
-    .nf-nav-item > a {
-        border-radius: 14px;
+    .nf-nav-item > a,
+    .nf-nav-genres > button {
+        border-radius: 16px;
         line-height: 42px;
     }
 
