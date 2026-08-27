@@ -203,7 +203,8 @@ body.nf-scrolled .skinHeader {
 /* Reaches nested links too: the library items sit inside .nf-nav-item, and a
    child-only selector left them as raw blue underlined anchors. */
 .nf-nav > *,
-.nf-nav > .nf-nav-item > a {
+.nf-nav > .nf-nav-item > a,
+.nf-nav > .nf-nav-item > button {
     font-family: var(--nf-font);
     font-size: 16px;
     font-weight: 400;
@@ -219,8 +220,22 @@ body.nf-scrolled .skinHeader {
     transition: color 0.2s var(--nf-ease), background-color 0.2s var(--nf-ease);
 }
 
+/* A <button> keeps the browser's own box, border and font otherwise, which is
+   what the Categorie chip was wearing on the wide layout. */
+.nf-nav-genres > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 100%;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
 .nf-nav > *:hover,
-.nf-nav > .nf-nav-item > a:hover {
+.nf-nav > .nf-nav-item > a:hover,
+.nf-nav > .nf-nav-item > button:hover {
     color: var(--nf-text);
     text-decoration: none;
 }
@@ -3456,12 +3471,16 @@ body.nf-hide-card-text .searchResults .cardText {
     .nf-mark {
         display: block;
         flex: 0 0 auto;
-        width: 20px;
-        margin-right: 8px;
+        width: 22px;
+        margin-right: 9px;
         color: var(--nf-accent);
         font-family: var(--nf-font);
-        font-size: 30px;
-        font-weight: 800;
+        font-size: 31px;
+        /* Netflix's N is a drawn glyph, far heavier than any weight in this
+           stack; the stroke thickens the letter to something in its neighbourhood
+           without shipping a font. */
+        font-weight: 900;
+        -webkit-text-stroke: 0.8px var(--nf-accent);
         line-height: 34px;
         letter-spacing: -0.04em;
         text-align: center;
@@ -3575,15 +3594,7 @@ body.nf-hide-card-text .searchResults .cardText {
     }
 
     .nf-nav-genres > button {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 100%;
         padding: 0 18px !important;
-        border: 0;
-        background: none;
-        color: inherit;
-        font: inherit;
     }
 
     .nf-nav-item > a {
