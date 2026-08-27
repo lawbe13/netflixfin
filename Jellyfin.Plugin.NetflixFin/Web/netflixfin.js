@@ -2685,18 +2685,11 @@
                     return loveState;
                 }
 
-                return client
-                    .getItems(user, { ParentId: list.Id, Limit: 2000 })
-                    .then(function (inside) {
-                        var ids = {};
-                        (inside.Items || []).forEach(function (entry) {
-                            // Removing needs the entry's own id, not the item's.
-                            ids[entry.Id] = entry.PlaylistItemId || true;
-                        });
-                        loveState = { id: list.Id, ids: ids };
-                        loveRequest = null;
-                        return loveState;
-                    });
+                return loveEntries(list.Id).then(function (ids) {
+                    loveState = { id: list.Id, ids: ids };
+                    loveRequest = null;
+                    return loveState;
+                });
             })
             .catch(function (err) {
                 loveRequest = null;
@@ -2705,6 +2698,28 @@
             });
 
         return loveRequest;
+    }
+
+    /* What is in the list, keyed by item and valued by the entry's own id.
+     *
+     * Reading the playlist as a folder - getItems with ParentId - returns the
+     * items but not the entry ids, and removal needs the entry: the same title
+     * can sit in a playlist more than once, so the two are not the same number.
+     * The playlist's own endpoint carries both. */
+    function loveEntries(listId) {
+        var client = api();
+        return client
+            .getJSON(client.getUrl('Playlists/' + listId + '/Items', {
+                userId: client.getCurrentUserId(),
+                Limit: 2000
+            }))
+            .then(function (inside) {
+                var ids = {};
+                (inside.Items || []).forEach(function (entry) {
+                    ids[entry.Id] = entry.PlaylistItemId || entry.Id;
+                });
+                return ids;
+            });
     }
 
     function loveHas(id) {
@@ -2731,7 +2746,9 @@
                     })
                     .then(function (made) {
                         state.id = made && made.Id;
-                        state.ids[id] = true;
+                        return loveEntries(state.id).then(function (ids) {
+                            state.ids = ids;
+                        });
                     });
             }
 
@@ -2741,7 +2758,10 @@
                     url: client.getUrl('Playlists/' + state.id + '/Items', { ids: id, userId: user })
                 })
                 .then(function () {
-                    state.ids[id] = true;
+                    // The entry id is minted by the server, so ask for it.
+                    return loveEntries(state.id).then(function (ids) {
+                        state.ids = ids;
+                    });
                 });
         });
     }
@@ -2755,7 +2775,6 @@
 
             var entry = state.ids[id];
             delete state.ids[id];
-            if (entry === true) return null;
 
             return client.ajax({
                 type: 'DELETE',
