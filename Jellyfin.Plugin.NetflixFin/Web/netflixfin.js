@@ -481,9 +481,22 @@
 
     function markActive(nav) {
         var hash = window.location.hash;
-        nav.querySelectorAll('[data-nf-hash]').forEach(function (node) {
+
+        /* Every entry that is a prefix of the current route matches, and #/home
+         * is a prefix of #/home?nftv=1 and #/home?tab=1 - so Home stayed lit
+         * while TV was open. The longest match is the one that means something. */
+        var nodes = nav.querySelectorAll('[data-nf-hash]');
+        var best = null;
+        var bestLength = -1;
+        nodes.forEach(function (node) {
             var target = node.getAttribute('data-nf-hash');
-            node.classList.toggle('is-active', hash.indexOf(target.replace('#', '')) === 1);
+            if (hash.indexOf(target.replace('#', '')) === 1 && target.length > bestLength) {
+                best = node;
+                bestLength = target.length;
+            }
+        });
+        nodes.forEach(function (node) {
+            node.classList.toggle('is-active', node === best);
         });
         nav.querySelectorAll('[data-nf-tab]').forEach(function (node) {
             var index = Number(node.getAttribute('data-nf-tab'));
@@ -4577,7 +4590,9 @@
         guard: null,
         pending: null,
         tunedAt: 0,
-        started: false
+        started: false,
+        retried: false,
+        from: null
     };
 
     function tvGuardReporting(on) {
@@ -4886,6 +4901,7 @@
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
 
             tvGuardReporting(true);
+            tvState.from = window.location.hash;
             /* Only the panel comes down. Navigating away from the hash - which
              * this used to do - rebuilt the page underneath while playNow was
              * still looking for something to click, so pressing Guarda landed you
@@ -4894,13 +4910,44 @@
              * on, so leaving the player brings it back. */
             tvClose();
 
-            var client = api();
-            playNow(on.slot.item.id, client && client.serverId(), on.slot.item.type, 'play');
+            tvPlay(on.slot.item, tvState.pending.offset);
             tvWatchPlayer();
         });
     }
 
+    /* playNow clicks a card, and on this build that click reaches nothing at all:
+     * no handler runs and the server is never even asked for PlaybackInfo. The
+     * details page's own play button is a real, bound control, so a channel goes
+     * through there. It costs a page behind the player, which is why leaving a
+     * channel puts the hash back where it was. */
+    function tvPlay(item, offset) {
+        var client = api();
+        var route = '#/details?id=' + item.id + (client ? '&serverId=' + client.serverId() : '');
+        if (window.location.hash.indexOf('#/details?id=' + item.id) !== 0) {
+            window.location.hash = route;
+        }
+        tvPressPlay(0);
+    }
+
+    function tvPressPlay(tries) {
+        if (!tvState.channel) return;
+
+        var button = document.querySelector('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay');
+        if (button && button.offsetParent !== null) {
+            button.click();
+            return;
+        }
+        // The page has to render first, and a transcoding server is not quick.
+        if (tries < 60) {
+            setTimeout(function () {
+                tvPressPlay(tries + 1);
+            }, 250);
+        }
+    }
+
     function tvStop() {
+        var back = tvState.from;
+        tvState.from = null;
         tvState.channel = null;
         tvState.shift = 0;
         tvState.pending = null;
@@ -4914,6 +4961,9 @@
         document.body.classList.remove('nf-tv-on');
         var skin = document.querySelector('.nf-tv-skin');
         if (skin) skin.remove();
+
+        // Back to where the channel was tuned from, which is the TV page.
+        if (back && window.location.hash !== back) window.location.hash = back;
     }
 
     /* The overlay that makes it a channel rather than a file: the watermark, and
@@ -4985,14 +5035,8 @@
                  * catch. Asking twice costs nothing and covers it. */
                 if (waited > 6000 && !tvState.retried && tvState.pending) {
                     tvState.retried = true;
-                    var again = api();
                     log('tv: nothing started yet, asking again');
-                    playNow(
-                        tvState.pending.slot.item.id,
-                        again && again.serverId(),
-                        tvState.pending.slot.item.type,
-                        'play'
-                    );
+                    tvPressPlay(0);
                     return;
                 }
 
@@ -5008,9 +5052,10 @@
 
         var pending = tvState.pending;
         if (pending && video.readyState >= 1) {
-            if (pending.offset > 1000) {
-                seekTo(video, pending.offset / 1000);
-            }
+            /* Always, even to zero: the details page's button is a resume, and a
+             * title the owner had already started would otherwise pick up at
+             * their bookmark rather than where the channel is. */
+            seekTo(video, pending.offset / 1000);
             tvState.pending = null;
         }
 
@@ -5041,9 +5086,11 @@
         // A programme has handed over: start the next one where the line-up says.
         var playing = currentItemId();
         if (playing && playing !== on.slot.item.id) {
-            var client = api();
             tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
-            playNow(on.slot.item.id, client && client.serverId(), on.slot.item.type, 'play');
+            tvState.started = false;
+            tvState.retried = false;
+            tvState.tunedAt = Date.now();
+            tvPlay(on.slot.item, on.offset);
         }
     }
 
