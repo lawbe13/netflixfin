@@ -4763,20 +4763,30 @@
             card.type = 'button';
             card.style.setProperty('--nf-tv-tone', channel.tone);
 
+            /* Artwork on top with the channel's mark on it, the progress of
+             * what is on under that, then a block in the channel's colour
+             * carrying the time, the programme, and what follows it. */
+            var shot = el('div', 'nf-tv-shot');
             var badge = el('div', 'nf-tv-logo');
             badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
             badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
-            card.appendChild(badge);
+            shot.appendChild(badge);
+            card.appendChild(shot);
 
-            var body = el('div', 'nf-tv-card-body');
-            var line = el('div', 'nf-tv-onair', 'In onda…');
-            var sub = el('div', 'nf-tv-next', channel.blurb);
             var bar = el('div', 'nf-tv-bar');
             var fill = el('span');
             bar.appendChild(fill);
+            card.appendChild(bar);
+
+            var body = el('div', 'nf-tv-info');
+            var clock = el('div', 'nf-tv-clock', '');
+            var line = el('div', 'nf-tv-onair', 'In onda…');
+            var follow = el('div', 'nf-tv-follow', '');
+            var sub = el('div', 'nf-tv-next', channel.blurb);
+            body.appendChild(clock);
             body.appendChild(line);
+            body.appendChild(follow);
             body.appendChild(sub);
-            body.appendChild(bar);
             card.appendChild(body);
 
             card.addEventListener('click', function () {
@@ -4794,19 +4804,22 @@
                         line.textContent = 'Fuori onda';
                         return;
                     }
-                    line.textContent = on.inIdent
-                        ? 'A seguire: ' + (on.next ? on.next.item.name : '—')
-                        : on.slot.item.name;
-                    sub.textContent = on.slot.show
-                        ? on.slot.show + ' · fino alle ' + tvTimeLabel(on.slot.end)
-                        : 'Fino alle ' + tvTimeLabel(on.slot.end);
+
+                    clock.textContent = tvTimeLabel(on.slot.start);
+                    line.textContent = on.slot.item.name;
+                    follow.textContent = on.next
+                        ? 'A seguire alle ' + tvTimeLabel(on.next.start)
+                        : '';
+                    sub.textContent = on.next
+                        ? (on.next.show || on.next.item.name)
+                        : channel.blurb;
+
                     var span = on.slot.end - on.slot.start;
                     fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
 
                     var art = api();
                     if (art) {
-                        card.style.setProperty('--nf-tv-art', 'url("' + tvArt(on.slot.item, art, 'wide') + '")');
-                        card.classList.add('has-art');
+                        shot.style.backgroundImage = 'url("' + tvArt(on.slot.item, art, 'wide') + '")';
                     }
                 });
             };
@@ -5033,6 +5046,7 @@
     }
 
     function tvStop() {
+        var route = tvState.route;
         tvState.route = null;
         tvState.channel = null;
         tvState.shift = 0;
@@ -5048,9 +5062,13 @@
         tvCover(false);
         var skin = document.querySelector('.nf-tv-skin');
         if (skin) skin.remove();
-        /* No hash of our own is put back. Stopping sends Jellyfin back a step,
-         * which is the TV page it came from, and forcing it would hijack the
-         * navigation of someone who left the channel on purpose. */
+        /* The details page is a detour this code took to reach the player, so
+         * being left on it is not somewhere anyone navigated - undoing it is not
+         * hijacking. Anywhere else, the viewer went there deliberately and is
+         * left alone. */
+        if (route && window.location.hash.indexOf(route) === 0) {
+            window.location.hash = '#/home?nftv=1';
+        }
     }
 
     /* The overlay that makes it a channel rather than a file: the watermark, and
