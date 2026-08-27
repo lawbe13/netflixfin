@@ -894,9 +894,15 @@ body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
     content: none;
 }
 
+/* Two pieces of art per title, both set as custom properties by buildHero: the
+   16:9 backdrop for a wide billboard and the portrait poster for the 3:4 one the
+   phone draws. Choosing in CSS rather than in script means a rotation swaps them
+   on its own, with no listener to leak. --nf-art-tall falls back to the wide one
+   for a title that has no poster. */
 .nf-hero-media {
     position: absolute;
     inset: 0;
+    background-image: var(--nf-art-wide);
     background-size: cover;
     background-position: center 18%;
     opacity: 0;
@@ -2784,6 +2790,227 @@ body.nf-playing .skinHeader {
     border-left: 2px solid rgba(255, 255, 255, 0.25);
 }
 
+
+/* --------------------------------------------------------------------------
+   12. Search
+   --------------------------------------------------------------------------
+   Jellyfin's search page arrives almost entirely unstyled: a 560px grey box
+   floating in the middle of a black page, and a column of blue link-buttons
+   under a bold "Suggestions". Netflix gives search a full-width field at the
+   top and turns the suggestions into the same chips it uses everywhere else.
+   -------------------------------------------------------------------------- */
+
+.searchFields {
+    padding: 22px var(--nf-gutter) 6px !important;
+}
+
+.searchFields .searchFieldsInner {
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 16px;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 6px;
+}
+
+.searchFields .searchfields-icon {
+    font-size: 24px !important;
+    color: #fff;
+    opacity: 0.9;
+}
+
+.searchFields .inputContainer {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.searchFields .emby-input {
+    height: 48px;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    color: #fff !important;
+    font-family: var(--nf-font);
+    font-size: 16px;
+}
+
+.searchFields .emby-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.searchFields .emby-input::placeholder {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* The suggestions are <a class="emby-button button-link">, which Jellyfin paints
+   in its accent blue and stacks centred. As chips they read as what they are -
+   things to tap - and they stop looking like a bug report. */
+.searchSuggestions {
+    max-width: 900px;
+    margin: 0 auto;
+    padding-top: 8px;
+}
+
+.searchSuggestions .sectionTitle {
+    text-align: center;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    color: var(--nf-text-dim);
+}
+
+.searchSuggestions .searchSuggestionsList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.searchSuggestions .searchSuggestionsList > div {
+    display: contents;
+}
+
+.searchSuggestions .button-link {
+    display: inline-flex;
+    align-items: center;
+    height: 38px;
+    margin: 0 !important;
+    padding: 0 18px !important;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff !important;
+    font-family: var(--nf-font);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none !important;
+    text-transform: none;
+    transition: background-color 0.2s var(--nf-ease);
+}
+
+.searchSuggestions .button-link:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+/* A search result keeps its caption - you are reading names here, not browsing
+   artwork - so the global "no caption under a tile" rule stands down. */
+body.nf-hide-card-text .searchResults .cardText {
+    display: block !important;
+}
+
+.searchResults .cardText {
+    font-family: var(--nf-font);
+    font-size: 13px;
+    padding-top: 8px !important;
+}
+
+.searchResults .cardText-secondary {
+    color: var(--nf-text-dim);
+    font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   13. Library pages
+   --------------------------------------------------------------------------
+   The grid itself already reads as Netflix; the furniture around it does not.
+   -------------------------------------------------------------------------- */
+
+.libraryPage .paging,
+.libraryPage .listPaging {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 18px var(--nf-gutter) 10px !important;
+    font-family: var(--nf-font);
+}
+
+.libraryPage .listPaging > span,
+.libraryPage .paging > span {
+    color: var(--nf-text-dim);
+    font-size: 13px;
+    margin-right: 8px;
+}
+
+.libraryPage .paging .paper-icon-button-light,
+.libraryPage .listPaging .paper-icon-button-light,
+.libraryPage .btnShuffle,
+.libraryPage .btnPlay {
+    width: 36px;
+    height: 36px;
+    color: var(--nf-text) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px;
+}
+
+.libraryPage .paging .paper-icon-button-light:hover,
+.libraryPage .listPaging .paper-icon-button-light:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.libraryPage .alphaPicker {
+    font-family: var(--nf-font);
+}
+
+.libraryPage .alphaPickerButton {
+    color: var(--nf-text-dim) !important;
+    font-size: 12px !important;
+    font-weight: 500;
+}
+
+.libraryPage .alphaPickerButton:hover,
+.libraryPage .alphaPickerButton-selected {
+    color: var(--nf-text) !important;
+}
+
+/* Netflix does not stamp a rating on the artwork; Jellyfin's blue "Kids" pill on
+   every tile is the loudest thing on a library page. Kept, but as a quiet
+   overlay in the corner rather than a badge in the brand's blue. */
+.mainAnimatedPages .cardIndicators .mediaSourceIndicator,
+.mainAnimatedPages .cardIndicators .officialRatingIndicator,
+.mainAnimatedPages .cardIndicators .timerIndicator {
+    background: rgba(0, 0, 0, 0.55) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-family: var(--nf-font);
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+/* --------------------------------------------------------------------------
+   14. The header on pages that are not the home page
+   --------------------------------------------------------------------------
+   Jellyfin adds a back button, a home button and the page's title into
+   .headerLeft, ahead of the nav this skin builds. Unstyled they crowd the
+   wordmark and read as a different product.
+   -------------------------------------------------------------------------- */
+
+.headerLeft .headerBackButton,
+.headerLeft .headerHomeButton {
+    width: 40px;
+    height: 40px;
+    color: var(--nf-text) !important;
+    background: transparent !important;
+}
+
+/* The home button goes nowhere the nav does not: "Home" is its first entry, and
+   on a phone it is the first tab of the bar. */
+.headerLeft .headerHomeButton {
+    display: none !important;
+}
+
+.skinHeader .pageTitle:not(.pageTitleWithLogo):not(.pageTitleWithDefaultLogo) {
+    margin: 0 1rem 0 0.25rem;
+    font-family: var(--nf-font);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--nf-text);
+    letter-spacing: -0.01em;
+}
+
 /* ==========================================================================
    iPhone and iPad, in Safari
    --------------------------------------------------------------------------
@@ -3096,12 +3323,58 @@ body.nf-playing .skinHeader {
         margin-inline-end: 2px !important;
     }
 
+    /* The real header carries nine controls, not the six this was sized for, so
+       the wordmark was still being pushed onto a line of its own. Search is the
+       one that can go: it is the second entry of the bottom bar, and Netflix's
+       phone header does not carry it either. Everything else Jellyfin puts up
+       there - cast, SyncPlay, notifications, the account - stays. */
+    .headerRight .headerSearchButton {
+        display: none !important;
+    }
+
     /* 121pt is what the controls leave the left group, and the drawer button
        takes 40 of it: at 76 the wordmark tipped onto a line of its own. */
     .pageTitleWithDefaultLogo {
         width: 68px;
         height: 26px;
         margin-right: 0.25rem;
+    }
+
+    /* On a library or a detail page Jellyfin puts the page's name here instead of
+       the wordmark. A long one - a library called "Documentari e reportage" - has
+       to give way rather than fold the line. */
+    .skinHeader .pageTitle:not(.pageTitleWithLogo):not(.pageTitleWithDefaultLogo) {
+        max-width: 42vw;
+        margin: 0 0.25rem;
+        font-size: 17px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .headerLeft .headerBackButton {
+        width: 34px;
+        height: 34px;
+    }
+
+    /* The search page's field is the whole point of the page here: give it the
+       screen rather than a 720pt column in the middle of one. */
+    .searchFields {
+        padding: 12px var(--nf-gutter) 4px !important;
+    }
+
+    .searchFields .searchFieldsInner {
+        max-width: none;
+    }
+
+    .searchFields .emby-input {
+        height: 44px;
+        font-size: 15px;
+    }
+
+    .searchSuggestions .searchSuggestionsList {
+        justify-content: flex-start;
+        padding: 0 var(--nf-gutter);
     }
 
     /* The second line, edge to edge. .headerLeft is only as wide as what the
@@ -3139,18 +3412,38 @@ body.nf-playing .skinHeader {
         display: none;
     }
 
-    /* Netflix's shortcut chips: 40pt tall, fully rounded, hairline outline. */
+    /* Netflix's shortcut chips, measured off the App Store shots for 18.46.1 at
+       a 393pt width (1.537 px/pt): 44pt tall, corner radius 12 - a rounded
+       rectangle, not a pill - filled with a translucent white and carrying no
+       outline at all. Ours were 40pt pills with a hairline border, which is the
+       shape Netflix used two redesigns ago. */
     .nf-nav > a,
     .nf-nav > button,
     .nf-nav-item {
         flex: 0 0 auto;
-        height: 40px;
-        padding: 0 16px !important;
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        border-radius: 9999px;
-        font-size: 14px !important;
+        height: 44px;
+        padding: 0 18px !important;
+        border: 0;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 15px !important;
         font-weight: 500;
-        line-height: 38px;
+        line-height: 44px;
+    }
+
+    .nf-nav-item {
+        padding: 0 !important;
+    }
+
+    .nf-nav-item > a {
+        border-radius: 12px;
+        line-height: 44px;
+    }
+
+    .nf-nav > .is-active,
+    .nf-nav > .nf-nav-item > a.is-active {
+        background: rgba(255, 255, 255, 0.28);
     }
 
     /* The billboard is 3:4 on the phone - portrait key art, not a 16:9 still -
@@ -3164,7 +3457,10 @@ body.nf-playing .skinHeader {
         box-shadow: none;
     }
 
+    /* Netflix's phone billboard is portrait key art, not a still cropped out of a
+       16:9 backdrop - which is what a 3:4 box does to one. */
     .nf-hero-media {
+        background-image: var(--nf-art-tall, var(--nf-art-wide));
         background-position: center top;
     }
 
@@ -3205,15 +3501,18 @@ body.nf-playing .skinHeader {
         width: 100%;
     }
 
+    /* 149 x 40pt with a 6pt radius, measured off the 18.46.1 shots. 4px read as
+       a square corner next to the app's, which is what it was. */
     .nf-hero-buttons .nf-btn {
-        height: 41px;
-        border-radius: 4px;
+        height: 40px;
+        border-radius: 6px;
         font-size: 16px;
         font-weight: 600;
+        white-space: nowrap;
     }
 
     .nf-btn-secondary {
-        background: rgba(255, 255, 255, 0.28) !important;
+        background: rgba(255, 255, 255, 0.16) !important;
     }
 
     .nf-hero-badges {
@@ -3230,13 +3529,31 @@ body.nf-playing .skinHeader {
 
     .homeSectionsContainer .itemsContainer.scrollSlider > .card,
     .itemsContainer.scrollSlider > .card {
-        width: 27.4% !important;
-        min-width: 27.4% !important;
+        width: 31% !important;
+        min-width: 31% !important;
     }
 
-    .card .cardPadder,
-    .card.nf-thumb .cardPadder {
-        padding-bottom: 139% !important;
+    /* A landscape still is not a poster. Every card was 27.4% wide in a box of
+       1:1.39, so a 16:9 image - the whole "Continua a guardare" row - was cover
+       cropped to a 106pt-wide sliver of itself. Wide art gets a wide card, a
+       little over two to the screen, which is what the app does. */
+    .homeSectionsContainer .itemsContainer.scrollSlider > .card.nf-thumb,
+    .homeSectionsContainer .itemsContainer.scrollSlider > .card.overflowBackdropCard,
+    .homeSectionsContainer .itemsContainer.scrollSlider > .card.backdropCard,
+    .itemsContainer.scrollSlider > .card.nf-thumb,
+    .itemsContainer.scrollSlider > .card.overflowBackdropCard,
+    .itemsContainer.scrollSlider > .card.backdropCard {
+        width: 46% !important;
+        min-width: 46% !important;
+    }
+
+    /* And the portrait boxes are no longer forced to 139% either. Netflix draws
+       its own key art at that ratio; Jellyfin's posters come from TMDB at 2:3,
+       so the old rule cropped 7% off every one of them - usually the bottom,
+       where the title sits. Jellyfin's own padder value is correct per shape:
+       leave it alone and nothing is cut. */
+    .mainAnimatedPages .card.nf-thumb .cardPadder {
+        padding-bottom: 56.25% !important;
     }
 
     .sectionTitle,

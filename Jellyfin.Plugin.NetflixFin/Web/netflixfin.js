@@ -926,14 +926,57 @@
             art.appendChild(logo);
         }
 
+        paintDetailLogo(id, client);
+
         var ribbon = document.querySelector('.detailRibbon');
         if (ribbon && ribbon.parentElement !== art) {
             art.appendChild(ribbon);
         }
     }
 
-    var detailLogoTimer = null;
-    var detailLogoTries = 0;
+    var detailItems = {};
+
+    /* Jellyfin leaves .detailLogo empty on this layout - it paints the logo only
+     * when it is drawing its own page backdrop, which this skin replaces - so the
+     * element was there, blank, and the title text stayed on top of artwork that
+     * often carries the logo already. Waiting for a background-image that is never
+     * coming was eight polls of nothing; ask the server instead. */
+    function paintDetailLogo(id, client) {
+        var apply = function (item) {
+            if (currentDetailId() !== id) return;
+            var logo = document.querySelector('.detailLogo');
+            var tag = item && item.ImageTags && item.ImageTags.Logo;
+            if (logo && tag) {
+                var url = client.getImageUrl(id, { type: 'Logo', maxWidth: 640, tag: tag });
+                if (logo.dataset.nfLogo !== url) {
+                    logo.dataset.nfLogo = url;
+                    logo.style.backgroundImage = 'url("' + url + '")';
+                }
+            }
+            document.body.classList.toggle('nf-detail-logo', !!(logo && tag));
+        };
+
+        if (detailItems[id]) {
+            apply(detailItems[id]);
+            return;
+        }
+
+        client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                // Only a real answer is kept - a rejected one has to be askable again.
+                if (item) detailItems[id] = item;
+                apply(item);
+            })
+            .catch(function (err) {
+                log('could not read the title for its logo', err);
+            });
+    }
+
+    function currentDetailId() {
+        var match = window.location.hash.match(/[?&]id=([^&]+)/);
+        return match ? match[1] : null;
+    }
 
     function decorateDetail() {
         var onDetail = /#\/details/.test(window.location.hash);
@@ -943,27 +986,8 @@
             return;
         }
 
+        // mountDetailArt paints the logo and sets nf-detail-logo with it.
         mountDetailArt();
-
-        var logo = document.querySelector('.detailLogo');
-        var hasLogo = !!logo && getComputedStyle(logo).backgroundImage !== 'none';
-        document.body.classList.toggle('nf-detail-logo', hasLogo);
-
-        // The logo arrives as a lazy-loaded background-image, which is not a DOM
-        // mutation, so the observer never sees it land and it has to be polled for.
-        // One poll at a time, and not forever: this used to schedule an
-        // uncancellable call on every refresh, so each pass through here started a
-        // fresh chain on top of the ones already running.
-        if (detailLogoTimer) {
-            clearTimeout(detailLogoTimer);
-            detailLogoTimer = null;
-        }
-        if (logo && !hasLogo && detailLogoTries < 8) {
-            detailLogoTries++;
-            detailLogoTimer = setTimeout(decorateDetail, 700);
-        } else if (hasLogo || !logo) {
-            detailLogoTries = 0;
-        }
 
         document.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
             .forEach(function (button) {
@@ -3291,14 +3315,35 @@
 
         var layers = items.map(function (item, i) {
             var layer = el('div', 'nf-hero-media' + (i === 0 ? ' is-active' : ''));
-            layer.style.backgroundImage =
+
+            // Both crops are published as custom properties and the stylesheet
+            // picks: 16:9 for the wide billboard, the poster for the phone's 3:4
+            // one. A backdrop squeezed into 3:4 is a sliver of the middle of the
+            // frame, which is what the phone used to show.
+            layer.style.setProperty(
+                '--nf-art-wide',
                 'url("' +
-                client.getImageUrl(item.Id, {
-                    type: 'Backdrop',
-                    maxWidth: 1920,
-                    tag: item.BackdropImageTags && item.BackdropImageTags[0]
-                }) +
-                '")';
+                    client.getImageUrl(item.Id, {
+                        type: 'Backdrop',
+                        maxWidth: 1920,
+                        tag: item.BackdropImageTags && item.BackdropImageTags[0]
+                    }) +
+                    '")'
+            );
+
+            if (item.ImageTags && item.ImageTags.Primary) {
+                layer.style.setProperty(
+                    '--nf-art-tall',
+                    'url("' +
+                        client.getImageUrl(item.Id, {
+                            type: 'Primary',
+                            maxWidth: 780,
+                            tag: item.ImageTags.Primary
+                        }) +
+                        '")'
+                );
+            }
+
             hero.appendChild(layer);
             return layer;
         });
@@ -3357,15 +3402,27 @@
                 title.textContent = item.Name;
             }
 
-            // "Serie • Fantascienza • 2020 • 5 stagioni • 16+"
             meta.textContent = '';
             var bits = [];
-            bits.push(item.Type === 'Series' ? 'Serie' : 'Film');
-            if (item.Genres && item.Genres.length) bits.push(item.Genres[0]);
-            if (item.ProductionYear) bits.push(String(item.ProductionYear));
-            var runtime = runtimeLabel(item);
-            if (runtime) bits.push(runtime);
-            if (item.OfficialRating) bits.push(item.OfficialRating);
+            if (isPhone()) {
+                /* The app's line is three descriptive tags - "Avventura • Un mondo
+                 * epico • Pirati" - not a spec sheet. Genres are the closest thing
+                 * Jellyfin holds; the wide layout keeps the spec sheet, which is
+                 * what netflix.com shows there. */
+                bits = (item.Genres || []).slice(0, 3);
+                if (!bits.length) {
+                    bits.push(item.Type === 'Series' ? 'Serie' : 'Film');
+                    if (item.ProductionYear) bits.push(String(item.ProductionYear));
+                }
+            } else {
+                // "Serie • Fantascienza • 2020 • 5 stagioni • 16+"
+                bits.push(item.Type === 'Series' ? 'Serie' : 'Film');
+                if (item.Genres && item.Genres.length) bits.push(item.Genres[0]);
+                if (item.ProductionYear) bits.push(String(item.ProductionYear));
+                var runtime = runtimeLabel(item);
+                if (runtime) bits.push(runtime);
+                if (item.OfficialRating) bits.push(item.OfficialRating);
+            }
             bits.forEach(function (bit, i) {
                 if (i) meta.appendChild(el('span', 'nf-dot', '●'));
                 meta.appendChild(el('span', null, bit));
