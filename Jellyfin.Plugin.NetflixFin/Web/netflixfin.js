@@ -2221,18 +2221,13 @@
         /* Netflix's rating control is one button that opens three: thumb down, thumb
          * up, and a double thumb up for "love this".
          *
-         * Likes is a nullable boolean and holds only two of those, but UserData
-         * carries a per-user Rating as well, and that is where the third goes:
-         * liked and rated ten. Checked against the server before it was built -
-         * it round-trips, and it is per-user rather than a change to the item, so
-         * nothing is written into anyone else's metadata.
-         *
-         * Clearing needs DELETE. A POST to UserData applies the fields it is
-         * given and ignores nulls, so sending Rating: null leaves the rating
-         * exactly where it was; DELETE on Rating drops both it and Likes. Every
-         * change therefore clears first and then sets. */
+         * Likes is a nullable boolean and holds two of the three; the third lives
+         * in a playlist (see loveLoad). Clearing needs DELETE: a POST to UserData
+         * applies the fields it is given and ignores nulls, so sending a null
+         * leaves the old value exactly where it was. Every change clears first
+         * and then sets. */
         var liked = item.UserData ? item.UserData.Likes : null;
-        var loved = !!(item.UserData && liked === true && (item.UserData.Rating || 0) >= 10);
+        var loved = false;
         var rate = el('div', 'nf-rate');
         var rateBtn = el('button', 'nf-circle nf-rate-open');
         rateBtn.type = 'button';
@@ -2250,6 +2245,14 @@
                     : liked === false ? 'Non fa per me' : '';
         };
 
+        // The list arrives on its own schedule; repaint when it does.
+        loveLoad().then(function () {
+            if (loveHas(item.Id) && liked === true) {
+                loved = true;
+                paintRate();
+            }
+        });
+
         var setRating = function (choice) {
             var userId = client.getCurrentUserId();
 
@@ -2265,21 +2268,21 @@
                 })
                 .then(function () {
                     if (next === null) return null;
-                    var data = { Likes: next !== 'down' };
-                    if (next === 'love') data.Rating = 10;
                     return client.ajax({
                         type: 'POST',
                         url: client.getUrl('UserItems/' + item.Id + '/UserData'),
-                        data: JSON.stringify(data),
+                        data: JSON.stringify({ Likes: next !== 'down' }),
                         contentType: 'application/json'
                     });
+                })
+                .then(function () {
+                    return next === 'love' ? loveAdd(item.Id) : loveRemove(item.Id);
                 })
                 .then(function () {
                     liked = next === null ? null : next !== 'down';
                     loved = next === 'love';
                     item.UserData = item.UserData || {};
                     item.UserData.Likes = liked;
-                    item.UserData.Rating = loved ? 10 : null;
                     paintRate();
                 })
                 .catch(function (err) {
@@ -2646,6 +2649,120 @@
         profile:
             'M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-4.4 0-8 2.7-8 6v2h16v-2c0-3.3-3.6-6-8-6z'
     };
+
+    /* Where "Adoro!" is kept.
+     *
+     * Not in UserData.Rating, which was the first attempt: Jellyfin derives that
+     * from Likes on its own - a plain thumb up comes back rated 10 and a thumb
+     * down rated 1 - so every liked title read as loved. Not IsFavorite either,
+     * which is My List and belongs to the + button.
+     *
+     * A playlist is per-user, needs no change to any item's metadata, and is a
+     * real list the owner can open. It is only created when the first title is
+     * loved, and removing every title leaves it empty rather than deleting it. */
+    var LOVE_LIST = 'Adoro!';
+    var loveState = null;
+    var loveRequest = null;
+
+    function loveLoad() {
+        if (loveState) return Promise.resolve(loveState);
+        if (loveRequest) return loveRequest;
+
+        var client = api();
+        if (!client) return Promise.resolve(null);
+        var user = client.getCurrentUserId();
+
+        loveRequest = client
+            .getItems(user, { IncludeItemTypes: 'Playlist', Recursive: true, Limit: 200 })
+            .then(function (result) {
+                var list = (result.Items || []).filter(function (p) {
+                    return p.Name === LOVE_LIST;
+                })[0];
+
+                if (!list) {
+                    loveState = { id: null, ids: {} };
+                    loveRequest = null;
+                    return loveState;
+                }
+
+                return client
+                    .getItems(user, { ParentId: list.Id, Limit: 2000 })
+                    .then(function (inside) {
+                        var ids = {};
+                        (inside.Items || []).forEach(function (entry) {
+                            // Removing needs the entry's own id, not the item's.
+                            ids[entry.Id] = entry.PlaylistItemId || true;
+                        });
+                        loveState = { id: list.Id, ids: ids };
+                        loveRequest = null;
+                        return loveState;
+                    });
+            })
+            .catch(function (err) {
+                loveRequest = null;
+                log('could not read the Adoro list', err);
+                return null;
+            });
+
+        return loveRequest;
+    }
+
+    function loveHas(id) {
+        return !!(loveState && loveState.ids[id]);
+    }
+
+    function loveAdd(id) {
+        var client = api();
+        if (!client) return Promise.resolve();
+        var user = client.getCurrentUserId();
+
+        return loveLoad().then(function (state) {
+            if (!state) return null;
+            if (state.ids[id]) return null;
+
+            if (!state.id) {
+                return client
+                    .ajax({
+                        type: 'POST',
+                        url: client.getUrl('Playlists'),
+                        data: JSON.stringify({ Name: LOVE_LIST, Ids: [id], UserId: user, MediaType: 'Video' }),
+                        contentType: 'application/json',
+                        dataType: 'json'
+                    })
+                    .then(function (made) {
+                        state.id = made && made.Id;
+                        state.ids[id] = true;
+                    });
+            }
+
+            return client
+                .ajax({
+                    type: 'POST',
+                    url: client.getUrl('Playlists/' + state.id + '/Items', { ids: id, userId: user })
+                })
+                .then(function () {
+                    state.ids[id] = true;
+                });
+        });
+    }
+
+    function loveRemove(id) {
+        var client = api();
+        if (!client) return Promise.resolve();
+
+        return loveLoad().then(function (state) {
+            if (!state || !state.id || !state.ids[id]) return null;
+
+            var entry = state.ids[id];
+            delete state.ids[id];
+            if (entry === true) return null;
+
+            return client.ajax({
+                type: 'DELETE',
+                url: client.getUrl('Playlists/' + state.id + '/Items', { entryIds: entry })
+            });
+        });
+    }
 
     function svgIcon(name) {
         var ns = 'http://www.w3.org/2000/svg';
