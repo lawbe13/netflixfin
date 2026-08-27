@@ -4672,12 +4672,6 @@
         return /[?&]nftv=1/.test(window.location.hash);
     }
 
-    function tvGoto(on) {
-        var hash = on ? '#/home?nftv=1' : '#/home';
-        if (window.location.hash === hash) return;
-        window.location.hash = hash;
-    }
-
     function tvTimeLabel(time) {
         var d = new Date(time);
         return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
@@ -4891,8 +4885,13 @@
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
 
             tvGuardReporting(true);
+            /* Only the panel comes down. Navigating away from the hash - which
+             * this used to do - rebuilt the page underneath while playNow was
+             * still looking for something to click, so pressing Guarda landed you
+             * back on the home page with nothing playing. The hash stays as it
+             * is, and refresh() knows not to reopen the page while a channel is
+             * on, so leaving the player brings it back. */
             tvClose();
-            tvGoto(false);
 
             var client = api();
             playNow(on.slot.item.id, client && client.serverId(), on.slot.item.type, 'play');
@@ -5032,8 +5031,8 @@
         applyBodyFlags();
         publishHeaderHeight();
         applyPhoneMark();
-        if (tvOnPage()) tvOpen();
-        else tvClose();
+        if (tvOnPage() && !tvState.channel) tvOpen();
+        else if (!tvOnPage()) tvClose();
         applyLogo();
         netflixHeaderIcons();
         buildNav();

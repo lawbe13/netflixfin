@@ -3175,10 +3175,16 @@ body.nf-hide-card-text .searchResults .cardText {
     font-family: var(--nf-font);
 }
 
-/* Whatever the router loaded underneath stays loaded but silent - no billboard
-   rotating behind an overlay, no trailer playing to nobody. */
+/* Whatever the router loaded underneath is taken out of the layout entirely.
+   visibility:hidden was not enough: the page kept its full height, so the
+   document scrolled far past the overlay, and its section headings still painted
+   through - the overlay is a fixed box and they are not. */
 body.nf-tv .mainAnimatedPages {
-    visibility: hidden;
+    display: none !important;
+}
+
+body.nf-tv {
+    overflow: hidden;
 }
 
 .nf-tv-head h1 {
