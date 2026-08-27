@@ -91,10 +91,15 @@
      * from the nearest data-id. A real card is used when one is on screen;
      * otherwise a hidden stand-in carrying the same attributes is clicked and
      * removed. Navigation stays as the last resort. */
-    function playNow(id, serverId, type) {
+    function playNow(id, serverId, type, action) {
         if (!id) return;
 
-        var card = document.querySelector('.card[data-id="' + id + '"]');
+        /* TV asks for "play" rather than "resume": a channel starts its
+         * programme at zero and seeks, so that nothing has to be written into
+         * the item's user data and nothing has to be put back afterwards. */
+        var want = action || 'resume';
+
+        var card = action ? null : document.querySelector('.card[data-id="' + id + '"]');
         var trigger =
             card &&
             card.querySelector('[data-action="resume"], [data-action="play"], .cardOverlayFab-primary');
@@ -111,7 +116,7 @@
 
             var button = el('button', 'cardOverlayButton');
             button.type = 'button';
-            button.setAttribute('data-action', 'resume');
+            button.setAttribute('data-action', want);
             proxy.appendChild(button);
 
             (document.querySelector('.itemsContainer') || document.body).appendChild(proxy);
@@ -313,6 +318,7 @@
          * tab strip that this skin hides. Hiding it made them unreachable, so the
          * link is put back here. */
         targets.push({ label: 'La mia lista', hash: '#/home?tab=1' });
+        targets.push({ label: 'TV', hash: '#/home?nftv=1' });
         targets.push({ label: 'Categorie', genres: true });
 
         return targets;
@@ -509,6 +515,10 @@
         user: [
             ['circle', 12, 8, 5],
             ['path', 'M20 21a8 8 0 0 0-16 0']
+        ],
+        tv: [
+            ['path', 'M4 7h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z'],
+            ['path', 'M17 2l-5 5-5-5']
         ]
     };
 
@@ -542,6 +552,7 @@
         // #/home matches #/home?tab=1 as well, so the list is read from the end:
         // the more specific entry is the later one.
         { glyph: 'house', label: 'Home', route: '#/home', match: /#\/home|^#?\/?$/ },
+        { glyph: 'tv', label: 'TV', route: '#/home?nftv=1', match: /nftv=1/ },
         { glyph: 'search', label: 'Cerca', route: '#/search', match: /#\/search/ },
         { glyph: 'user', label: 'Il mio filmettino', route: '#/home?tab=1', match: /tab=1/ }
     ];
@@ -4539,11 +4550,417 @@
         }
     };
 
+    /* --------------------------------------------------------- TV: watching
+     *
+     * Watching a channel leaves no trace. Nothing is marked played, nothing
+     * turns up in Continue Watching, and no resume position is written - which
+     * also settled how tuning in mid-programme works: rather than writing the
+     * offset into the item's user data and pressing resume, playback starts at
+     * zero and the video is seeked once it is ready. Nothing to restore, because
+     * nothing was changed.
+     *
+     * The client reports through three ApiClient methods, so they are shadowed on
+     * the instance for as long as a channel is on. Progress is dropped outright;
+     * stopped is let through with the position forced to zero, so the server
+     * still tears the transcode down but remembers nothing worth resuming.
+     */
+
+    var tvState = {
+        channel: null,
+        shift: 0,
+        video: null,
+        timer: null,
+        guard: null,
+        pending: null
+    };
+
+    function tvGuardReporting(on) {
+        var client = api();
+        if (!client) return;
+
+        if (on) {
+            if (tvState.guard) return;
+            tvState.guard = {
+                ownProgress: Object.prototype.hasOwnProperty.call(client, 'reportPlaybackProgress'),
+                ownStopped: Object.prototype.hasOwnProperty.call(client, 'reportPlaybackStopped'),
+                ownPlayed: Object.prototype.hasOwnProperty.call(client, 'markPlayed'),
+                progress: client.reportPlaybackProgress,
+                stopped: client.reportPlaybackStopped,
+                played: client.markPlayed
+            };
+
+            client.reportPlaybackProgress = function () {
+                return Promise.resolve();
+            };
+            client.markPlayed = function () {
+                return Promise.resolve();
+            };
+            client.reportPlaybackStopped = function (info) {
+                var quiet = {};
+                var key;
+                for (key in info || {}) {
+                    if (Object.prototype.hasOwnProperty.call(info, key)) quiet[key] = info[key];
+                }
+                quiet.PositionTicks = 0;
+                return tvState.guard.stopped.call(client, quiet);
+            };
+            return;
+        }
+
+        if (!tvState.guard) return;
+        var saved = tvState.guard;
+        if (saved.ownProgress) client.reportPlaybackProgress = saved.progress;
+        else delete client.reportPlaybackProgress;
+        if (saved.ownStopped) client.reportPlaybackStopped = saved.stopped;
+        else delete client.reportPlaybackStopped;
+        if (saved.ownPlayed) client.markPlayed = saved.played;
+        else delete client.markPlayed;
+        tvState.guard = null;
+    }
+
+    function tvClock() {
+        return Date.now() - tvState.shift;
+    }
+
+    /* ------------------------------------------------------------ the page */
+
+    function tvOpen() {
+        document.body.classList.add('nf-tv');
+        var panel = document.querySelector('.nf-tv-page');
+        if (!panel) {
+            panel = el('div', 'nf-tv-page');
+            document.body.appendChild(panel);
+        }
+        tvPaintGrid(panel);
+    }
+
+    function tvClose() {
+        document.body.classList.remove('nf-tv');
+        var panel = document.querySelector('.nf-tv-page');
+        if (panel) panel.remove();
+    }
+
+    function tvOnPage() {
+        return /[?&]nftv=1/.test(window.location.hash);
+    }
+
+    function tvGoto(on) {
+        var hash = on ? '#/home?nftv=1' : '#/home';
+        if (window.location.hash === hash) return;
+        window.location.hash = hash;
+    }
+
+    function tvTimeLabel(time) {
+        var d = new Date(time);
+        return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    }
+
+    function tvArt(entry, client, shape) {
+        if (!entry || !client) return '';
+        return client.getImageUrl(entry.id, {
+            type: shape === 'wide' ? 'Backdrop' : 'Primary',
+            maxWidth: shape === 'wide' ? 780 : 400
+        });
+    }
+
+    function tvPaintGrid(panel) {
+        panel.textContent = '';
+
+        var head = el('div', 'nf-tv-head');
+        head.appendChild(el('h1', null, 'TV'));
+        head.appendChild(el('p', null, 'Dodici canali che vanno in onda adesso. Nulla di quello che guardi qui viene segnato come visto.'));
+        panel.appendChild(head);
+
+        var grid = el('div', 'nf-tv-grid');
+        panel.appendChild(grid);
+
+        var client = api();
+
+        TV_CHANNELS.forEach(function (channel) {
+            var card = el('button', 'nf-tv-card');
+            card.type = 'button';
+            card.style.setProperty('--nf-tv-tone', channel.tone);
+
+            var badge = el('div', 'nf-tv-logo');
+            badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
+            badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
+            card.appendChild(badge);
+
+            var body = el('div', 'nf-tv-card-body');
+            var line = el('div', 'nf-tv-onair', 'In onda…');
+            var sub = el('div', 'nf-tv-next', channel.blurb);
+            var bar = el('div', 'nf-tv-bar');
+            var fill = el('span');
+            bar.appendChild(fill);
+            body.appendChild(line);
+            body.appendChild(sub);
+            body.appendChild(bar);
+            card.appendChild(body);
+
+            card.addEventListener('click', function () {
+                tvPaintChannel(panel, channel.id);
+            });
+            grid.appendChild(card);
+
+            tvLoadPool(channel).then(function (pool) {
+                var on = tvNow(channel, pool, Date.now());
+                if (!on) {
+                    line.textContent = 'Fuori onda';
+                    return;
+                }
+                line.textContent = on.inIdent ? 'A seguire: ' + (on.next ? on.next.item.name : '—') : on.slot.item.name;
+                sub.textContent = on.slot.show
+                    ? on.slot.show + ' · fino alle ' + tvTimeLabel(on.slot.end)
+                    : 'Fino alle ' + tvTimeLabel(on.slot.end);
+                var span = on.slot.end - on.slot.start;
+                fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
+                if (client) {
+                    card.style.setProperty('--nf-tv-art', 'url("' + tvArt(on.slot.item, client, 'wide') + '")');
+                    card.classList.add('has-art');
+                }
+            });
+        });
+    }
+
+    function tvPaintChannel(panel, id) {
+        var channel = tvChannel(id);
+        if (!channel) return;
+
+        panel.textContent = '';
+        panel.scrollTop = 0;
+
+        var back = el('button', 'nf-tv-back');
+        back.type = 'button';
+        back.appendChild(svgIcon('back'));
+        back.appendChild(el('span', null, 'Tutti i canali'));
+        back.addEventListener('click', function () {
+            tvPaintGrid(panel);
+        });
+        panel.appendChild(back);
+
+        var hero = el('div', 'nf-tv-hero');
+        hero.style.setProperty('--nf-tv-tone', channel.tone);
+        panel.appendChild(hero);
+
+        var guide = el('div', 'nf-tv-guide');
+        panel.appendChild(guide);
+
+        var client = api();
+
+        tvLoadPool(channel).then(function (pool) {
+            var on = tvNow(channel, pool, Date.now());
+            hero.textContent = '';
+
+            var badge = el('div', 'nf-tv-logo');
+            badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
+            badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
+            hero.appendChild(badge);
+
+            if (!on) {
+                hero.appendChild(el('p', 'nf-tv-onair', 'Fuori onda'));
+                return;
+            }
+
+            if (client) {
+                hero.style.setProperty('--nf-tv-art', 'url("' + tvArt(on.slot.item, client, 'wide') + '")');
+                hero.classList.add('has-art');
+            }
+
+            hero.appendChild(el('div', 'nf-tv-kicker', on.inIdent ? 'Fra poco' : 'In onda ora'));
+            hero.appendChild(el('h2', null, on.slot.item.name));
+            hero.appendChild(
+                el(
+                    'div',
+                    'nf-tv-meta',
+                    (on.slot.show ? on.slot.show + ' · ' : '') +
+                        tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end)
+                )
+            );
+
+            var actions = el('div', 'nf-tv-actions');
+            var watch = el('button', 'nf-btn nf-btn-primary');
+            watch.type = 'button';
+            watch.appendChild(svgIcon('play'));
+            watch.appendChild(el('span', null, 'Guarda'));
+            watch.addEventListener('click', function () {
+                tvTune(channel.id, 'live');
+            });
+
+            var restart = el('button', 'nf-btn nf-btn-secondary');
+            restart.type = 'button';
+            restart.appendChild(svgIcon('back10'));
+            restart.appendChild(el('span', null, "Dall'inizio"));
+            restart.addEventListener('click', function () {
+                tvTune(channel.id, 'restart');
+            });
+
+            actions.appendChild(watch);
+            actions.appendChild(restart);
+            hero.appendChild(actions);
+
+            guide.appendChild(el('h3', null, 'Le prossime 24 ore'));
+            tvGuide(channel, pool, Date.now()).forEach(function (slot, i) {
+                var row = el('div', 'nf-tv-row' + (i === 0 && !on.inIdent ? ' is-now' : ''));
+                row.appendChild(el('span', 'nf-tv-row-time', tvTimeLabel(slot.start)));
+                var text = el('span', 'nf-tv-row-text');
+                text.appendChild(el('strong', null, slot.item.name));
+                if (slot.show) text.appendChild(el('em', null, slot.show));
+                row.appendChild(text);
+                row.appendChild(
+                    el('span', 'nf-tv-row-len', Math.round(slot.item.ms / 60000) + ' min')
+                );
+                guide.appendChild(row);
+            });
+        });
+    }
+
+    /* --------------------------------------------------------- tuning in */
+
+    function tvTune(id, mode) {
+        var channel = tvChannel(id);
+        if (!channel) return;
+
+        tvLoadPool(channel).then(function (pool) {
+            var on = tvNow(channel, pool, Date.now());
+            if (!on) return;
+
+            // Restarting steps the clock back by however far in we were, and the
+            // channel carries on from there - time-shifted, with a way back.
+            tvState.shift = mode === 'restart' ? on.offset : 0;
+            tvState.channel = channel.id;
+            tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
+
+            tvGuardReporting(true);
+            tvClose();
+            tvGoto(false);
+
+            var client = api();
+            playNow(on.slot.item.id, client && client.serverId(), on.slot.item.type, 'play');
+            tvWatchPlayer();
+        });
+    }
+
+    function tvStop() {
+        tvState.channel = null;
+        tvState.shift = 0;
+        tvState.pending = null;
+        if (tvState.timer) {
+            clearInterval(tvState.timer);
+            tvState.timer = null;
+        }
+        tvGuardReporting(false);
+        document.body.classList.remove('nf-tv-on');
+        var skin = document.querySelector('.nf-tv-skin');
+        if (skin) skin.remove();
+    }
+
+    /* The overlay that makes it a channel rather than a file: the watermark, and
+     * the card that covers the ident between programmes. */
+    function tvSkin() {
+        var skin = document.querySelector('.nf-tv-skin');
+        if (skin) return skin;
+
+        skin = el('div', 'nf-tv-skin');
+
+        var mark = el('div', 'nf-tv-bug');
+        mark.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
+        mark.appendChild(el('span', 'nf-tv-logo-name', ''));
+        skin.appendChild(mark);
+
+        var live = el('button', 'nf-tv-live');
+        live.type = 'button';
+        live.textContent = 'Torna in diretta';
+        live.addEventListener('click', function () {
+            if (tvState.channel) tvTune(tvState.channel, 'live');
+        });
+        skin.appendChild(live);
+
+        var card = el('div', 'nf-tv-ident');
+        card.appendChild(el('div', 'nf-tv-kicker', 'A seguire'));
+        card.appendChild(el('h2', null, ''));
+        card.appendChild(el('div', 'nf-tv-meta', ''));
+        skin.appendChild(card);
+
+        document.body.appendChild(skin);
+        return skin;
+    }
+
+    function tvWatchPlayer() {
+        document.body.classList.add('nf-tv-on');
+        var skin = tvSkin();
+        var channel = tvChannel(tvState.channel);
+        if (channel) {
+            skin.querySelector('.nf-tv-bug .nf-tv-logo-name').textContent = channel.name;
+            skin.style.setProperty('--nf-tv-tone', channel.tone);
+        }
+        skin.classList.toggle('is-shifted', tvState.shift > 0);
+
+        if (tvState.timer) clearInterval(tvState.timer);
+        tvState.timer = setInterval(tvTick, 1000);
+    }
+
+    /* One second at a time: seek to the offset once the video can take it, then
+     * watch for the end of the programme. */
+    function tvTick() {
+        if (!tvState.channel) return;
+
+        var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+        if (!video) {
+            // The player is gone: so is the channel.
+            if (document.body.classList.contains('nf-tv-on') && !document.querySelector('.videoOsdBottom')) {
+                tvStop();
+            }
+            return;
+        }
+
+        var pending = tvState.pending;
+        if (pending && video.readyState >= 1) {
+            if (pending.offset > 1000) {
+                seekTo(video, pending.offset / 1000);
+            }
+            tvState.pending = null;
+        }
+
+        var channel = tvChannel(tvState.channel);
+        var pool = tvPools[channel.id];
+        if (!pool) return;
+
+        var on = tvNow(channel, pool, tvClock());
+        var skin = document.querySelector('.nf-tv-skin');
+        if (!skin) return;
+
+        if (!on) return;
+
+        var identCard = skin.querySelector('.nf-tv-ident');
+        if (on.inIdent) {
+            if (!skin.classList.contains('is-ident')) {
+                skin.classList.add('is-ident');
+                identCard.querySelector('h2').textContent = on.next ? on.next.item.name : '';
+                identCard.querySelector('.nf-tv-meta').textContent = on.next && on.next.show
+                    ? on.next.show
+                    : channel.name;
+            }
+            return;
+        }
+
+        skin.classList.remove('is-ident');
+
+        // A programme has handed over: start the next one where the line-up says.
+        var playing = currentItemId();
+        if (playing && playing !== on.slot.item.id) {
+            var client = api();
+            tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
+            playNow(on.slot.item.id, client && client.serverId(), on.slot.item.type, 'play');
+        }
+    }
+
     function refresh() {
         applyTileCount();
         applyBodyFlags();
         publishHeaderHeight();
         applyPhoneMark();
+        if (tvOnPage()) tvOpen();
+        else tvClose();
         applyLogo();
         netflixHeaderIcons();
         buildNav();
