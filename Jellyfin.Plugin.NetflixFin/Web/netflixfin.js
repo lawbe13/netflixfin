@@ -272,12 +272,31 @@
             node.style.backgroundImage = 'url("' + cfg.logoUrl + '")';
         });
 
-        /* The single letter in the phone header, on a channel's badge and in the
-         * watermark is the wordmark's own first glyph, shown by cropping the
-         * image rather than by setting an F in some other typeface. A drawn
-         * letter is a different letter. Without a configured logo the text
-         * fallback stands. */
-        document.documentElement.style.setProperty('--nf-logo', 'url("' + cfg.logoUrl + '")');
+    }
+
+    var brandLogo = null;
+
+    /* The single letter in the phone header, on a channel's badge and in the
+     * watermark is the wordmark's own first glyph, shown by cropping the image
+     * rather than by setting an F in some other typeface - a drawn letter is a
+     * different letter.
+     *
+     * Where that image comes from is not ours to assume: on this server the
+     * plugin's own logoUrl is empty and the wordmark is Jellyfin's branding,
+     * painted straight onto the page title. So it is read off the element that
+     * is actually showing it, whoever put it there, and kept once found - the
+     * title carries text rather than a logo on most pages. */
+    function publishBrandLogo() {
+        if (brandLogo) return;
+
+        var title = document.querySelector('.pageTitleWithLogo, .pageTitleWithDefaultLogo');
+        if (!title) return;
+
+        var image = getComputedStyle(title).backgroundImage;
+        if (!image || image === 'none' || image.indexOf('url(') !== 0) return;
+
+        brandLogo = image;
+        document.documentElement.style.setProperty('--nf-logo', image);
         document.documentElement.classList.add('nf-has-logo');
     }
 
@@ -5192,6 +5211,7 @@
         if (tvOnPage() && !tvState.channel) tvOpen();
         else if (!tvOnPage()) tvClose();
         applyLogo();
+        publishBrandLogo();
         netflixHeaderIcons();
         buildNav();
         buildTabBar();
