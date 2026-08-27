@@ -4408,6 +4408,7 @@
 
         if (pool.kind === 'movie') {
             var order = tvShuffle(pool.items, seed);
+            // eslint-disable-next-line no-unused-vars
             var i = 0;
             while (at < end && order.length) {
                 var film = order[i % order.length];
@@ -4427,36 +4428,73 @@
                 at += span;
                 i++;
             }
-            return slots;
+            return tvCloseDay(slots, day);
         }
 
-        /* Series and sagas: in order, and carrying on across days. The starting
-         * point is arithmetic rather than history - day N begins where N days of
-         * an average day's worth of episodes would have left it - so no day has
-         * to look up the one before it. */
+        /* Series and sagas: in order within a title, and carrying on across days.
+         * Where a title resumes is arithmetic rather than history - day N starts
+         * where N days of an average day's episodes would have left it - so no
+         * day has to look up the one before it.
+         *
+         * Titles are chained rather than looped. A single show held the whole day
+         * on the first run: nineteen episodes of For All Mankind, then round
+         * again. A run of three and on to the next show is what a channel of this
+         * kind actually does, and a saga simply plays to its end before the next
+         * one starts. */
         var shows = pool.shows;
         if (!shows.length) return [];
 
-        var pick = tvShuffle(shows, tvHash(channel.id + ':show:' + day))[0];
-        var flat = pick.episodes;
-        var average = flat.reduce(function (sum, e) { return sum + e.ms + TV_IDENT_MS; }, 0) / flat.length;
-        var perDay = Math.max(1, Math.floor(TV_DAY_MS / average));
-        var cursor = ((day * perDay) % flat.length + flat.length) % flat.length;
+        var order = tvShuffle(shows, tvHash(channel.id + ':show:' + day));
+        var run = pool.kind === 'boxset' ? Infinity : 3;
+        var showAt = 0;
+        var taken = 0;
+        var cursors = {};
 
-        while (at < end) {
-            var episode = flat[cursor % flat.length];
+        while (at < end && showAt < order.length * 4) {
+            var show = order[showAt % order.length];
+            var flat = show.episodes;
+
+            if (cursors[show.id] === undefined) {
+                var average = flat.reduce(function (sum, e) {
+                    return sum + e.ms + TV_IDENT_MS;
+                }, 0) / flat.length;
+                var perDay = Math.max(1, Math.floor(TV_DAY_MS / average));
+                cursors[show.id] = ((day * perDay) % flat.length + flat.length) % flat.length;
+            }
+
+            var episode = flat[cursors[show.id] % flat.length];
             var length = episode.ms + TV_IDENT_MS;
             if (at + length > end) break;
+
             slots.push({
                 item: episode,
-                show: pick.name,
+                show: show.name,
                 start: at,
                 end: at + episode.ms,
                 identEnd: at + length
             });
             at += length;
-            cursor++;
+            cursors[show.id]++;
+            taken++;
+
+            // A saga hands over once it has played out; a series after its block.
+            var done = pool.kind === 'boxset'
+                ? cursors[show.id] % flat.length === 0
+                : taken >= run;
+            if (done) {
+                showAt++;
+                taken = 0;
+            }
         }
+        return tvCloseDay(slots, day);
+    }
+
+    /* The closing slot leaves a few minutes over - two, on the first run - and
+     * dead air is worse than a long station ident. The last one of the day runs
+     * to midnight, where the next day's first programme is already waiting. */
+    function tvCloseDay(slots, day) {
+        if (!slots.length) return slots;
+        slots[slots.length - 1].identEnd = tvDayStart(day + 1);
         return slots;
     }
 
