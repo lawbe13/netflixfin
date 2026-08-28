@@ -4598,6 +4598,11 @@
     /* How long what is kept stays good for. A library gains a title now and
      * then; nobody is waiting on the schedule to notice within the hour. */
     var TV_LIBRARY_MS = 12 * 3600000;
+    /* And how old it has to be before a visit bothers looking for new titles.
+     * Without this every reload quietly re-read the whole library - three
+     * requests and a hundred and twenty-three collections - which is most of
+     * the traffic this was written to remove. */
+    var TV_LIBRARY_SOFT_MS = 3600000;
     // How many collections to ask about at a time.
     var TV_QUEUE_WIDTH = 4;
 
@@ -4762,6 +4767,9 @@
      * would cut the programme they are watching. */
     function tvLibraryRefresh() {
         if (tvLibraryRefreshed) return;
+        if (tvLibrary && Date.now() - tvLibrary.at < TV_LIBRARY_SOFT_MS) return;
+        // A channel is on air: the swap would be refused anyway, so save the ask.
+        if (tvState.channel) return;
         tvLibraryRefreshed = true;
 
         tvFetchLibrary().then(function (fresh) {
