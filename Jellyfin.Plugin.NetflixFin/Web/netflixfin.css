@@ -3942,19 +3942,6 @@ body.nf-tv-on .nf-tv-skin {
    long as the controls are up. A bug and a control bar never share the screen:
    moving it out of the way still leaves it over the picture the bar is already
    covering, so it fades instead and comes back when the bar goes. */
-.nf-tv-bug {
-    position: absolute;
-    bottom: 9%;
-    right: 3%;
-    display: inline-flex;
-    align-items: center;
-    gap: calc(var(--nf-mark-h) * 0.42);
-    opacity: 0.88;
-    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 14px rgba(0, 0, 0, 0.4));
-    transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
-    font-family: var(--nf-font);
-    transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
-}
 
 /* A broadcaster's bug has no box; it is the channel's own lockup, larger, with
    a shadow to hold it against a bright frame - and gone for as long as the
@@ -3965,8 +3952,12 @@ body.nf-tv-on .nf-tv-skin {
     right: 3%;
     display: inline-flex;
     align-items: center;
-    opacity: 0.9;
-    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 16px rgba(0, 0, 0, 0.4));
+    /* Sixty per cent, which is where a broadcaster leaves it: present in the
+       corner without being part of the picture. At ninety it read as a white
+       sticker. The shadow stays, and does most of the work on a bright frame
+       where a translucent white mark has nothing to sit against. */
+    opacity: 0.6;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 12px rgba(0, 0, 0, 0.45));
     transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
 }
 
