@@ -5510,7 +5510,11 @@
     function tvClose() {
         document.body.classList.remove('nf-tv');
         var panel = document.querySelector('.nf-tv-page');
-        if (panel) panel.classList.remove('is-channel');
+        if (panel) {
+            panel.classList.remove('is-channel');
+            panel.style.removeProperty('--nf-tv-tone');
+            panel.removeAttribute('data-channel');
+        }
         if (panel) panel.remove();
         tvCardUpdates = [];
         if (tvGridTimer) {
@@ -5964,6 +5968,9 @@
         panel.textContent = '';
         panel.scrollTop = 0;
         panel.classList.add('is-channel');
+        // The page takes the channel's colour, not just its hero.
+        panel.style.setProperty('--nf-tv-tone', channel.tone);
+        panel.setAttribute('data-channel', channel.id);
 
         tvCardUpdates = [];
         if (tvGridTimer) {
@@ -5980,6 +5987,8 @@
         back.appendChild(el('span', null, 'Tutti i canali'));
         back.addEventListener('click', function () {
             panel.classList.remove('is-channel');
+            panel.style.removeProperty('--nf-tv-tone');
+            panel.removeAttribute('data-channel');
             tvPaintGrid(panel);
         });
         hero.appendChild(back);

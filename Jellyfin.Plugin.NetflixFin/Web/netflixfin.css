@@ -3365,9 +3365,27 @@ body.nf-tv {
     padding: 0 var(--nf-gutter);
 }
 
+/* --- tablet ---------------------------------------------------------------- */
+
 @media (max-width: 1279px) {
     .nf-tv-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .nf-tv-bill,
+    .nf-tv-hero {
+        min-height: min(64vh, 620px);
+        padding-bottom: 64px;
+    }
+
+    .nf-tv-bill-copy,
+    .nf-tv-hero-copy {
+        max-width: min(560px, 62vw);
+    }
+
+    .nf-tv-bill-title.has-logo {
+        width: min(420px, 52vw);
+        height: clamp(80px, 12vw, 132px);
     }
 }
 
@@ -3639,6 +3657,58 @@ body.nf-tv {
     min-height: 48px;
     padding: 0 26px;
     font-size: 15.5px;
+}
+
+/* --- a channel's own colour ------------------------------------------------
+   A channel page should not be the same black page with a different picture at
+   the top. The tone washes down from the head of the page, the guide's heading
+   is underscored in it, its listings answer to it, and the buttons that are not
+   the primary one are tinted with it. The live marker stays red: that is what
+   red means here. */
+
+.nf-tv-page.is-channel {
+    background:
+        radial-gradient(140% 52% at 50% 0%,
+            color-mix(in srgb, var(--nf-tv-tone, #333) 30%, transparent) 0%,
+            transparent 62%),
+        var(--nf-bg);
+}
+
+.nf-tv-page.is-channel .nf-tv-guide h3 {
+    position: relative;
+    padding-bottom: 12px;
+}
+
+.nf-tv-page.is-channel .nf-tv-guide h3::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 44px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--nf-tv-tone, #fff);
+}
+
+.nf-tv-page.is-channel .nf-tv-day {
+    color: color-mix(in srgb, var(--nf-tv-tone, #fff) 55%, #cfcfcf);
+}
+
+.nf-tv-page.is-channel .nf-tv-row:hover {
+    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 14%, transparent);
+}
+
+.nf-tv-page.is-channel .nf-tv-row.is-open,
+.nf-tv-page.is-channel .nf-tv-row.is-now {
+    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 18%, transparent);
+}
+
+.nf-tv-page.is-channel .nf-btn-secondary {
+    background: color-mix(in srgb, var(--nf-tv-tone, #333) 42%, rgba(109, 109, 110, 0.6));
+}
+
+.nf-tv-page.is-channel .nf-btn-secondary:hover {
+    background: color-mix(in srgb, var(--nf-tv-tone, #333) 58%, rgba(109, 109, 110, 0.7));
 }
 
 /* --- the guide ------------------------------------------------------------ */
@@ -4277,28 +4347,84 @@ body.nf-tv-on .nf-p-restart-btn {
     font-size: 12.5px;
 }
 
+/* --- phone ----------------------------------------------------------------
+   The billboard becomes a picture with a caption rather than a poster with a
+   column of copy beside it, the channels go two across, the guide loses the
+   things a narrow column cannot hold, and everything ends above the bar at the
+   foot of the screen. */
+
 @media (max-width: 820px) {
-    .nf-p-channels {
-        grid-template-columns: 1fr;
+    .nf-tv-page {
+        padding-bottom: 120px;
     }
 
     .nf-tv-bill,
     .nf-tv-hero {
-        min-height: 74vw;
+        min-height: 78vw;
         padding-bottom: 26px;
+    }
+
+    .nf-tv-bill-copy,
+    .nf-tv-hero-copy {
+        max-width: 100%;
+    }
+
+    .nf-tv-bill-copy > * + *,
+    .nf-tv-hero-copy > * + * {
+        margin-top: 14px;
+    }
+
+    .nf-tv-bill-copy > .nf-tv-actions,
+    .nf-tv-hero-copy > .nf-tv-actions {
+        margin-top: 20px;
+    }
+
+    .nf-tv-badges {
+        gap: 14px;
+    }
+
+    .nf-tv-badges + .nf-tv-bill-title {
+        margin-top: 16px;
+    }
+
+    .nf-tv-logo {
+        --nf-logo-h: 19px;
+    }
+
+    .nf-tv-bill .nf-tv-logo,
+    .nf-tv-hero .nf-tv-logo {
+        --nf-logo-h: 22px;
+    }
+
+    .nf-tv-bill-title {
+        font-size: clamp(26px, 7vw, 34px);
+    }
+
+    .nf-tv-bill-title.has-logo {
+        width: min(280px, 66vw);
+        height: clamp(62px, 19vw, 96px);
     }
 
     .nf-tv-bill-blurb {
         display: none;
     }
 
-    .nf-tv-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px 10px;
+    .nf-tv-bill-meter {
+        max-width: 100%;
     }
 
-    .nf-tv-head h2 {
-        font-size: 18px;
+    .nf-tv-back {
+        top: 14px;
+    }
+
+    .nf-tv-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px 10px;
+    }
+
+    .nf-tv-shot .nf-tv-logo {
+        top: 9px;
+        left: 9px;
     }
 
     .nf-tv-onair {
@@ -4309,22 +4435,174 @@ body.nf-tv-on .nf-p-restart-btn {
         font-size: 11.5px;
     }
 
+    /* Three buttons will not sit on one line of a phone: the one that starts
+       the channel takes the width, the other two share the next. */
     .nf-tv-actions {
         width: 100%;
     }
 
     .nf-tv-actions .nf-btn {
         flex: 1 1 0;
+        min-height: 46px;
+        padding: 0 14px;
+        font-size: 14.5px;
+    }
+
+    .nf-tv-actions .nf-btn-primary {
+        flex: 1 1 100%;
+    }
+
+    .nf-tv-guide {
+        margin-top: 20px;
+    }
+
+    .nf-tv-row {
+        gap: 12px;
+        padding: 13px 10px;
+    }
+
+    .nf-tv-row-time {
+        flex: 0 0 42px;
+        font-size: 13px;
+    }
+
+    .nf-tv-row-text strong {
+        font-size: 14px;
+    }
+
+    /* The running time is on the row that opens anyway. */
+    .nf-tv-row-len {
+        display: none;
+    }
+
+    .nf-tv-row-more {
+        padding-left: 0;
+        gap: 14px;
+    }
+
+    .nf-tv-row-poster {
+        width: 92px;
+    }
+
+    .nf-tv-row-copy h4 {
+        font-size: 17px;
+    }
+
+    .nf-tv-row-copy h4.has-logo {
+        width: min(180px, 70%);
+        height: 40px;
+    }
+
+    .nf-tv-row-blurb {
+        font-size: 13px;
+        -webkit-line-clamp: 5;
+    }
+
+    .nf-tv-row-actions .nf-btn {
+        min-height: 38px;
+        padding: 0 16px;
+        font-size: 13px;
     }
 
     .nf-tv-ident h2 {
         font-size: 22px;
     }
 
+    /* --- the player, on a phone --- */
+
+    .nf-p-channels {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 10px;
+    }
+
+    .nf-p-panel-channels {
+        top: 8%;
+        bottom: 10%;
+        width: 94vw;
+    }
+
+    .nf-p-channel-copy strong {
+        font-size: 12.5px;
+    }
+
+    .nf-p-channel-copy span {
+        font-size: 11.5px;
+    }
+
+    .nf-p-channel-shot .nf-tv-logo {
+        --nf-logo-h: 15px;
+        top: 8px;
+        left: 8px;
+    }
+
     .nf-p-live-copy strong {
         font-size: 15px;
     }
 
+    .nf-p-live-copy span {
+        font-size: 11.5px;
+    }
+
+    .nf-p-live-pill {
+        padding: 6px 11px;
+        font-size: 11px;
+    }
+
+    .nf-tv-bug {
+        --nf-mark-h: 20px;
+        bottom: 11%;
+    }
+
+    .nf-tv-bug .nf-tv-logo-art {
+        height: 26px;
+    }
+}
+
+/* --- phone, held upright ---------------------------------------------------
+   Portrait is where the billboard has the least width and the most height to
+   play with, so the picture is allowed to be taller than it is on a laptop. */
+
+@media (max-width: 560px) {
+    .nf-tv-bill,
+    .nf-tv-hero {
+        min-height: 96vw;
+    }
+
+    .nf-tv-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .nf-p-channels {
+        grid-template-columns: 1fr;
+    }
+
+    .nf-tv-row-more {
+        flex-direction: column;
+    }
+
+    .nf-tv-row-poster {
+        width: 108px;
+    }
+}
+
+/* --- phone, on its side ----------------------------------------------------
+   A short viewport: the billboard cannot take three quarters of it. */
+
+@media (max-height: 520px) and (orientation: landscape) {
+    .nf-tv-bill,
+    .nf-tv-hero {
+        min-height: 88vh;
+        padding-bottom: 22px;
+    }
+
+    .nf-tv-bill-title.has-logo {
+        height: clamp(48px, 12vh, 74px);
+    }
+
+    .nf-tv-bill-blurb {
+        display: none;
+    }
 }
 
 /* ==========================================================================
@@ -4579,6 +4857,13 @@ body.nf-tv-on .nf-p-restart-btn {
 @media (max-width: 1279px) {
     body.nf-touch .nf-tabbar {
         display: block;
+    }
+
+    /* Except while something is playing. A bar of navigation across the bottom
+       of a film is what a phone does when nobody has told it not to. */
+    body.nf-touch.nf-playing .nf-tabbar,
+    body.nf-touch.nf-tv-on .nf-tabbar {
+        display: none;
     }
 
     /* The bar floats over the page, so the page has to end above it. */
