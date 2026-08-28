@@ -225,9 +225,14 @@ public class NetflixFinController : ControllerBase
     /// Gets a channel's lockup.
     /// </summary>
     /// <param name="channel">The channel's id, as the theme knows it.</param>
+    /// <param name="mono">
+    /// The on-air version: the same shape in flat white with the channel's name
+    /// knocked out of the tag, which is what a broadcaster puts in the corner of
+    /// the picture. Derived from the colour one by tools/mono-logos.py.
+    /// </param>
     [HttpGet("tv/logo/{channel}")]
     [Produces("image/svg+xml")]
-    public ActionResult GetChannelLogo(string channel)
+    public ActionResult GetChannelLogo(string channel, [FromQuery] bool mono = false)
     {
         // Matched rather than trusted: the name goes into a resource path.
         if (string.IsNullOrEmpty(channel) || !Channels.Contains(channel, StringComparer.Ordinal))
@@ -236,7 +241,8 @@ public class NetflixFinController : ControllerBase
         }
 
         var assembly = typeof(NetflixFinController).Assembly;
-        var name = typeof(Plugin).Namespace + ".Web.tv.logos." + channel + ".svg";
+        var name = typeof(Plugin).Namespace + ".Web.tv.logos." + channel
+            + (mono ? ".mono" : string.Empty) + ".svg";
         var stream = assembly.GetManifestResourceStream(name);
         if (stream == null)
         {

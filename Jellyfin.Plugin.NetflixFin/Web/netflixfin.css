@@ -3263,10 +3263,17 @@ body.nf-tv {
 }
 
 /* The channel's mark and the live badge belong on one line, not stacked. */
+/* A drawn mark runs to the edge of its own picture - there is no side bearing
+   in it the way there is in a word - so anything standing next to it needs
+   more room than type would. */
 .nf-tv-badges {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
+}
+
+.nf-tv-badges + .nf-tv-bill-title {
+    margin-top: 24px;
 }
 
 /* Two lines of type where a logo is not available, and the logo itself where it
@@ -3313,7 +3320,7 @@ body.nf-tv {
 }
 
 .nf-tv-bill-clock {
-    margin-bottom: 9px;
+    margin-bottom: 10px;
     color: rgba(255, 255, 255, 0.82);
     font-size: 13px;
     font-weight: 500;
@@ -3421,8 +3428,8 @@ body.nf-tv {
 
 .nf-tv-shot .nf-tv-logo {
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 13px;
+    left: 13px;
     z-index: 1;
 }
 
@@ -3435,7 +3442,7 @@ body.nf-tv {
 }
 
 .nf-tv-info {
-    padding: 10px 2px 0;
+    padding: 12px 2px 0;
 }
 
 .nf-tv-onair {
@@ -3449,7 +3456,7 @@ body.nf-tv {
 }
 
 .nf-tv-follow {
-    margin-top: 3px;
+    margin-top: 4px;
     color: var(--nf-text-dim);
     font-size: 12.5px;
     overflow: hidden;
@@ -3668,8 +3675,8 @@ body.nf-tv {
     position: relative;
     display: flex;
     align-items: baseline;
-    gap: 18px;
-    padding: 13px 14px;
+    gap: 20px;
+    padding: 14px 16px;
     border-radius: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     overflow: hidden;
@@ -3884,7 +3891,7 @@ body.nf-tv {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 14px;
+    gap: 26px;
     /* The channel's colour taken well down, for the same reason the idents
        take it down: a green mark on a green field is not a mark. */
     background:
@@ -4037,6 +4044,9 @@ body.nf-chrome-up .nf-tv-bug {
     left: 8%;
     right: 8%;
     bottom: 12%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     text-align: center;
 }
 
@@ -4236,11 +4246,9 @@ body.nf-tv-on .nf-p-restart-btn {
 
 .nf-p-channel-shot .nf-tv-logo {
     position: absolute;
-    top: 8px;
-    left: 8px;
+    top: 11px;
+    left: 11px;
     z-index: 1;
-    transform: scale(0.92);
-    transform-origin: top left;
 }
 
 .nf-p-channel-shot .nf-tv-bar {
@@ -4260,7 +4268,8 @@ body.nf-tv-on .nf-p-restart-btn {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    gap: 2px;
+    gap: 3px;
+    padding: 0 2px;
     line-height: 1.3;
 }
 

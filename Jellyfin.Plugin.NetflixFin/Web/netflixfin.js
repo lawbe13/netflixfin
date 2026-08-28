@@ -6362,9 +6362,12 @@
         var skin = tvSkin();
         var channel = tvChannel(tvState.channel);
         if (channel) {
+            /* On air the mark goes monochrome with the name knocked out of it,
+             * which is what a broadcaster's bug is: a shape that lets the
+             * picture through rather than a logo pasted over it. */
             var bug = skin.querySelector('.nf-tv-bug');
             var art = bug.querySelector('.nf-tv-logo-art');
-            art.src = '/NetflixFin/tv/logo/' + channel.id;
+            art.src = '/NetflixFin/tv/logo/' + channel.id + '?mono=true';
             art.alt = channel.name;
             skin.style.setProperty('--nf-tv-tone', channel.tone);
         }
