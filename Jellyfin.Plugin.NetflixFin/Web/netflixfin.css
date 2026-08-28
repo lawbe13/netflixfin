@@ -3159,10 +3159,15 @@ body.nf-hide-card-text .searchResults .cardText {
 /* ==========================================================================
    15. TV
    --------------------------------------------------------------------------
-   Twelve channels, a guide and a station skin over the player. The page is an
-   overlay rather than a route: jellyfin-web owns its router and #/tv is already
-   its Series library, so the page rides on a hash Jellyfin resolves and ignores
+   Twelve channels, a guide, a station skin over the player and a control bar
+   that belongs to a channel rather than to a file. The page is an overlay
+   rather than a route: jellyfin-web owns its router and #/tv is already its
+   Series library, so the page rides on a hash Jellyfin resolves and ignores
    and covers what is underneath.
+
+   It opens the way the home page opens - one billboard, full width, for
+   whatever is best on right now - and the channels sit under it as pictures
+   with their words on the page's own black rather than in coloured blocks.
    ========================================================================== */
 
 .nf-tv-page {
@@ -3170,7 +3175,7 @@ body.nf-hide-card-text .searchResults .cardText {
     inset: var(--nf-header-h, 80px) 0 0;
     z-index: 40;
     overflow-y: auto;
-    padding: 28px var(--nf-gutter) 80px;
+    padding: 0 0 80px;
     background: var(--nf-bg);
     font-family: var(--nf-font);
 }
@@ -3187,24 +3192,131 @@ body.nf-tv {
     overflow: hidden;
 }
 
-.nf-tv-head h1 {
+/* --- the billboard -------------------------------------------------------- */
+
+/* Full bleed, and tall enough to be a picture rather than a banner. The copy
+   sits on the lower left over two scrims: one across the bottom into the page's
+   black, one from the left so the words hold at any brightness. */
+.nf-tv-bill {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: min(62vh, 620px);
+    margin-bottom: 8px;
+    padding: 0 var(--nf-gutter) 46px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.nf-tv-bill-art {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background-color: #0b0b0b;
+    background-size: cover;
+    background-position: center 18%;
+}
+
+.nf-tv-bill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(77deg, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.5) 42%, rgba(0, 0, 0, 0) 68%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 22%),
+        linear-gradient(0deg, var(--nf-bg) 2%, rgba(20, 20, 20, 0.5) 18%, rgba(20, 20, 20, 0) 46%);
+}
+
+.nf-tv-bill-copy {
+    max-width: 640px;
+}
+
+.nf-tv-bill-copy > * + * {
+    margin-top: 14px;
+}
+
+/* Two lines of type where a logo is not available, and the logo itself where it
+   is: a title card drawn for the film beats the film's name set in our font. */
+.nf-tv-bill-title {
     margin: 0;
-    font-size: 34px;
+    font-size: clamp(30px, 4vw, 54px);
     font-weight: 800;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
+.nf-tv-bill-title.has-logo {
+    width: min(420px, 56vw);
+    height: clamp(74px, 11vw, 132px);
+    color: transparent;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: contain;
+    text-shadow: none;
+}
+
+.nf-tv-bill-blurb {
+    margin: 0;
+    max-width: 46ch;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 15px;
+    line-height: 1.45;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Where it is in the programme: the clock either side, the bar between them. */
+.nf-tv-bill-meter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 460px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.nf-tv-bill-meter .nf-tv-bar {
+    flex: 1 1 auto;
+}
+
+.nf-tv-bill-clock,
+.nf-tv-bill-left {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+/* --- the channels --------------------------------------------------------- */
+
+.nf-tv-head {
+    padding: 0 var(--nf-gutter);
+}
+
+.nf-tv-head h2 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 .nf-tv-head p {
-    margin: 6px 0 26px;
+    margin: 5px 0 18px;
     max-width: 60ch;
     color: var(--nf-text-dim);
-    font-size: 14px;
+    font-size: 13.5px;
 }
 
 .nf-tv-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
+    gap: 26px 16px;
+    padding: 0 var(--nf-gutter);
 }
 
 @media (max-width: 1279px) {
@@ -3219,67 +3331,95 @@ body.nf-tv {
     }
 }
 
-/* Artwork on top, the progress of what is on under it, then a block in the
-   channel's colour carrying the time, the programme and what follows - the
-   shape a channel grid takes. */
+/* A picture with the channel's mark on it and the progress of what is on along
+   its bottom edge; the words underneath, on the page's own black. The coloured
+   block they used to sit in read as a listings grid from 2009 - the tone is
+   worth more as one bar of colour than as a field of it. */
 .nf-tv-card {
     position: relative;
     display: flex;
     flex-direction: column;
     padding: 0;
     border: 0;
-    border-radius: 10px;
-    overflow: hidden;
     text-align: left;
     cursor: pointer;
     color: var(--nf-text);
-    background: var(--nf-tv-tone, #333);
-    transition: transform 0.2s var(--nf-ease);
+    background: transparent;
+    transition: transform 0.24s var(--nf-ease);
 }
 
-.nf-tv-card:hover {
-    transform: translateY(-3px);
+.nf-tv-card:hover,
+.nf-tv-card:focus-visible {
+    transform: translateY(-4px);
+    outline: none;
 }
 
 .nf-tv-shot {
     position: relative;
     aspect-ratio: 16 / 9;
-    background-color: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #1b1b1b;
     background-size: cover;
     background-position: center;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    transition: box-shadow 0.24s var(--nf-ease);
+}
+
+/* The mark sits on the picture, so the picture is darkened under it rather than
+   the mark carrying a box of its own. */
+.nf-tv-shot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0) 62%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.nf-tv-card:hover .nf-tv-shot,
+.nf-tv-card:focus-visible .nf-tv-shot {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--nf-tv-tone, #fff);
 }
 
 .nf-tv-shot .nf-tv-logo {
     position: absolute;
+    top: 10px;
     left: 10px;
-    bottom: 10px;
+    z-index: 1;
 }
 
-.nf-tv-hero.has-art::before {
-    content: "";
+.nf-tv-shot .nf-tv-bar {
     position: absolute;
-    inset: 0;
-    background-image: var(--nf-tv-art);
-    background-size: cover;
-    background-position: center;
-    opacity: 0.34;
-}
-
-.nf-tv-hero > * {
-    position: relative;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1;
 }
 
 .nf-tv-info {
-    padding: 12px 14px 14px;
+    padding: 10px 2px 0;
 }
 
-.nf-tv-clock {
-    font-size: 12.5px;
+.nf-tv-onair {
+    font-size: 14.5px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.85);
-    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
 }
+
+.nf-tv-follow {
+    margin-top: 3px;
+    color: var(--nf-text-dim);
+    font-size: 12.5px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+}
+
+/* --- the marks ------------------------------------------------------------ */
 
 .nf-tv-logo {
     display: inline-flex;
@@ -3287,8 +3427,9 @@ body.nf-tv {
     gap: 7px;
     align-self: flex-start;
     padding: 5px 11px 5px 8px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(6px);
 }
 
 .nf-tv-logo-mark {
@@ -3343,38 +3484,45 @@ body.nf-tv {
 .nf-has-logo .nf-tv-cover .nf-tv-logo-mark {
     --nf-mark-h: 30px;
 }
-
 .nf-tv-logo-name {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.02em;
 }
 
-.nf-tv-onair {
-    margin-top: 1px;
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.25;
+/* The live dot, the one thing on the page that moves. */
+.nf-tv-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--nf-accent);
+    box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.6);
+    animation: nf-tv-pulse 2s ease-out infinite;
 }
 
-.nf-tv-follow {
-    margin-top: 12px;
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 12px;
+@keyframes nf-tv-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.55); }
+    70% { box-shadow: 0 0 0 7px rgba(229, 9, 20, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(229, 9, 20, 0); }
 }
 
-.nf-tv-next {
-    margin-top: 1px;
-    color: rgba(255, 255, 255, 0.92);
+.nf-tv-kicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.86);
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
 }
 
 .nf-tv-bar {
+    position: relative;
     height: 3px;
-    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.28);
+    overflow: hidden;
 }
 
 .nf-tv-bar > span {
@@ -3382,103 +3530,189 @@ body.nf-tv {
     height: 100%;
     width: 0;
     border-radius: 2px;
-    background: #fff;
+    background: var(--nf-tv-tone, #fff);
+    box-shadow: 0 0 12px var(--nf-tv-tone, transparent);
+    transition: width 0.6s linear;
 }
 
 /* --- one channel ---------------------------------------------------------- */
 
-.nf-tv-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
-    padding: 8px 14px 8px 10px;
-    border: 0;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--nf-text);
-    font-family: var(--nf-font);
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.nf-tv-back svg {
-    width: 18px;
-    height: 18px;
-    fill: currentColor;
-}
-
 .nf-tv-hero {
     position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 26px;
-    border-radius: 12px;
+    align-items: flex-end;
+    min-height: min(64vh, 640px);
+    padding: 0 var(--nf-gutter) 44px;
     overflow: hidden;
-    background: var(--nf-tv-tone, #333);
+    isolation: isolate;
 }
 
-.nf-tv-kicker {
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 12px;
+.nf-tv-hero-art {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background-color: #101010;
+    background-size: cover;
+    background-position: center 18%;
+}
+
+/* The channel's colour is a wash over the picture rather than a field under it:
+   a flat tone at a third opacity was reading as "the art failed to load". */
+.nf-tv-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(77deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.52) 44%, rgba(0, 0, 0, 0) 70%),
+        linear-gradient(115deg, var(--nf-tv-tone, transparent) 0%, rgba(0, 0, 0, 0) 55%),
+        linear-gradient(0deg, var(--nf-bg) 2%, rgba(20, 20, 20, 0.55) 20%, rgba(20, 20, 20, 0) 48%);
+    opacity: 0.96;
+}
+
+.nf-tv-hero-copy {
+    max-width: 640px;
+}
+
+.nf-tv-hero-copy > * + * {
+    margin-top: 14px;
+}
+
+.nf-tv-back {
+    position: absolute;
+    top: 22px;
+    left: var(--nf-gutter);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 8px 12px;
+    border: 0;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    color: var(--nf-text);
+    font-family: var(--nf-font);
+    font-size: 13.5px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s var(--nf-ease);
 }
 
-.nf-tv-hero h2 {
-    margin: 0;
-    font-size: 30px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+.nf-tv-back:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.nf-tv-back svg {
+    width: 17px;
+    height: 17px;
+    fill: currentColor;
 }
 
 .nf-tv-meta {
     color: rgba(255, 255, 255, 0.8);
     font-size: 14px;
+    font-variant-numeric: tabular-nums;
 }
 
 .nf-tv-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
-    margin-top: 8px;
 }
 
 .nf-tv-actions .nf-btn {
-    min-height: 42px;
+    min-height: 44px;
     font-size: 15px;
 }
 
+/* --- the guide ------------------------------------------------------------ */
+
 .nf-tv-guide {
-    margin-top: 30px;
+    margin-top: 34px;
+    padding: 0 var(--nf-gutter);
 }
 
 .nf-tv-guide h3 {
-    margin: 0 0 12px;
-    font-size: 18px;
-    font-weight: 600;
+    margin: 0 0 6px;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* A day's worth of listings under a heading that stays put while they scroll,
+   because "20:37" means nothing without it. */
+.nf-tv-day {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin-top: 18px;
+    padding: 12px 0 8px;
+    background: linear-gradient(180deg, var(--nf-bg) 65%, rgba(20, 20, 20, 0));
+    color: var(--nf-text-dim);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
 }
 
 .nf-tv-row {
+    position: relative;
     display: flex;
     align-items: baseline;
-    gap: 16px;
-    padding: 11px 12px;
-    border-radius: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    gap: 18px;
+    padding: 13px 14px;
+    border-radius: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    transition: background 0.16s var(--nf-ease);
+}
+
+.nf-tv-row:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .nf-tv-row.is-now {
-    background: rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.07);
+    border-bottom-color: transparent;
+}
+
+/* How far into it we are, drawn behind the row rather than as another bar. */
+.nf-tv-row-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 0;
+    background: var(--nf-tv-tone, rgba(255, 255, 255, 0.1));
+    opacity: 0.26;
+}
+
+.nf-tv-row.is-now::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--nf-accent);
+}
+
+.nf-tv-row > span {
+    position: relative;
+    z-index: 1;
 }
 
 .nf-tv-row-time {
-    flex: 0 0 52px;
+    flex: 0 0 54px;
     color: var(--nf-text-dim);
     font-size: 14px;
     font-variant-numeric: tabular-nums;
+}
+
+.nf-tv-row.is-now .nf-tv-row-time {
+    color: #fff;
+    font-weight: 700;
 }
 
 .nf-tv-row-text {
@@ -3502,7 +3736,10 @@ body.nf-tv {
     flex: 0 0 auto;
     color: var(--nf-text-dim);
     font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
 }
+
+/* --- tuning in ------------------------------------------------------------ */
 
 /* Over the details page while a channel is starting. That page is how playback
    is reached on this build, not somewhere anyone asked to go. */
@@ -3517,7 +3754,8 @@ body.nf-tv {
     align-items: center;
     justify-content: center;
     gap: 14px;
-    background: var(--nf-tv-tone, #111);
+    background:
+        radial-gradient(120% 90% at 50% 40%, var(--nf-tv-tone, #111) 0%, #0a0a0a 78%);
     font-family: var(--nf-font);
 }
 
@@ -3526,9 +3764,12 @@ body.nf-tv {
 .nf-tv-cover .nf-tv-logo {
     align-self: center;
     transform: scale(1.4);
+    background: transparent;
+    backdrop-filter: none;
 }
 
 .nf-tv-cover .nf-tv-kicker {
+    letter-spacing: 0.2em;
     animation: nf-tv-breathe 1.6s ease-in-out infinite;
 }
 
@@ -3559,10 +3800,10 @@ body.nf-tv-on .nf-tv-skin {
     display: block;
 }
 
-/* The watermark, bottom right, where a broadcaster puts it. */
-/* Lifted clear of the control bar, which is what a bug at 26px from the bottom
-   sat inside. Proportional rather than fixed: a broadcaster's mark lives about a
-   tenth of the way up, and that is also above the controls at any size. */
+/* The watermark, bottom right, where a broadcaster puts it - and gone for as
+   long as the controls are up. A bug and a control bar never share the screen:
+   moving it out of the way still leaves it over the picture the bar is already
+   covering, so it fades instead and comes back when the bar goes. */
 .nf-tv-bug {
     position: absolute;
     bottom: 9%;
@@ -3571,21 +3812,27 @@ body.nf-tv-on .nf-tv-skin {
     align-items: center;
     gap: 9px;
     padding: 8px 14px 8px 11px;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.35);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.3);
     opacity: 0.8;
     font-family: var(--nf-font);
+    transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
 }
 
 .nf-tv-bug .nf-tv-logo-name {
     font-size: 20px;
 }
 
+body.nf-chrome-up .nf-tv-bug {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
 /* Offered only when the browser turned the corner window down. */
 .nf-tv-corner {
     position: absolute;
-    top: 18px;
-    left: 22px;
+    top: 20px;
+    right: 3%;
     display: none;
     padding: 8px 14px;
     border: 0;
@@ -3606,31 +3853,6 @@ body.nf-tv-on .nf-tv-skin {
 /* Left on in the background: the ident's full-screen card would be shouting. */
 .nf-tv-skin.is-ambient.is-ident .nf-tv-ident {
     display: none;
-}
-
-.nf-tv-live {
-    position: absolute;
-    top: 18px;
-    left: 22px;
-    display: none;
-    padding: 8px 14px;
-    border: 0;
-    border-radius: 9999px;
-    background: var(--nf-accent);
-    color: #fff;
-    font-family: var(--nf-font);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    pointer-events: auto;
-}
-
-.nf-tv-skin.is-shifted .nf-tv-live {
-    display: block;
-}
-
-.nf-tv-skin.is-ambient.needs-pip.is-shifted .nf-tv-live {
-    left: 190px;
 }
 
 /* Covers the ident slot: a real clip goes here, and the title of what is coming
@@ -3672,6 +3894,10 @@ body.nf-tv-on .nf-tv-skin {
     text-align: center;
 }
 
+.nf-tv-ident .nf-tv-kicker {
+    justify-content: center;
+}
+
 .nf-tv-ident h2 {
     margin: 0;
     max-width: 70vw;
@@ -3680,26 +3906,138 @@ body.nf-tv-on .nf-tv-skin {
     letter-spacing: -0.02em;
 }
 
+/* --- the controls, while a channel is on ---------------------------------- */
+
+/* A channel has no scrub bar, no ten seconds to skip and no next episode. What
+   it has instead is a programme, what follows it, and the live edge. */
+.nf-p-live {
+    display: none;
+    gap: 10px;
+    padding: 0 0 6px;
+}
+
+body.nf-tv-on .nf-p-live {
+    display: flex;
+    flex-direction: column;
+}
+
+body.nf-tv-on .nf-p-scrub,
+body.nf-tv-on .nf-p-play-btn,
+body.nf-tv-on .nf-p-skip-btn,
+body.nf-tv-on .nf-p-next-btn,
+body.nf-tv-on .nf-p-episodes-btn,
+body.nf-tv-on .nf-p-title {
+    display: none !important;
+}
+
+.nf-p-live-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.nf-p-live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 7px 14px;
+    border: 0;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-family: var(--nf-font);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: default;
+}
+
+/* Time-shifted, and one press from the live edge - so here it is a button. */
+.nf-p-live-pill.is-shifted {
+    background: var(--nf-accent);
+    cursor: pointer;
+}
+
+.nf-p-live-pill.is-shifted .nf-tv-dot {
+    background: #fff;
+    animation: none;
+    box-shadow: none;
+}
+
+.nf-p-live-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.3;
+}
+
+.nf-p-live-copy strong {
+    font-size: 17px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nf-p-live-copy span {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nf-p-live-restart {
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+
+.nf-p-live-track {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.nf-p-live-track .nf-tv-bar {
+    flex: 1 1 auto;
+    height: 4px;
+}
+
+.nf-p-live-time {
+    flex: 0 0 auto;
+}
+
 @media (max-width: 820px) {
-    .nf-tv-page {
-        padding: 18px var(--nf-gutter) 120px;
+    .nf-tv-bill,
+    .nf-tv-hero {
+        min-height: 74vw;
+        padding-bottom: 26px;
     }
 
-    .nf-tv-head h1 {
-        font-size: 26px;
+    .nf-tv-bill-blurb {
+        display: none;
     }
 
     .nf-tv-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 10px;
     }
 
-    .nf-tv-card {
-        min-height: 132px;
+    .nf-tv-head h2 {
+        font-size: 18px;
     }
 
-    .nf-tv-hero h2 {
-        font-size: 22px;
+    .nf-tv-onair {
+        font-size: 13px;
+    }
+
+    .nf-tv-follow {
+        font-size: 11.5px;
     }
 
     .nf-tv-actions {
@@ -3712,6 +4050,14 @@ body.nf-tv-on .nf-tv-skin {
 
     .nf-tv-ident h2 {
         font-size: 22px;
+    }
+
+    .nf-p-live-copy strong {
+        font-size: 15px;
+    }
+
+    .nf-p-live-restart {
+        display: none;
     }
 }
 

@@ -3219,11 +3219,17 @@
         if (player.node.parentNode) player.node.parentNode.removeChild(player.node);
         player = null;
         document.body.classList.remove('nf-playing');
+        document.body.classList.remove('nf-chrome-up');
     }
 
+    /* The controls announce themselves, because the channel's watermark has to
+     * be somewhere else while they are up. A broadcaster's bug and a control bar
+     * never share the screen - the bug fades for as long as the bar is there and
+     * comes back when it goes. */
     function showPlayerChrome() {
         if (!player) return;
         player.node.classList.remove('is-idle');
+        document.body.classList.add('nf-chrome-up');
         clearTimeout(playerHideTimer);
         playerHideTimer = setTimeout(function () {
             if (!player || player.video.paused) return;
@@ -3232,6 +3238,7 @@
             // three seconds later it was gone, which read as hover doing nothing.
             if (player.node.querySelector('.nf-p-panel')) return;
             player.node.classList.add('is-idle');
+            document.body.classList.remove('nf-chrome-up');
         }, 3000);
     }
 
@@ -3307,18 +3314,19 @@
                 flashGlyph('pause');
             }
         });
+        playBtn.classList.add('nf-p-play-btn');
         left.appendChild(playBtn);
         left.appendChild(
             playerButton('back10', 'Indietro di 10 secondi', function () {
                 seekTo(video, video.currentTime - 10);
                 flashGlyph('back10');
-            })
+            }, 'nf-p-skip-btn')
         );
         left.appendChild(
             playerButton('forward10', 'Avanti di 10 secondi', function () {
                 seekTo(video, video.currentTime + 10);
                 flashGlyph('forward10');
-            })
+            }, 'nf-p-skip-btn')
         );
 
         var volumeBtn = playerButton('volume', 'Audio', function () {
@@ -3347,7 +3355,7 @@
         right.appendChild(
             playerButton('next', 'Prossimo episodio', function () {
                 proxyClick('.videoOsdBottom .btnNextTrack');
-            })
+            }, 'nf-p-next-btn')
         );
         // Netflix opens these on hover, not on click.
         var hoverPanel = function (button, open) {
@@ -3385,10 +3393,69 @@
         row.appendChild(left);
         row.appendChild(centre);
         row.appendChild(right);
+
+        /* A channel is not a file, and the controls of one are wrong for the
+         * other: there is nothing to scrub, nothing to skip ten seconds of, and
+         * no next episode - what there is instead is a programme with a start
+         * and an end, something after it, and a way back to the live edge. The
+         * transport that does not apply is put away in CSS rather than built
+         * twice, so an ordinary title still gets all of it. */
+        var live = el('div', 'nf-p-live');
+
+        var pill = el('button', 'nf-p-live-pill');
+        pill.type = 'button';
+        pill.appendChild(el('span', 'nf-tv-dot'));
+        pill.appendChild(el('span', 'nf-p-live-word', 'Diretta'));
+        pill.addEventListener('click', function (event) {
+            event.stopPropagation();
+            if (tvState.channel && tvState.shift > 0) tvTune(tvState.channel, 'live');
+        });
+
+        var liveCopy = el('div', 'nf-p-live-copy');
+        var liveTitle = el('strong', null, '');
+        var liveSub = el('span', null, '');
+        liveCopy.appendChild(liveTitle);
+        liveCopy.appendChild(liveSub);
+
+        var liveHead = el('div', 'nf-p-live-head');
+        liveHead.appendChild(pill);
+        liveHead.appendChild(liveCopy);
+        liveHead.appendChild(
+            playerButton('back10', "Dall'inizio", function () {
+                if (tvState.channel) tvTune(tvState.channel, 'restart');
+            }, 'nf-p-live-restart')
+        );
+        live.appendChild(liveHead);
+
+        var track = el('div', 'nf-p-live-track');
+        var liveStart = el('span', 'nf-p-live-time', '');
+        var liveBar = el('div', 'nf-tv-bar');
+        var liveFill = el('span');
+        liveBar.appendChild(liveFill);
+        var liveEnd = el('span', 'nf-p-live-time', '');
+        track.appendChild(liveStart);
+        track.appendChild(liveBar);
+        track.appendChild(liveEnd);
+        live.appendChild(track);
+
+        bottom.appendChild(live);
         bottom.appendChild(row);
         node.appendChild(bottom);
 
-        player = { node: node, video: video, seriesId: null };
+        player = {
+            node: node,
+            video: video,
+            seriesId: null,
+            live: {
+                pill: pill,
+                word: pill.querySelector('.nf-p-live-word'),
+                title: liveTitle,
+                sub: liveSub,
+                start: liveStart,
+                end: liveEnd,
+                fill: liveFill
+            }
+        };
         hostPlayer();
 
         /* Scrolling was still moving the volume after guarding the two range
@@ -5185,6 +5252,7 @@
     function tvClose() {
         document.body.classList.remove('nf-tv');
         var panel = document.querySelector('.nf-tv-page');
+        if (panel) panel.classList.remove('is-channel');
         if (panel) panel.remove();
         tvCardUpdates = [];
         if (tvGridTimer) {
@@ -5231,13 +5299,183 @@
         });
     }
 
+    /* What a programme has left, said the way a listings page says it. */
+    function tvRemaining(on) {
+        var left = Math.round((on.slot.end - tvClock()) / 60000);
+        if (on.inIdent) return 'Sta per finire';
+        if (left <= 0) return 'Finisce ora';
+        if (left < 60) return 'Ancora ' + left + ' min';
+        return 'Ancora ' + Math.floor(left / 60) + 'h ' + (left % 60) + 'm';
+    }
+
+    function tvLockup(channel, cls) {
+        var badge = el('div', 'nf-tv-logo' + (cls ? ' ' + cls : ''));
+        badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
+        badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
+        return badge;
+    }
+
+    /* A programme's own page carries an overview and, for most titles, a logo
+     * drawn by whoever made it. Neither is in the pool - the pool is kept small
+     * because it is kept in the browser - so the billboard asks for the one
+     * title it is about to show, once. */
+    var tvDetailCache = {};
+
+    function tvDetails(id) {
+        if (tvDetailCache[id]) return Promise.resolve(tvDetailCache[id]);
+
+        var client = api();
+        if (!client) return Promise.resolve(null);
+
+        return client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                tvDetailCache[id] = item;
+                return item;
+            })
+            .catch(function () {
+                return null;
+            });
+    }
+
+    function tvLogoUrl(item, client) {
+        if (!item || !client) return null;
+        if (item.ImageTags && item.ImageTags.Logo) {
+            return client.getImageUrl(item.Id, { type: 'Logo', maxWidth: 480 });
+        }
+        // An episode's logo belongs to the series, as its backdrop does.
+        if (item.ParentLogoItemId) {
+            return client.getImageUrl(item.ParentLogoItemId, { type: 'Logo', maxWidth: 480 });
+        }
+        return null;
+    }
+
+    /* The billboard: one channel, full width, the way the home page opens.
+     *
+     * Which channel is not a setting - it is whatever is best on right now,
+     * highest rated first, which makes the page open on something worth
+     * watching at three in the afternoon and something else at nine. */
+    function tvFeature(states) {
+        var best = null;
+        states.forEach(function (state) {
+            if (!state.on || state.on.inIdent) return;
+            var rating = state.on.slot.item.rating || 0;
+            if (!best || rating > best.rating) best = { state: state, rating: rating };
+        });
+        if (best) return best.state;
+        return states.filter(function (state) { return state.on; })[0] || null;
+    }
+
+    function tvPaintBill(host, panel) {
+        var client = api();
+
+        var art = el('div', 'nf-tv-bill-art');
+        var copy = el('div', 'nf-tv-bill-copy');
+        host.appendChild(art);
+        host.appendChild(copy);
+
+        var painted = null;
+
+        var update = function () {
+            var states = TV_CHANNELS.map(function (channel) {
+                var pool = tvPools[channel.id];
+                return { channel: channel, on: pool ? tvNow(channel, pool, tvClock()) : null };
+            });
+
+            var feature = tvFeature(states);
+            if (!feature) return;
+
+            var channel = feature.channel;
+            var on = feature.on;
+            host.style.setProperty('--nf-tv-tone', channel.tone);
+
+            if (painted !== on.slot.item.id) {
+                painted = on.slot.item.id;
+                if (client) {
+                    art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
+                }
+
+                copy.textContent = '';
+                copy.appendChild(tvLockup(channel));
+
+                var kicker = el('div', 'nf-tv-kicker');
+                kicker.appendChild(el('span', 'nf-tv-dot'));
+                kicker.appendChild(el('span', null, 'In onda ora'));
+                copy.appendChild(kicker);
+
+                var title = el('h2', 'nf-tv-bill-title', on.slot.item.name);
+                copy.appendChild(title);
+
+                tvDetails(on.slot.item.id).then(function (item) {
+                    if (painted !== on.slot.item.id || !item) return;
+                    var logo = tvLogoUrl(item, client);
+                    if (logo) {
+                        title.classList.add('has-logo');
+                        title.style.backgroundImage = 'url("' + logo + '")';
+                    }
+                    if (item.Overview) {
+                        var line = el('p', 'nf-tv-bill-blurb', item.Overview);
+                        copy.insertBefore(line, copy.querySelector('.nf-tv-bill-meter'));
+                    }
+                });
+
+                var meter = el('div', 'nf-tv-bill-meter');
+                meter.appendChild(el('span', 'nf-tv-bill-clock', ''));
+                var bar = el('div', 'nf-tv-bar');
+                bar.appendChild(el('span'));
+                meter.appendChild(bar);
+                meter.appendChild(el('span', 'nf-tv-bill-left', ''));
+                copy.appendChild(meter);
+
+                var actions = el('div', 'nf-tv-actions');
+                var watch = el('button', 'nf-btn nf-btn-primary');
+                watch.type = 'button';
+                watch.appendChild(svgIcon('play'));
+                watch.appendChild(el('span', null, 'Guarda'));
+                watch.addEventListener('click', function () {
+                    tvTune(channel.id, 'live');
+                });
+                actions.appendChild(watch);
+
+                // Netflix puts a glyph on the primary button and none at all on
+                // the one beside it.
+                var open = el('button', 'nf-btn nf-btn-secondary');
+                open.type = 'button';
+                open.appendChild(el('span', null, 'Vai al canale'));
+                open.addEventListener('click', function () {
+                    tvPaintChannel(panel, channel.id);
+                });
+                actions.appendChild(open);
+                copy.appendChild(actions);
+            }
+
+            var span = on.slot.end - on.slot.start;
+            var clock = copy.querySelector('.nf-tv-bill-clock');
+            var fill = copy.querySelector('.nf-tv-bar > span');
+            var left = copy.querySelector('.nf-tv-bill-left');
+            if (clock) clock.textContent = tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end);
+            if (fill) fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
+            if (left) left.textContent = tvRemaining(on);
+        };
+
+        tvCardUpdates.push(update);
+
+        // The billboard needs every channel's line-up to choose between them.
+        Promise.all(TV_CHANNELS.map(tvLoadPool)).then(update);
+    }
+
     function tvPaintGrid(panel) {
         panel.textContent = '';
+        panel.scrollTop = 0;
         tvCardUpdates = [];
 
+        var bill = el('div', 'nf-tv-bill');
+        panel.appendChild(bill);
+        tvPaintBill(bill, panel);
+
         var head = el('div', 'nf-tv-head');
-        head.appendChild(el('h1', null, 'TV'));
-        head.appendChild(el('p', null, 'Dodici canali che vanno in onda adesso. Nulla di quello che guardi qui viene segnato come visto.'));
+        head.appendChild(el('h2', null, 'Tutti i canali'));
+        head.appendChild(el('p', null, 'Dodici canali sempre in onda. Niente di quello che guardi qui viene segnato come visto.'));
         panel.appendChild(head);
 
         var grid = el('div', 'nf-tv-grid');
@@ -5250,30 +5488,23 @@
             card.type = 'button';
             card.style.setProperty('--nf-tv-tone', channel.tone);
 
-            /* Artwork on top with the channel's mark on it, the progress of
-             * what is on under that, then a block in the channel's colour
-             * carrying the time, the programme, and what follows it. */
+            /* Artwork, the channel's mark on it, and the progress of what is on
+             * along its bottom edge; the words sit under the picture on the
+             * page's own black, which is where a row of cards keeps them. */
             var shot = el('div', 'nf-tv-shot');
-            var badge = el('div', 'nf-tv-logo');
-            badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
-            badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
-            shot.appendChild(badge);
-            card.appendChild(shot);
+            shot.appendChild(tvLockup(channel));
 
             var bar = el('div', 'nf-tv-bar');
             var fill = el('span');
             bar.appendChild(fill);
-            card.appendChild(bar);
+            shot.appendChild(bar);
+            card.appendChild(shot);
 
             var body = el('div', 'nf-tv-info');
-            var clock = el('div', 'nf-tv-clock', '');
-            var line = el('div', 'nf-tv-onair', 'In onda…');
+            var line = el('div', 'nf-tv-onair', channel.blurb);
             var follow = el('div', 'nf-tv-follow', '');
-            var sub = el('div', 'nf-tv-next', channel.blurb);
-            body.appendChild(clock);
             body.appendChild(line);
             body.appendChild(follow);
-            body.appendChild(sub);
             card.appendChild(body);
 
             card.addEventListener('click', function () {
@@ -5281,32 +5512,30 @@
             });
             grid.appendChild(card);
 
+            var painted = null;
+
             var update = function () {
                 tvLoadPool(channel).then(function (pool) {
                     // No pool yet is not the same as nothing on: keep waiting.
                     if (!pool) return;
 
-                    var on = tvNow(channel, pool, Date.now());
+                    var on = tvNow(channel, pool, tvClock());
                     if (!on) {
                         line.textContent = 'Fuori onda';
                         return;
                     }
 
-                    clock.textContent = tvTimeLabel(on.slot.start);
                     line.textContent = on.slot.item.name;
                     follow.textContent = on.next
-                        ? 'A seguire alle ' + tvTimeLabel(on.next.start)
-                        : '';
-                    sub.textContent = on.next
-                        ? (on.next.show || on.next.item.name)
-                        : channel.blurb;
+                        ? tvRemaining(on) + ' · a seguire ' + on.next.item.name
+                        : tvRemaining(on);
 
                     var span = on.slot.end - on.slot.start;
                     fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
 
-                    var art = api();
-                    if (art) {
-                        shot.style.backgroundImage = 'url("' + tvArt(on.slot.item, art, 'wide') + '")';
+                    if (client && painted !== on.slot.item.id) {
+                        painted = on.slot.item.id;
+                        shot.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
                     }
                 });
             };
@@ -5319,30 +5548,46 @@
         tvGridTimer = setInterval(tvRunUpdates, 20000);
     }
 
+    /* Which day a slot falls on, said the way a guide says it. */
+    function tvDayLabel(time) {
+        var day = tvDayOf(time);
+        var today = tvDayOf(tvClock());
+        if (day === today) return 'Oggi';
+        if (day === today + 1) return 'Domani';
+        return new Date(time).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+
     function tvPaintChannel(panel, id) {
         var channel = tvChannel(id);
         if (!channel) return;
 
         panel.textContent = '';
         panel.scrollTop = 0;
-
-        var back = el('button', 'nf-tv-back');
-        back.type = 'button';
-        back.appendChild(svgIcon('back'));
-        back.appendChild(el('span', null, 'Tutti i canali'));
-        back.addEventListener('click', function () {
-            tvPaintGrid(panel);
-        });
+        panel.classList.add('is-channel');
 
         tvCardUpdates = [];
         if (tvGridTimer) {
             clearInterval(tvGridTimer);
             tvGridTimer = null;
         }
-        panel.appendChild(back);
 
         var hero = el('div', 'nf-tv-hero');
         hero.style.setProperty('--nf-tv-tone', channel.tone);
+
+        var back = el('button', 'nf-tv-back');
+        back.type = 'button';
+        back.appendChild(svgIcon('back'));
+        back.appendChild(el('span', null, 'Tutti i canali'));
+        back.addEventListener('click', function () {
+            panel.classList.remove('is-channel');
+            tvPaintGrid(panel);
+        });
+        hero.appendChild(back);
+
+        var art = el('div', 'nf-tv-hero-art');
+        hero.appendChild(art);
+        var copy = el('div', 'nf-tv-hero-copy');
+        hero.appendChild(copy);
         panel.appendChild(hero);
 
         var guide = el('div', 'nf-tv-guide');
@@ -5359,34 +5604,46 @@
                 return;
             }
 
-            var on = tvNow(channel, pool, Date.now());
-            hero.textContent = '';
-
-            var badge = el('div', 'nf-tv-logo');
-            badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
-            badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
-            hero.appendChild(badge);
+            var on = tvNow(channel, pool, tvClock());
+            copy.textContent = '';
+            copy.appendChild(tvLockup(channel));
 
             if (!on) {
-                hero.appendChild(el('p', 'nf-tv-onair', 'Fuori onda'));
+                copy.appendChild(el('h2', null, 'Fuori onda'));
                 return;
             }
 
-            if (client) {
-                hero.style.setProperty('--nf-tv-art', 'url("' + tvArt(on.slot.item, client, 'wide') + '")');
-                hero.classList.add('has-art');
-            }
+            if (client) art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
 
-            hero.appendChild(el('div', 'nf-tv-kicker', on.inIdent ? 'Fra poco' : 'In onda ora'));
-            hero.appendChild(el('h2', null, on.slot.item.name));
-            hero.appendChild(
-                el(
-                    'div',
-                    'nf-tv-meta',
+            var kicker = el('div', 'nf-tv-kicker');
+            if (!on.inIdent) kicker.appendChild(el('span', 'nf-tv-dot'));
+            kicker.appendChild(el('span', null, on.inIdent ? 'Fra poco' : 'In onda ora'));
+            copy.appendChild(kicker);
+
+            var title = el('h2', 'nf-tv-bill-title', on.slot.item.name);
+            copy.appendChild(title);
+            tvDetails(on.slot.item.id).then(function (item) {
+                var logo = tvLogoUrl(item, client);
+                if (!logo) return;
+                title.classList.add('has-logo');
+                title.style.backgroundImage = 'url("' + logo + '")';
+            });
+
+            copy.appendChild(
+                el('div', 'nf-tv-meta',
                     (on.slot.show ? on.slot.show + ' · ' : '') +
-                        tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end)
-                )
+                        tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end))
             );
+
+            var meter = el('div', 'nf-tv-bill-meter');
+            var bar = el('div', 'nf-tv-bar');
+            var fill = el('span');
+            bar.appendChild(fill);
+            meter.appendChild(bar);
+            meter.appendChild(el('span', 'nf-tv-bill-left', tvRemaining(on)));
+            fill.style.width =
+                Math.min(100, Math.round((on.offset / (on.slot.end - on.slot.start)) * 100)) + '%';
+            copy.appendChild(meter);
 
             var actions = el('div', 'nf-tv-actions');
             var watch = el('button', 'nf-btn nf-btn-primary');
@@ -5397,14 +5654,6 @@
                 tvTune(channel.id, 'live');
             });
 
-            var ambient = el('button', 'nf-btn nf-btn-secondary nf-tv-ambient-btn');
-            ambient.type = 'button';
-            ambient.appendChild(svgIcon('mute'));
-            ambient.appendChild(el('span', null, 'Sottofondo'));
-            ambient.addEventListener('click', function () {
-                tvTune(channel.id, 'ambient');
-            });
-
             var restart = el('button', 'nf-btn nf-btn-secondary');
             restart.type = 'button';
             restart.appendChild(svgIcon('back10'));
@@ -5413,19 +5662,44 @@
                 tvTune(channel.id, 'restart');
             });
 
+            var ambient = el('button', 'nf-btn nf-btn-secondary nf-tv-ambient-btn');
+            ambient.type = 'button';
+            ambient.appendChild(svgIcon('mute'));
+            ambient.appendChild(el('span', null, 'Sottofondo'));
+            ambient.addEventListener('click', function () {
+                tvTune(channel.id, 'ambient');
+            });
+
             actions.appendChild(watch);
             actions.appendChild(restart);
             actions.appendChild(ambient);
-            hero.appendChild(actions);
+            copy.appendChild(actions);
 
-            guide.appendChild(el('h3', null, 'Le prossime 24 ore'));
-            tvGuide(channel, pool, Date.now()).forEach(function (slot, i) {
-                var row = el('div', 'nf-tv-row' + (i === 0 && !on.inIdent ? ' is-now' : ''));
+            guide.appendChild(el('h3', null, 'Guida TV'));
+
+            var day = null;
+            tvGuide(channel, pool, tvClock()).forEach(function (slot, i) {
+                var label = tvDayLabel(slot.start);
+                if (label !== day) {
+                    day = label;
+                    guide.appendChild(el('div', 'nf-tv-day', label));
+                }
+
+                var row = el('div', 'nf-tv-row' + (i === 0 ? ' is-now' : ''));
+                if (i === 0) {
+                    var progress = el('span', 'nf-tv-row-fill');
+                    progress.style.width =
+                        Math.min(100, Math.round((on.offset / (slot.end - slot.start)) * 100)) + '%';
+                    row.appendChild(progress);
+                }
+
                 row.appendChild(el('span', 'nf-tv-row-time', tvTimeLabel(slot.start)));
+
                 var text = el('span', 'nf-tv-row-text');
                 text.appendChild(el('strong', null, slot.item.name));
                 if (slot.show) text.appendChild(el('em', null, slot.show));
                 row.appendChild(text);
+
                 row.appendChild(
                     el('span', 'nf-tv-row-len', Math.round(slot.item.ms / 60000) + ' min')
                 );
@@ -5433,8 +5707,6 @@
             });
         });
     }
-
-    /* --------------------------------------------------------- tuning in */
 
     function tvTune(id, mode) {
         var channel = tvChannel(id);
@@ -5630,14 +5902,6 @@
         });
         skin.appendChild(corner);
 
-        var live = el('button', 'nf-tv-live');
-        live.type = 'button';
-        live.textContent = 'Torna in diretta';
-        live.addEventListener('click', function () {
-            if (tvState.channel) tvTune(tvState.channel, 'live');
-        });
-        skin.appendChild(live);
-
         /* The ident is a real clip, played by an element of ours rather than
          * through Jellyfin's player: it is already in a format every browser
          * takes, so there is nothing to transcode and no fake item in anyone's
@@ -5705,6 +5969,7 @@
         }
 
         tvPaintIdent(on);
+        tvPaintOsd(on);
 
         if (!video) {
             if (!tvState.started) {
@@ -5827,6 +6092,30 @@
             log('tv: the corner window was refused, offering the button', err);
             if (skin) skin.classList.add('needs-pip');
         });
+    }
+
+    function tvPaintOsd(on) {
+        if (!player || !player.live || !tvState.channel) return;
+
+        var channel = tvChannel(tvState.channel);
+        var live = player.live;
+        if (channel) player.node.style.setProperty('--nf-tv-tone', channel.tone);
+
+        var shifted = tvState.shift > 0;
+        live.pill.classList.toggle('is-shifted', shifted);
+        live.word.textContent = shifted ? 'Torna in diretta' : 'Diretta';
+
+        if (!on) return;
+
+        live.title.textContent = on.slot.item.name;
+        live.sub.textContent =
+            (channel ? channel.name : '') +
+            (on.next ? ' · A seguire ' + on.next.item.name + ' alle ' + tvTimeLabel(on.next.start) : '');
+        live.start.textContent = tvTimeLabel(on.slot.start);
+        live.end.textContent = tvTimeLabel(on.slot.end);
+
+        var span = on.slot.end - on.slot.start;
+        live.fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
     }
 
     function tvHandOver(on) {
