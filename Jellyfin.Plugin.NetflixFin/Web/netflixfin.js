@@ -3078,12 +3078,18 @@
             row.style.setProperty('--nf-tv-tone', channel.tone);
 
             var shot = el('div', 'nf-p-channel-shot');
+            shot.appendChild(tvLockup(channel));
+            var bar = el('div', 'nf-tv-bar');
+            var fill = el('span');
+            bar.appendChild(fill);
+            shot.appendChild(bar);
             row.appendChild(shot);
 
             var copy = el('div', 'nf-p-channel-copy');
-            copy.appendChild(el('strong', null, channel.name));
-            var line = el('span', null, channel.blurb);
+            var line = el('strong', null, channel.blurb);
+            var after = el('span', null, '');
             copy.appendChild(line);
+            copy.appendChild(after);
             row.appendChild(copy);
 
             row.addEventListener('click', function () {
@@ -3096,7 +3102,11 @@
                 if (!pool || !row.isConnected) return;
                 var on = tvNow(channel, pool, tvClock());
                 if (!on) return;
+
                 line.textContent = on.slot.item.name;
+                after.textContent = tvRemaining(on);
+                fill.style.width =
+                    Math.min(100, Math.round((on.offset / (on.slot.end - on.slot.start)) * 100)) + '%';
                 if (client) {
                     shot.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
                 }
@@ -4679,33 +4689,40 @@
     /* The line-up. Uno, Saghe, Classici and 24 are curations rather than genres;
      * the rest are bouquets - unions of several genres - which is the shape a
      * film channel actually takes. The pools overlap on purpose. */
+    /* Each channel signs itself the way a broadcaster's family of channels does:
+     * one mark that never changes - the F - and beside it a tag in the channel's
+     * own colour, set in its own way. Sky does exactly this and it is why their
+     * twelve read as twelve channels of one thing rather than twelve logos.
+     *
+     * `ink` is the colour the tag's word takes, chosen against the tone rather
+     * than assumed white; `face` is how that word is set. */
     var TV_CHANNELS = [
-        { id: 'uno', name: 'Uno', tone: '#1d3f8f', kind: 'movie', blurb: 'Il meglio della libreria',
+        { id: 'uno', name: 'Uno', tone: '#1d3f8f', ink: '#fff', face: 'wide', kind: 'movie', blurb: 'Il meglio della libreria',
           test: function (m) { return (m.rating || 0) >= 7.5; } },
-        { id: 'action', name: 'Action', tone: '#a4161a', kind: 'movie', blurb: 'Azione e avventura',
+        { id: 'action', name: 'Action', tone: '#a4161a', ink: '#fff', face: 'italic', kind: 'movie', blurb: 'Azione e avventura',
           genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'], notGenres: TV_ANIMATION },
-        { id: 'comedy', name: 'Comedy', tone: '#e09f3e', kind: 'movie', blurb: 'Da ridere, sempre',
+        { id: 'comedy', name: 'Comedy', tone: '#e09f3e', ink: '#1a1200', face: 'round', kind: 'movie', blurb: 'Da ridere, sempre',
           genres: ['Commedia', 'Comedy'], notGenres: TV_ANIMATION },
-        { id: 'family', name: 'Family', tone: '#2a9d8f', kind: 'movie', blurb: 'Per tutta la famiglia',
+        { id: 'family', name: 'Family', tone: '#2a9d8f', ink: '#fff', face: 'round', kind: 'movie', blurb: 'Per tutta la famiglia',
           genres: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'] },
-        { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', kind: 'movie', blurb: 'Fantascienza e fantasy',
+        { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', ink: '#fff', face: 'mono', kind: 'movie', blurb: 'Fantascienza e fantasy',
           genres: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Sci-Fi & Fantasy'],
           notGenres: TV_ANIMATION },
-        { id: 'suspense', name: 'Suspense', tone: '#3d0e12', kind: 'movie', blurb: 'Thriller, horror, crime',
+        { id: 'suspense', name: 'Suspense', tone: '#3d0e12', ink: '#ffd9d9', face: 'caps', kind: 'movie', blurb: 'Thriller, horror, crime',
           genres: ['Thriller', 'Horror', 'Mistero', 'Mystery', 'Crime'], notGenres: TV_ANIMATION },
-        { id: 'drama', name: 'Drama', tone: '#264653', kind: 'movie', blurb: 'Storie e sentimenti',
+        { id: 'drama', name: 'Drama', tone: '#264653', ink: '#fff', face: 'serif', kind: 'movie', blurb: 'Storie e sentimenti',
           genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'], notGenres: TV_ANIMATION },
-        { id: 'saghe', name: 'Saghe', tone: '#6a4c93', kind: 'boxset', blurb: 'Una saga per serata' },
-        { id: 'classici', name: 'Classici', tone: '#7f5539', kind: 'movie', blurb: 'Prima del 1990',
+        { id: 'saghe', name: 'Saghe', tone: '#6a4c93', ink: '#fff', face: 'caps', kind: 'boxset', blurb: 'Una saga per serata' },
+        { id: 'classici', name: 'Classici', tone: '#7f5539', ink: '#fff4e6', face: 'serif', kind: 'movie', blurb: 'Prima del 1990',
           test: function (m) { return !!m.year && m.year < 1990; } },
         /* The two episode channels split on shape rather than on genre alone, and
          * they split on the same test, so whatever Sitcom does not take Serie
          * gets and nothing falls between them. */
-        { id: 'serie', name: 'Serie', tone: '#14213d', kind: 'episode', blurb: 'Episodi in ordine',
+        { id: 'serie', name: 'Serie', tone: '#14213d', ink: '#fff', face: 'wide', kind: 'episode', blurb: 'Episodi in ordine',
           showTest: function (genres, episodes) { return !tvIsSitcom(genres, episodes); } },
-        { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', kind: 'episode', blurb: 'Comedy a episodi',
+        { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', ink: '#1a0f00', face: 'round', kind: 'episode', blurb: 'Comedy a episodi',
           genres: ['Commedia', 'Comedy'], showTest: tvIsSitcom },
-        { id: 'nonstop', name: '24', tone: '#495057', kind: 'movie', blurb: 'Tutto, senza sosta' }
+        { id: 'nonstop', name: '24', tone: '#495057', ink: '#fff', face: 'digit', kind: 'movie', blurb: 'Tutto, senza sosta' }
     ];
 
     function tvChannel(id) {
@@ -5549,6 +5566,9 @@
 
     function tvLockup(channel, cls) {
         var badge = el('div', 'nf-tv-logo' + (cls ? ' ' + cls : ''));
+        badge.setAttribute('data-face', channel.face || 'wide');
+        badge.style.setProperty('--nf-tv-tone', channel.tone);
+        badge.style.setProperty('--nf-tv-ink', channel.ink || '#fff');
         badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
         badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
         return badge;
@@ -5792,6 +5812,108 @@
         tvGridTimer = setInterval(tvRunUpdates, 20000);
     }
 
+    /* The guide is also a way in. A programme listed for nine o'clock is a film
+     * that is sitting in the library right now, and being told to wait for it is
+     * a strange thing for an app that owns the file - so a row opens on what the
+     * film is, and offers to play it.
+     *
+     * On demand means on demand: no channel is involved, nothing is guarded, and
+     * it counts as watched like anything else. Playback goes through the
+     * programme's own page for the same reason a channel does - it is the one
+     * control on this build that reliably starts anything. */
+    function tvWatchNow(id, tries) {
+        if (!tries) {
+            tvGuardReporting(false);
+            var client = api();
+            window.location.hash = '#/details?id=' + id + (client ? '&serverId=' + client.serverId() : '');
+        }
+
+        var button = document.querySelector('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay');
+        if (button && button.offsetParent !== null) {
+            button.click();
+            return;
+        }
+
+        if ((tries || 0) < 60) {
+            setTimeout(function () {
+                tvWatchNow(id, (tries || 0) + 1);
+            }, 250);
+        }
+    }
+
+    function tvOpenRow(row, slot, channel) {
+        if (row.classList.contains('is-open')) {
+            row.classList.remove('is-open');
+            var open = row.querySelector('.nf-tv-row-more');
+            if (open) open.remove();
+            return;
+        }
+
+        row.classList.add('is-open');
+
+        var more = el('div', 'nf-tv-row-more');
+        var art = el('div', 'nf-tv-row-poster');
+        var copy = el('div', 'nf-tv-row-copy');
+        more.appendChild(art);
+        more.appendChild(copy);
+        row.appendChild(more);
+
+        var client = api();
+        if (client) {
+            art.style.backgroundImage = 'url("' + tvArt(slot.item, client, 'poster') + '")';
+        }
+
+        var meta = el('div', 'nf-tv-row-meta', '');
+        var blurb = el('p', 'nf-tv-row-blurb', 'Caricamento…');
+        copy.appendChild(el('h4', null, slot.item.name));
+        copy.appendChild(meta);
+        copy.appendChild(blurb);
+
+        var actions = el('div', 'nf-tv-row-actions');
+
+        var watch = el('button', 'nf-btn nf-btn-primary');
+        watch.type = 'button';
+        watch.appendChild(svgIcon('play'));
+        watch.appendChild(el('span', null, 'Guarda ora'));
+        watch.addEventListener('click', function (event) {
+            event.stopPropagation();
+            tvWatchNow(slot.item.id, 0);
+        });
+        actions.appendChild(watch);
+
+        var live = el('button', 'nf-btn nf-btn-secondary');
+        live.type = 'button';
+        live.appendChild(el('span', null, 'Guarda il canale'));
+        live.addEventListener('click', function (event) {
+            event.stopPropagation();
+            tvTune(channel.id, 'live');
+        });
+        actions.appendChild(live);
+
+        copy.appendChild(actions);
+
+        tvDetails(slot.item.id).then(function (item) {
+            if (!item || !row.isConnected) return;
+
+            var bits = [];
+            if (slot.show) bits.push(slot.show);
+            if (item.ProductionYear) bits.push(String(item.ProductionYear));
+            bits.push(Math.round(slot.item.ms / 60000) + ' min');
+            if (item.OfficialRating) bits.push(item.OfficialRating);
+            if ((item.Genres || []).length) bits.push(item.Genres.slice(0, 3).join(', '));
+            meta.textContent = bits.join('  ·  ');
+
+            blurb.textContent = item.Overview || 'Nessuna trama disponibile.';
+
+            var logo = tvLogoUrl(item, client);
+            if (logo) {
+                var h4 = copy.querySelector('h4');
+                h4.classList.add('has-logo');
+                h4.style.backgroundImage = 'url("' + logo + '")';
+            }
+        });
+    }
+
     /* Which day a slot falls on, said the way a guide says it. */
     function tvDayLabel(time) {
         var day = tvDayOf(time);
@@ -5939,6 +6061,17 @@
                 }
 
                 var row = el('div', 'nf-tv-row' + (i === 0 ? ' is-now' : ''));
+                row.setAttribute('role', 'button');
+                row.setAttribute('tabindex', '0');
+                row.addEventListener('click', function () {
+                    tvOpenRow(row, slot, channel);
+                });
+                row.addEventListener('keydown', function (event) {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    tvOpenRow(row, slot, channel);
+                });
+
                 if (i === 0) {
                     var progress = el('span', 'nf-tv-row-fill');
                     progress.style.width =
@@ -5956,6 +6089,7 @@
                 row.appendChild(
                     el('span', 'nf-tv-row-len', Math.round(slot.item.ms / 60000) + ' min')
                 );
+                row.appendChild(svgIcon('chevrondown'));
                 guide.appendChild(row);
             });
         });
@@ -6034,10 +6168,7 @@
 
         if (!cover) {
             cover = el('div', 'nf-tv-cover');
-            var badge = el('div', 'nf-tv-logo');
-            badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
-            badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
-            cover.appendChild(badge);
+            cover.appendChild(tvLockup(channel));
             cover.appendChild(el('div', 'nf-tv-kicker', 'Sintonizzazione'));
             document.body.appendChild(cover);
         }
@@ -6164,6 +6295,9 @@
         mark.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
         mark.appendChild(el('span', 'nf-tv-logo-name', ''));
         skin.appendChild(mark);
+        // The watermark wears the channel's own face too; tvWatchPlayer fills in
+        // which channel that is.
+        mark.setAttribute('data-face', 'wide');
 
         var corner = el('button', 'nf-tv-corner');
         corner.type = 'button';
@@ -6209,7 +6343,10 @@
         var skin = tvSkin();
         var channel = tvChannel(tvState.channel);
         if (channel) {
-            skin.querySelector('.nf-tv-bug .nf-tv-logo-name').textContent = channel.name;
+            var bug = skin.querySelector('.nf-tv-bug');
+            bug.querySelector('.nf-tv-logo-name').textContent = channel.name;
+            bug.setAttribute('data-face', channel.face || 'wide');
+            bug.style.setProperty('--nf-tv-ink', channel.ink || '#fff');
             skin.style.setProperty('--nf-tv-tone', channel.tone);
         }
         skin.classList.toggle('is-shifted', tvState.shift > 0);

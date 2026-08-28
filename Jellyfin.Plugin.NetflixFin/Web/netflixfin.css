@@ -3460,15 +3460,84 @@ body.nf-tv {
 
 /* --- the marks ------------------------------------------------------------ */
 
+/* A mark that never changes and a tag that always does: the F, then the
+   channel's name set in the channel's own colour and its own way. It is the
+   shape a broadcaster's family of channels takes - twelve marks that read as
+   twelve channels of one thing rather than twelve logos. */
 .nf-tv-logo {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     align-self: flex-start;
-    padding: 6px 12px 6px 9px;
+    padding: 5px 6px 5px 9px;
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.58);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(8px);
+}
+
+.nf-tv-logo-name {
+    padding: 3px 9px 4px;
+    border-radius: 3px;
+    background: var(--nf-tv-tone, #333);
+    color: var(--nf-tv-ink, #fff);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+/* Uno and Serie: open, calm, spaced out. */
+.nf-tv-logo[data-face="wide"] .nf-tv-logo-name {
+    letter-spacing: 0.16em;
+    padding-right: 5px;
+    text-transform: lowercase;
+}
+
+/* Action: leaning forward. */
+.nf-tv-logo[data-face="italic"] .nf-tv-logo-name {
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+}
+
+/* Comedy, Family, Sitcom: soft corners, friendly weight. */
+.nf-tv-logo[data-face="round"] .nf-tv-logo-name {
+    border-radius: 9999px;
+    padding: 3px 11px 4px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+/* Sci-Fi: machine type. */
+.nf-tv-logo[data-face="mono"] .nf-tv-logo-name {
+    font-family: "Consolas", "SF Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+/* Drama and Classici: a serif, because they are the ones with a past. */
+.nf-tv-logo[data-face="serif"] .nf-tv-logo-name {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+/* Suspense and Saghe: small, wide capitals. */
+.nf-tv-logo[data-face="caps"] .nf-tv-logo-name {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    padding-right: 5px;
+    text-transform: uppercase;
+}
+
+/* 24: a number, set as a number. */
+.nf-tv-logo[data-face="digit"] .nf-tv-logo-name {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
 }
 
 /* On a billboard the channel signs itself larger, and the live badge beside it
@@ -3481,6 +3550,14 @@ body.nf-tv {
 .nf-tv-bill .nf-tv-logo-name,
 .nf-tv-hero .nf-tv-logo-name {
     font-size: 16px;
+    padding: 4px 11px 5px;
+}
+
+.nf-tv-bill .nf-tv-logo[data-face="mono"] .nf-tv-logo-name,
+.nf-tv-hero .nf-tv-logo[data-face="mono"] .nf-tv-logo-name,
+.nf-tv-bill .nf-tv-logo[data-face="caps"] .nf-tv-logo-name,
+.nf-tv-hero .nf-tv-logo[data-face="caps"] .nf-tv-logo-name {
+    font-size: 13.5px;
 }
 
 .nf-has-logo .nf-tv-bill .nf-tv-logo-mark,
@@ -3549,12 +3626,6 @@ body.nf-tv {
 .nf-has-logo .nf-tv-cover .nf-tv-logo-mark {
     --nf-mark-h: 30px;
 }
-.nf-tv-logo-name {
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-}
-
 /* The live dot, the one thing on the page that moves. */
 .nf-tv-dot {
     width: 7px;
@@ -3799,6 +3870,126 @@ body.nf-tv {
     font-variant-numeric: tabular-nums;
 }
 
+/* A listing that opens. The chevron is the only thing that says so until you
+   try it, so it turns over when the row is open. */
+.nf-tv-row {
+    cursor: pointer;
+    flex-wrap: wrap;
+}
+
+.nf-tv-row > svg {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    fill: var(--nf-text-dim);
+    transition: transform 0.18s var(--nf-ease);
+}
+
+.nf-tv-row.is-open > svg {
+    transform: rotate(180deg);
+}
+
+.nf-tv-row.is-open {
+    background: rgba(255, 255, 255, 0.07);
+    border-bottom-color: transparent;
+}
+
+.nf-tv-row-more {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    padding: 18px 0 8px 70px;
+    animation: nf-row-open 0.2s var(--nf-ease);
+}
+
+@keyframes nf-row-open {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.nf-tv-row-poster {
+    flex: 0 0 auto;
+    width: 132px;
+    aspect-ratio: 2 / 3;
+    border-radius: 6px;
+    background-color: #1b1b1b;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.nf-tv-row-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.nf-tv-row-copy h4 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.nf-tv-row-copy h4.has-logo {
+    width: min(260px, 60%);
+    height: 54px;
+    color: transparent;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: contain;
+}
+
+.nf-tv-row-meta {
+    color: var(--nf-text-dim);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.nf-tv-row-blurb {
+    margin: 10px 0 0;
+    max-width: 68ch;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 14px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nf-tv-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.nf-tv-row-actions .nf-btn {
+    min-height: 40px;
+    padding: 0 20px;
+    font-size: 14px;
+}
+
+@media (max-width: 820px) {
+    .nf-tv-row-more {
+        padding-left: 0;
+        gap: 14px;
+    }
+
+    .nf-tv-row-poster {
+        width: 92px;
+    }
+
+    .nf-tv-row-blurb {
+        -webkit-line-clamp: 6;
+    }
+}
+
 /* --- tuning in ------------------------------------------------------------ */
 
 /* Over the details page while a channel is starting. That page is how playback
@@ -3823,7 +4014,7 @@ body.nf-tv {
    corner, which in this centred column put it against the left edge. */
 .nf-tv-cover .nf-tv-logo {
     align-self: center;
-    transform: scale(1.4);
+    transform: scale(1.6);
     background: transparent;
     backdrop-filter: none;
 }
@@ -3879,8 +4070,46 @@ body.nf-tv-on .nf-tv-skin {
     transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
 }
 
+/* The watermark carries the same tag, at the size a bug is read across a
+   room. */
 .nf-tv-bug .nf-tv-logo-name {
-    font-size: 20px;
+    padding: 4px 12px 5px;
+    border-radius: 3px;
+    background: var(--nf-tv-tone, #333);
+    color: var(--nf-tv-ink, #fff);
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.nf-tv-bug[data-face="round"] .nf-tv-logo-name {
+    border-radius: 9999px;
+}
+
+.nf-tv-bug[data-face="italic"] .nf-tv-logo-name {
+    font-style: italic;
+    text-transform: uppercase;
+}
+
+.nf-tv-bug[data-face="serif"] .nf-tv-logo-name {
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.nf-tv-bug[data-face="mono"] .nf-tv-logo-name {
+    font-family: "Consolas", "SF Mono", ui-monospace, monospace;
+    font-size: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.nf-tv-bug[data-face="caps"] .nf-tv-logo-name {
+    font-size: 15px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.nf-tv-bug[data-face="wide"] .nf-tv-logo-name {
+    letter-spacing: 0.14em;
+    text-transform: lowercase;
 }
 
 body.nf-chrome-up .nf-tv-bug {
@@ -4084,23 +4313,27 @@ body.nf-tv-on .nf-p-restart-btn {
 /* The panel comes down under the button that opens it, on the right, where
    those buttons are. */
 .nf-p-panel-channels {
-    width: min(560px, 88vw);
+    width: min(740px, 92vw);
     min-width: 0;
 }
 
+/* Twelve of them side by side at eighty pixels was a contact sheet. Two
+   columns of picture-led cards: the channel's mark on its own artwork, what is
+   on underneath it, and how far in. */
 .nf-p-channels {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    max-height: min(58vh, 460px);
+    gap: 14px;
+    max-height: min(62vh, 520px);
     overflow-y: auto;
+    padding-right: 4px;
 }
 
 .nf-p-channel {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
     border: 0;
     border-radius: 6px;
     background: transparent;
@@ -4108,47 +4341,75 @@ body.nf-tv-on .nf-p-restart-btn {
     font-family: var(--nf-font);
     text-align: left;
     cursor: pointer;
-    transition: background 0.16s var(--nf-ease);
+    transition: transform 0.16s var(--nf-ease);
 }
 
-.nf-p-channel:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.nf-p-channel.is-on {
-    background: rgba(255, 255, 255, 0.14);
-    box-shadow: inset 3px 0 0 var(--nf-tv-tone, #fff);
+.nf-p-channel:hover,
+.nf-p-channel:focus-visible {
+    transform: translateY(-2px);
+    outline: none;
 }
 
 .nf-p-channel-shot {
-    flex: 0 0 auto;
-    width: 84px;
+    position: relative;
+    width: 100%;
     aspect-ratio: 16 / 9;
-    border-radius: 4px;
+    border-radius: 5px;
     overflow: hidden;
-    background-color: var(--nf-tv-tone, #222);
+    background-color: #1b1b1b;
     background-size: cover;
     background-position: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.nf-p-channel-shot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 44%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.nf-p-channel-shot .nf-tv-logo {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    transform: scale(0.92);
+    transform-origin: top left;
+}
+
+.nf-p-channel-shot .nf-tv-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+.nf-p-channel:hover .nf-p-channel-shot,
+.nf-p-channel.is-on .nf-p-channel-shot {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--nf-tv-tone, #fff);
 }
 
 .nf-p-channel-copy {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    gap: 2px;
     line-height: 1.3;
 }
 
 .nf-p-channel-copy strong {
-    font-size: 13.5px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .nf-p-channel-copy span {
     color: var(--nf-text-dim);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 12.5px;
 }
 
 @media (max-width: 820px) {
