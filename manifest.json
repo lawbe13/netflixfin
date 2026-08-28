@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "2.43.2.0",
+        "changelog": "See https://github.com/lawbe13/netflixfin/releases/tag/v2.43.2.0",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/lawbe13/netflixfin/releases/download/v2.43.2.0/netflixfin_2.43.2.0.zip",
+        "checksum": "2eed861dd63aa4fae83e1fae380c8dbc",
+        "timestamp": "2026-08-28T12:22:59Z"
+      },
+      {
         "version": "2.43.1.0",
         "changelog": "See https://github.com/lawbe13/netflixfin/releases/tag/v2.43.1.0",
         "targetAbi": "10.11.0.0",
