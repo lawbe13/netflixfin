@@ -126,6 +126,16 @@ const cases = [
         want: (r) => !r.calls.includes('stop') && r.state.lostAt > 0
     },
     {
+        what: 'the viewer left while a seek was still pending',
+        scene: { on: slot('a', 40 * MIN), video: null, hash: '#/details?id=a', state: { pending: { slot: {} } } },
+        want: (r) => r.calls.includes('stop')
+    },
+    {
+        what: 'a seek pending while the player is still there',
+        scene: { on: slot('a', 40 * MIN), video: null, busy: true, state: { pending: { slot: {} } } },
+        want: (r) => !r.calls.includes('stop')
+    },
+    {
         what: 'the viewer left, and the leftover player still holds a source',
         scene: { on: slot('a', 40 * MIN), video: null, busy: true, hash: '#/details?id=a' },
         want: (r) => r.calls.includes('stop')

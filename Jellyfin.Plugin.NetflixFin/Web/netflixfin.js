@@ -6457,7 +6457,14 @@
              * is what sent the viewer back to the TV page exactly as the ident
              * came up. Only a stop in the middle of a programme, with nothing
              * else under way, is someone leaving. */
-            if (tvState.pending) return;
+            /* Waiting on a programme that was asked for - but only while there
+             * is something to wait for. A seek that never settles leaves this
+             * set, and with the player gone as well the channel would sit here
+             * for ever: pressing back left the viewer on the programme's page
+             * with the channel still nominally on. */
+            if (tvState.pending && (tvPlayerBusy() || window.location.hash.indexOf('#/video') === 0)) {
+                return;
+            }
             if (on && on.inIdent) return;
             if (on && tvState.slotId && on.slot.item.id !== tvState.slotId) {
                 tvHandOver(on);
