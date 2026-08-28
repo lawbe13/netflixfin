@@ -5821,24 +5821,40 @@
      * it counts as watched like anything else. Playback goes through the
      * programme's own page for the same reason a channel does - it is the one
      * control on this build that reliably starts anything. */
-    function tvWatchNow(id, tries) {
-        if (!tries) {
+    function tvWatchNow(id, attempt) {
+        var client = api();
+        var route = '#/details?id=' + id;
+
+        if (!attempt) {
             tvGuardReporting(false);
-            var client = api();
-            window.location.hash = '#/details?id=' + id + (client ? '&serverId=' + client.serverId() : '');
+            window.location.hash = route + (client ? '&serverId=' + client.serverId() : '');
         }
 
-        var button = document.querySelector('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay');
-        if (button && button.offsetParent !== null) {
+        var press = function (tries) {
+            // The viewer moved on while the page was loading.
+            if (window.location.hash.indexOf(route) !== 0) return;
+
+            var button = document.querySelector('.mainDetailButtons .btnResume, .mainDetailButtons .btnPlay');
+            if (!button || button.offsetParent === null) {
+                if (tries < 60) setTimeout(function () { press(tries + 1); }, 250);
+                return;
+            }
+
             button.click();
-            return;
-        }
 
-        if ((tries || 0) < 60) {
+            /* And then check. jellyfin-web delegates this click, and one that
+             * lands while the page is still settling reaches nothing at all -
+             * silently. Pressing it a second time is what makes it play, which
+             * is the same thing the channels learned the hard way. */
+            if ((attempt || 0) >= 3) return;
             setTimeout(function () {
-                tvWatchNow(id, (tries || 0) + 1);
-            }, 250);
-        }
+                if (tvPlayerBusy()) return;
+                if (window.location.hash.indexOf(route) !== 0) return;
+                tvWatchNow(id, (attempt || 0) + 1);
+            }, 6000);
+        };
+
+        press(0);
     }
 
     function tvOpenRow(row, slot, channel) {
