@@ -47,6 +47,7 @@ function run(scene) {
         tvCover: () => calls.push('cover'),
         tvAmbient: () => calls.push('ambient'),
         tvPaintIdent: () => calls.push('ident'),
+        tvPaintOsd: () => calls.push('osd'),
         tvHandOver: () => calls.push('handover'),
         tvPressPlay: () => calls.push('press'),
         tvStop: () => calls.push('stop'),

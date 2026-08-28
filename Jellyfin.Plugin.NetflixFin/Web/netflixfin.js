@@ -5367,8 +5367,6 @@
     }
 
     function tvPaintBill(host, panel) {
-        var client = api();
-
         var art = el('div', 'nf-tv-bill-art');
         var copy = el('div', 'nf-tv-bill-copy');
         host.appendChild(art);
@@ -5389,11 +5387,16 @@
             var on = feature.on;
             host.style.setProperty('--nf-tv-tone', channel.tone);
 
+            /* Asked for again on every pass rather than kept: the page is
+             * painted while jellyfin-web is still signing in, and a client taken
+             * once at that moment is null for the life of the page - which is
+             * every picture on it missing. */
+            var client = api();
+            if (!client) return;
+
             if (painted !== on.slot.item.id) {
                 painted = on.slot.item.id;
-                if (client) {
-                    art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
-                }
+                art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
 
                 copy.textContent = '';
                 copy.appendChild(tvLockup(channel));
@@ -5481,8 +5484,6 @@
         var grid = el('div', 'nf-tv-grid');
         panel.appendChild(grid);
 
-        var client = api();
-
         TV_CHANNELS.forEach(function (channel) {
             var card = el('button', 'nf-tv-card');
             card.type = 'button';
@@ -5533,6 +5534,8 @@
                     var span = on.slot.end - on.slot.start;
                     fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
 
+                    // See tvPaintBill: the client is asked for per pass, not kept.
+                    var client = api();
                     if (client && painted !== on.slot.item.id) {
                         painted = on.slot.item.id;
                         shot.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
@@ -5593,9 +5596,9 @@
         var guide = el('div', 'nf-tv-guide');
         panel.appendChild(guide);
 
-        var client = api();
-
         tvLoadPool(channel).then(function (pool) {
+            var client = api();
+
             if (!pool) {
                 // Nothing to draw yet; the next pass will have it.
                 setTimeout(function () {
