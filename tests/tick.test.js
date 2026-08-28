@@ -34,6 +34,9 @@ function run(scene) {
     }, scene.state);
 
     const scope = {
+        // The tick reads the hash to tell a stream restarting from a viewer
+        // walking out: one keeps the player on screen, the other does not.
+        window: { location: { hash: scene.hash || '#/video' } },
         tvState: state,
         TV_TAIL_MS,
         Date: { now: Clock.now },
@@ -121,6 +124,11 @@ const cases = [
         what: 'the stream restarts itself in the middle of a programme',
         scene: { on: slot('a', 40 * MIN), video: null, busy: true },
         want: (r) => !r.calls.includes('stop') && r.state.lostAt > 0
+    },
+    {
+        what: 'the viewer left, and the leftover player still holds a source',
+        scene: { on: slot('a', 40 * MIN), video: null, busy: true, hash: '#/details?id=a' },
+        want: (r) => r.calls.includes('stop')
     },
     {
         what: 'the stream never came back, ninety seconds on',

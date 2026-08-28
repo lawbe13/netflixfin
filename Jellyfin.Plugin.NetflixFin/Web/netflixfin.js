@@ -6470,8 +6470,14 @@
              * is a player with nothing in it. Read as a departure, that took the
              * channel down mid-film and left the same film playing from the
              * beginning as an ordinary title. It is given a minute and a half to
-             * come back before it counts as gone. */
-            if (tvPlayerBusy()) {
+             * come back before it counts as gone.
+             *
+             * Only while the player is still the page, though. Leaving a channel
+             * puts the programme's own page back on screen, and the leftover
+             * <video> can hold a source there too - waiting a minute and a half
+             * for that would leave the viewer sitting on a title page they never
+             * asked for. */
+            if (tvPlayerBusy() && window.location.hash.indexOf('#/video') === 0) {
                 if (!tvState.lostAt) tvState.lostAt = Date.now();
                 if (Date.now() - tvState.lostAt < 90000) return;
             } else {
