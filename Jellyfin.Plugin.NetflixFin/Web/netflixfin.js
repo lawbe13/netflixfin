@@ -4661,7 +4661,7 @@
      */
 
     var TV_LIBRARY_KEY = 'nf-tv-library';
-    var TV_LIBRARY_VERSION = 1;
+    var TV_LIBRARY_VERSION = 2;
     /* How long what is kept stays good for. A library gains a title now and
      * then; nobody is waiting on the schedule to notice within the hour. */
     var TV_LIBRARY_MS = 12 * 3600000;
@@ -4786,12 +4786,27 @@
                 });
             })
             .then(function (all) {
-                // A saga worth an evening has more than one film in it.
-                return all.filter(function (set) { return set && set.episodes.length > 1; });
+                return {
+                    // A saga worth an evening has more than one film in it.
+                    list: all.filter(function (set) { return set && set.episodes.length > 1; }),
+                    failed: all.filter(function (set) { return !set; }).length
+                };
             });
 
         return Promise.all([films, shows, sets]).then(function (parts) {
-            return { at: Date.now(), films: parts[0], shows: parts[1], sets: parts[2] };
+            return {
+                at: Date.now(),
+                films: parts[0],
+                shows: parts[1],
+                sets: parts[2].list,
+                /* A section that came back empty is a request that failed, not a
+                 * library with nothing in it - which is what happened while the
+                 * server was still coming up: every collection request was
+                 * refused, Saghe lost its hundred sagas, and the answer was then
+                 * kept for twelve hours. A partial answer is used but never
+                 * written down. */
+                partial: !parts[0].length || !parts[1].length || parts[2].failed > 0
+            };
         });
     }
 
@@ -4821,6 +4836,13 @@
     }
 
     function tvLibraryTake(library) {
+        // Whatever came back empty keeps what it had.
+        if (tvLibrary) {
+            if (!library.films.length) library.films = tvLibrary.films;
+            if (!library.shows.length) library.shows = tvLibrary.shows;
+            if (!library.sets.length) library.sets = tvLibrary.sets;
+        }
+
         tvLibrary = library;
         // The channels are filters over it, so they are all out of date at once.
         tvPools = {};
@@ -4841,7 +4863,13 @@
 
         tvFetchLibrary().then(function (fresh) {
             if (!fresh) return;
-            tvLibraryWrite(fresh);
+            if (fresh.partial) {
+                log('tv: part of the library did not answer; not keeping this one');
+                // Worth another try, but not immediately.
+                setTimeout(function () { tvLibraryRefreshed = false; }, 60000);
+            } else {
+                tvLibraryWrite(fresh);
+            }
             if (tvState.channel) return;
             tvLibraryTake(fresh);
             tvRunUpdates();
@@ -4865,8 +4893,13 @@
             .then(function (library) {
                 tvLibraryRequest = null;
                 if (!library) return null;
-                tvLibraryRefreshed = true;
-                tvLibraryWrite(library);
+                if (library.partial) {
+                    log('tv: part of the library did not answer; not keeping this one');
+                    setTimeout(function () { tvLibraryRefreshed = false; }, 60000);
+                } else {
+                    tvLibraryRefreshed = true;
+                    tvLibraryWrite(library);
+                }
                 return tvLibraryTake(library);
             })
             .catch(function (err) {

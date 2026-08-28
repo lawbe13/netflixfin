@@ -3202,7 +3202,6 @@ body.nf-tv {
     display: flex;
     align-items: flex-end;
     min-height: min(62vh, 620px);
-    margin-bottom: 8px;
     padding: 0 var(--nf-gutter) 46px;
     overflow: hidden;
     isolation: isolate;
@@ -3225,7 +3224,7 @@ body.nf-tv {
     background:
         linear-gradient(77deg, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.5) 42%, rgba(0, 0, 0, 0) 68%),
         linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 22%),
-        linear-gradient(0deg, var(--nf-bg) 2%, rgba(20, 20, 20, 0.5) 18%, rgba(20, 20, 20, 0) 46%);
+        linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0.92) 12%, rgba(20, 20, 20, 0.35) 32%, rgba(20, 20, 20, 0) 58%);
 }
 
 .nf-tv-bill-copy {
@@ -3295,6 +3294,8 @@ body.nf-tv {
 /* --- the channels --------------------------------------------------------- */
 
 .nf-tv-head {
+    position: relative;
+    margin-top: -46px;
     padding: 0 var(--nf-gutter);
 }
 
@@ -3566,7 +3567,7 @@ body.nf-tv {
     background:
         linear-gradient(77deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.52) 44%, rgba(0, 0, 0, 0) 70%),
         linear-gradient(115deg, var(--nf-tv-tone, transparent) 0%, rgba(0, 0, 0, 0) 55%),
-        linear-gradient(0deg, var(--nf-bg) 2%, rgba(20, 20, 20, 0.55) 20%, rgba(20, 20, 20, 0) 48%);
+        linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0.92) 12%, rgba(20, 20, 20, 0.35) 32%, rgba(20, 20, 20, 0) 58%);
     opacity: 0.96;
 }
 
@@ -3698,7 +3699,9 @@ body.nf-tv {
     background: var(--nf-accent);
 }
 
-.nf-tv-row > span {
+.nf-tv-row-time,
+.nf-tv-row-text,
+.nf-tv-row-len {
     position: relative;
     z-index: 1;
 }
