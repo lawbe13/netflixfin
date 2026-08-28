@@ -4430,7 +4430,7 @@
      * film channel actually takes. The pools overlap on purpose. */
     var TV_CHANNELS = [
         { id: 'uno', name: 'Uno', tone: '#1d3f8f', kind: 'movie', blurb: 'Il meglio della libreria',
-          test: function (m) { return (m.CommunityRating || 0) >= 7.5; } },
+          test: function (m) { return (m.rating || 0) >= 7.5; } },
         { id: 'action', name: 'Action', tone: '#a4161a', kind: 'movie', blurb: 'Azione e avventura',
           genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'], notGenres: TV_ANIMATION },
         { id: 'comedy', name: 'Comedy', tone: '#e09f3e', kind: 'movie', blurb: 'Da ridere, sempre',
@@ -4446,7 +4446,7 @@
           genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'], notGenres: TV_ANIMATION },
         { id: 'saghe', name: 'Saghe', tone: '#6a4c93', kind: 'boxset', blurb: 'Una saga per serata' },
         { id: 'classici', name: 'Classici', tone: '#7f5539', kind: 'movie', blurb: 'Prima del 1990',
-          test: function (m) { return !!m.ProductionYear && m.ProductionYear < 1990; } },
+          test: function (m) { return !!m.year && m.year < 1990; } },
         /* The two episode channels split on shape rather than on genre alone, and
          * they split on the same test, so whatever Sitcom does not take Serie
          * gets and nothing falls between them. */
@@ -4505,6 +4505,11 @@
         return TV_EPOCH + day * TV_DAY_MS;
     }
 
+    /* A day is asked for several times a second - the clock, the guide, the two
+     * days either side of midnight - and it is the same answer every time. It
+     * is thrown away whenever the library changes underneath it. */
+    var tvDayCache = {};
+
     /* ------------------------------------------------------------- the pool */
 
     var tvPools = {};
@@ -4522,7 +4527,7 @@
     function tvMatches(channel, item) {
         if (channel.test && !channel.test(item)) return false;
 
-        var genres = item.Genres || [];
+        var genres = item.Genres || item.genres || [];
         if (channel.genres) {
             var wanted = channel.genres;
             if (!genres.some(function (g) { return wanted.indexOf(g) > -1; })) return false;
@@ -4570,138 +4575,274 @@
         return list.sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
     }
 
-    function tvLoadPool(channel) {
-        if (tvPools[channel.id]) return Promise.resolve(tvPools[channel.id]);
-        if (tvPoolRequests[channel.id]) return tvPoolRequests[channel.id];
+    /* ------------------------------------------------------- the library
+     *
+     * Twelve channels used to ask for the library twelve times over. Nine of
+     * them are made of films, and each asked for every film in the library -
+     * the same nine hundred kilobytes, nine times - while Serie and Sitcom
+     * asked for the episodes of every series one series at a time, and Saghe
+     * asked for the contents of a hundred and twenty-three collections one
+     * collection at a time. Opening the TV page fired something like a hundred
+     * and fifty requests at once, which is why it crawled, and why a card
+     * sometimes never filled in at all: enough of those requests were queued
+     * behind the others to time out.
+     *
+     * It is read once instead - films in one request, episodes in one request,
+     * series in one - and every channel is a filter over what came back. What
+     * came back is also kept in the browser, so opening the page again paints
+     * from what is already there and checks for new titles quietly afterwards.
+     */
 
+    var TV_LIBRARY_KEY = 'nf-tv-library';
+    var TV_LIBRARY_VERSION = 1;
+    /* How long what is kept stays good for. A library gains a title now and
+     * then; nobody is waiting on the schedule to notice within the hour. */
+    var TV_LIBRARY_MS = 12 * 3600000;
+    // How many collections to ask about at a time.
+    var TV_QUEUE_WIDTH = 4;
+
+    var tvPools = {};
+    var tvLibrary = null;
+    var tvLibraryRequest = null;
+    var tvLibraryRefreshed = false;
+
+    function tvRuntime(item) {
+        return Math.round((item.RunTimeTicks || 0) / 10000);
+    }
+
+    function tvKeep(item) {
+        var ms = item.ms === undefined ? tvRuntime(item) : item.ms;
+        return ms >= TV_MIN_MS;
+    }
+
+    /* A few at a time. A hundred and twenty-three requests let loose together
+     * is what the browser and the server both choke on; four at a time is not
+     * measurably slower and leaves the rest of the page usable. */
+    function tvQueue(items, worker) {
+        var results = [];
+        var next = 0;
+
+        function pull() {
+            if (next >= items.length) return Promise.resolve();
+            var index = next++;
+            return Promise.resolve(worker(items[index]))
+                .catch(function () { return null; })
+                .then(function (value) {
+                    results[index] = value;
+                    return pull();
+                });
+        }
+
+        var runners = [];
+        for (var i = 0; i < Math.min(TV_QUEUE_WIDTH, items.length); i++) runners.push(pull());
+        return Promise.all(runners).then(function () { return results; });
+    }
+
+    // Only what the schedule reads, which is also what makes it small enough
+    // to keep in the browser.
+    var TV_SLIM = { EnableImages: false, EnableUserData: false, EnableTotalRecordCount: false };
+
+    function tvAsk(client, user, query) {
+        var full = { Recursive: true };
+        var key;
+        for (key in TV_SLIM) full[key] = TV_SLIM[key];
+        for (key in query) full[key] = query[key];
+        return client.getItems(user, full).then(function (result) { return result.Items || []; });
+    }
+
+    function tvFetchLibrary() {
         var client = api();
         if (!client) return Promise.resolve(null);
         var user = client.getCurrentUserId();
 
-        var request;
-        if (channel.kind === 'episode') {
-            /* Episodes are asked for by series, so a channel can keep a series
-             * together and in order - which is the point of Serie and Sitcom. */
-            request = client
-                .getItems(user, {
-                    IncludeItemTypes: 'Series',
-                    Recursive: true,
-                    Fields: 'Genres',
-                    Limit: 500
-                })
-                .then(function (result) {
-                    var shows = (result.Items || []).filter(function (s) {
-                        return tvMatches(channel, s);
+        var films = tvAsk(client, user, {
+            IncludeItemTypes: 'Movie',
+            Fields: 'Genres,RunTimeTicks,ProductionYear,CommunityRating',
+            Limit: 2000
+        }).then(function (items) {
+            return items.filter(tvKeep).map(function (m) {
+                var entry = tvEntry(m);
+                entry.genres = m.Genres || [];
+                entry.year = m.ProductionYear || null;
+                entry.rating = m.CommunityRating || 0;
+                return entry;
+            });
+        });
+
+        /* Every episode in one request rather than one request per series. They
+         * arrive in series and episode order and are grouped here, so a channel
+         * still plays a show in order. */
+        var shows = Promise.all([
+            tvAsk(client, user, { IncludeItemTypes: 'Series', Fields: 'Genres', Limit: 1000 }),
+            tvAsk(client, user, {
+                IncludeItemTypes: 'Episode',
+                Fields: 'RunTimeTicks',
+                SortBy: 'SeriesSortName,ParentIndexNumber,IndexNumber',
+                SortOrder: 'Ascending',
+                Limit: 20000
+            })
+        ]).then(function (both) {
+            var byId = {};
+            both[0].forEach(function (show) {
+                byId[show.Id] = { id: show.Id, name: show.Name, genres: show.Genres || [], episodes: [] };
+            });
+            both[1].forEach(function (episode) {
+                var show = byId[episode.SeriesId];
+                if (show && tvKeep(episode)) show.episodes.push(tvEntry(episode));
+            });
+            return Object.keys(byId).map(function (id) { return byId[id]; })
+                .filter(function (show) { return show.episodes.length; });
+        });
+
+        var sets = tvAsk(client, user, { IncludeItemTypes: 'BoxSet', Limit: 300 })
+            .then(function (found) {
+                return tvQueue(found, function (set) {
+                    return tvAsk(client, user, {
+                        ParentId: set.Id,
+                        IncludeItemTypes: 'Movie',
+                        Fields: 'RunTimeTicks,ProductionYear',
+                        SortBy: 'PremiereDate,ProductionYear,SortName',
+                        SortOrder: 'Ascending',
+                        Limit: 60
+                    }).then(function (films) {
+                        return {
+                            id: set.Id,
+                            name: set.Name,
+                            episodes: films.filter(tvKeep).map(tvEntry)
+                        };
                     });
-                    return Promise.all(
-                        shows.map(function (show) {
-                            return client
-                                .getItems(user, {
-                                    ParentId: show.Id,
-                                    IncludeItemTypes: 'Episode',
-                                    Recursive: true,
-                                    Fields: 'RunTimeTicks',
-                                    SortBy: 'ParentIndexNumber,IndexNumber',
-                                    SortOrder: 'Ascending',
-                                    Limit: 400
-                                })
-                                .then(function (eps) {
-                                    return {
-                                        id: show.Id,
-                                        name: show.Name,
-                                        // Kept for showTest, which cannot run
-                                        // before the episodes are here.
-                                        genres: show.Genres || [],
-                                        episodes: (eps.Items || []).filter(tvKeep).map(tvEntry)
-                                    };
-                                })
-                                .catch(function () { return null; });
-                        })
-                    );
-                })
-                .then(function (shows) {
-                    var keep = shows.filter(function (s) {
-                        if (!s || !s.episodes.length) return false;
-                        if (!channel.showTest) return true;
-                        return channel.showTest(s.genres, s.episodes);
-                    });
-                    return { kind: 'episode', shows: tvSort(keep) };
                 });
-        } else if (channel.kind === 'boxset') {
-            request = client
-                .getItems(user, { IncludeItemTypes: 'BoxSet', Recursive: true, Limit: 300 })
-                .then(function (result) {
-                    return Promise.all(
-                        (result.Items || []).map(function (set) {
-                            return client
-                                .getItems(user, {
-                                    ParentId: set.Id,
-                                    IncludeItemTypes: 'Movie',
-                                    Recursive: true,
-                                    Fields: 'RunTimeTicks,ProductionYear',
-                                    SortBy: 'PremiereDate,ProductionYear,SortName',
-                                    SortOrder: 'Ascending',
-                                    Limit: 60
-                                })
-                                .then(function (films) {
-                                    return {
-                                        id: set.Id,
-                                        name: set.Name,
-                                        // A saga worth an evening has more than one film in it.
-                                        episodes: (films.Items || []).filter(tvKeep).map(tvEntry)
-                                    };
-                                })
-                                .catch(function () { return null; });
-                        })
-                    );
-                })
-                .then(function (sets) {
-                    return {
-                        kind: 'boxset',
-                        shows: tvSort(sets.filter(function (s) { return s && s.episodes.length > 1; }))
-                    };
-                });
-        } else {
-            request = client
-                .getItems(user, {
-                    IncludeItemTypes: 'Movie',
-                    Recursive: true,
-                    Fields: 'Genres,RunTimeTicks,ProductionYear,CommunityRating',
-                    Limit: 2000
-                })
-                .then(function (result) {
-                    var films = (result.Items || []).filter(function (m) {
-                        return tvKeep(m) && tvMatches(channel, m);
-                    });
-                    return { kind: 'movie', items: tvSort(films.map(tvEntry)) };
-                });
+            })
+            .then(function (all) {
+                // A saga worth an evening has more than one film in it.
+                return all.filter(function (set) { return set && set.episodes.length > 1; });
+            });
+
+        return Promise.all([films, shows, sets]).then(function (parts) {
+            return { at: Date.now(), films: parts[0], shows: parts[1], sets: parts[2] };
+        });
+    }
+
+    function tvLibraryRead() {
+        try {
+            var raw = window.localStorage.getItem(TV_LIBRARY_KEY);
+            if (!raw) return null;
+            var kept = JSON.parse(raw);
+            if (kept.version !== TV_LIBRARY_VERSION) return null;
+            if (!kept.library || Date.now() - kept.library.at > TV_LIBRARY_MS) return null;
+            return kept.library;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function tvLibraryWrite(library) {
+        try {
+            window.localStorage.setItem(
+                TV_LIBRARY_KEY,
+                JSON.stringify({ version: TV_LIBRARY_VERSION, library: library })
+            );
+        } catch (err) {
+            // A full or disabled store costs a request next time, nothing more.
+            log('tv: could not keep the library', err);
+        }
+    }
+
+    function tvLibraryTake(library) {
+        tvLibrary = library;
+        // The channels are filters over it, so they are all out of date at once.
+        tvPools = {};
+        tvDayCache = {};
+        return library;
+    }
+
+    /* Anything already known is good enough to paint with; what is new can
+     * arrive a second later. The swap waits while a channel is on air, because
+     * the line-up is a function of the library and changing it under a viewer
+     * would cut the programme they are watching. */
+    function tvLibraryRefresh() {
+        if (tvLibraryRefreshed) return;
+        tvLibraryRefreshed = true;
+
+        tvFetchLibrary().then(function (fresh) {
+            if (!fresh) return;
+            tvLibraryWrite(fresh);
+            if (tvState.channel) return;
+            tvLibraryTake(fresh);
+            tvRunUpdates();
+        }).catch(function (err) {
+            log('tv: could not refresh the library', err);
+        });
+    }
+
+    function tvLibraryLoad() {
+        if (tvLibrary) return Promise.resolve(tvLibrary);
+        if (tvLibraryRequest) return tvLibraryRequest;
+
+        var kept = tvLibraryRead();
+        if (kept) {
+            tvLibraryTake(kept);
+            tvLibraryRefresh();
+            return Promise.resolve(tvLibrary);
         }
 
-        tvPoolRequests[channel.id] = request
-            .then(function (pool) {
-                var full = pool && (pool.items ? pool.items.length : pool.shows.length);
-                // Only a real answer is kept: an empty one has to be askable again.
-                if (full) tvPools[channel.id] = pool;
-                tvPoolRequests[channel.id] = null;
-                return tvPools[channel.id] || null;
+        tvLibraryRequest = tvFetchLibrary()
+            .then(function (library) {
+                tvLibraryRequest = null;
+                if (!library) return null;
+                tvLibraryRefreshed = true;
+                tvLibraryWrite(library);
+                return tvLibraryTake(library);
             })
             .catch(function (err) {
-                tvPoolRequests[channel.id] = null;
-                log('tv: could not read the pool for ' + channel.id, err);
+                tvLibraryRequest = null;
+                log('tv: could not read the library', err);
                 return null;
             });
 
-        return tvPoolRequests[channel.id];
+        return tvLibraryRequest;
+    }
+
+    /* A channel is a filter over the library, so this no longer asks the server
+     * anything - but it stays a promise, because the library still might. */
+    function tvLoadPool(channel) {
+        if (tvPools[channel.id]) return Promise.resolve(tvPools[channel.id]);
+
+        return tvLibraryLoad().then(function (library) {
+            if (!library) return null;
+
+            var pool;
+            if (channel.kind === 'boxset') {
+                pool = { kind: 'boxset', shows: tvSort(library.sets.slice()) };
+            } else if (channel.kind === 'episode') {
+                pool = {
+                    kind: 'episode',
+                    shows: tvSort(library.shows.filter(function (show) {
+                        if (!tvMatches(channel, show)) return false;
+                        if (!channel.showTest) return true;
+                        return channel.showTest(show.genres, show.episodes);
+                    }))
+                };
+            } else {
+                pool = {
+                    kind: 'movie',
+                    items: tvSort(library.films.filter(function (film) {
+                        return tvMatches(channel, film);
+                    }))
+                };
+            }
+
+            var full = pool.items ? pool.items.length : pool.shows.length;
+            // Only a real answer is kept: an empty one has to be askable again.
+            if (full) tvPools[channel.id] = pool;
+            return full ? pool : null;
+        });
     }
 
     /* ---------------------------------------------------------- the line-up */
 
-    /* A day of one channel. Deterministic, self-contained, and laid out so it
-     * ends near midnight: the last slot takes the longest programme that still
-     * fits rather than overrunning into a day that knows nothing about it. */
-    /* A day is asked for several times a second - the clock, the guide, the two
-     * days either side of midnight - and it is the same answer every time. */
-    var tvDayCache = {};
+    /* A day of one channel. Deterministic and self-contained: laid out from its
+     * own midnight, with the last programme allowed to run past the next one. */
 
     function tvDaySchedule(channel, pool, day) {
         if (!pool) return [];

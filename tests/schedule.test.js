@@ -13,7 +13,12 @@ const to = text.indexOf('    /* A handle for checking the line-up');
 if (from < 0 || to < 0) throw new Error('slice not found');
 
 const harness = new Function('log', 'api', text.slice(from, to) + `
-    return { TV_CHANNELS, TV_IDENT_MS, TV_DAY_MS, tvDaySchedule, tvNow, tvGuide, tvDayStart, tvIsSitcom };
+    return {
+        TV_CHANNELS, TV_IDENT_MS, TV_DAY_MS, tvDaySchedule, tvNow, tvGuide, tvDayStart, tvIsSitcom,
+        tvLoadPool,
+        // The library is normally read from the server; here it is handed over.
+        setLibrary: function (library) { tvLibrary = library; tvPools = {}; tvDayCache = {}; }
+    };
 `);
 const tv = harness(() => {}, () => null);
 
@@ -126,4 +131,68 @@ for (const [genres, mins, want] of sitcomCases) {
     }
 }
 
-console.log(JSON.stringify({ channelsFailing: failures, sitcomWrong }));
+/* The channels as filters over one library: what each one takes, and what it
+ * refuses. */
+const film = (id, name, genres, extra) => Object.assign({
+    id, name, ms: 100 * MIN, type: 'Movie', genres, year: 2015, rating: 6
+}, extra || {});
+
+tv.setLibrary({
+    at: Date.now(),
+    films: [
+        film('f1', 'Shrek', ['Animazione', 'Commedia', 'Fantasy', 'Avventura', 'Famiglia']),
+        film('f2', 'Totoro', ['Fantasy', 'Animazione', 'Famiglia'], { year: 1988 }),
+        film('f3', 'Heat', ['Crime', 'Thriller', 'Dramma']),
+        film('f4', 'Aliens', ['Fantascienza', 'Azione'], { rating: 8 }),
+        film('f5', 'Rambo', ['Azione'], { year: 1982 })
+    ],
+    shows: [
+        { id: 'w1', name: 'Sweetpea', genres: ['Commedia', 'Dramma'],
+          episodes: [1, 2, 3].map((n) => ({ id: 'w1e' + n, name: 'E' + n, ms: 43 * MIN, type: 'Episode' })) },
+        { id: 'w2', name: 'Scrubs', genres: ['Commedia'],
+          episodes: [1, 2, 3].map((n) => ({ id: 'w2e' + n, name: 'E' + n, ms: 21 * MIN, type: 'Episode' })) },
+        { id: 'w3', name: 'Chernobyl', genres: ['Dramma'],
+          episodes: [1, 2, 3].map((n) => ({ id: 'w3e' + n, name: 'E' + n, ms: 60 * MIN, type: 'Episode' })) }
+    ],
+    sets: [
+        { id: 'c1', name: 'Rocky', episodes: [1, 2].map((n) => ({ id: 'c1f' + n, name: 'Rocky ' + n, ms: 110 * MIN, type: 'Movie' })) }
+    ]
+});
+
+// A channel with nothing in it answers with nothing, so that it stays askable.
+const named = (pool) => ((pool && (pool.items || pool.shows)) || []).map((x) => x.name).sort();
+const poolOf = async (id) => named(await tv.tvLoadPool(tv.TV_CHANNELS.find((c) => c.id === id)));
+
+const filters = [
+    ['action', ['Aliens', 'Rambo']],
+    ['comedy', []],
+    ['scifi', ['Aliens']],
+    ['drama', ['Heat']],
+    ['suspense', ['Heat']],
+    ['family', ['Shrek', 'Totoro']],
+    ['uno', ['Aliens']],
+    ['classici', ['Rambo', 'Totoro']],
+    ['nonstop', ['Aliens', 'Heat', 'Rambo', 'Shrek', 'Totoro']],
+    ['sitcom', ['Scrubs']],
+    ['serie', ['Chernobyl', 'Sweetpea']],
+    ['saghe', ['Rocky']]
+];
+
+(async () => {
+    let wrongPools = 0;
+    for (const [id, want] of filters) {
+        const got = await poolOf(id);
+        if (got.join('|') !== want.join('|')) {
+            wrongPools++;
+            console.log('pool wrong:', id, 'got', got, 'want', want);
+        }
+    }
+
+    // Asked twice, built once.
+    const channel = tv.TV_CHANNELS[0];
+    const once = await tv.tvLoadPool(channel);
+    const twice = await tv.tvLoadPool(channel);
+    if (once !== twice) { wrongPools++; console.log('pool rebuilt on every ask'); }
+
+    console.log(JSON.stringify({ channelsFailing: failures, sitcomWrong, wrongPools }));
+})();
