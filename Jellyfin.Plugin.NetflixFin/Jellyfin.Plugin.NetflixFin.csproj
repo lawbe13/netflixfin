@@ -29,6 +29,9 @@
          server's own wordmark and a synthesised chord, so nothing here is
          downloaded or licensed. -->
     <EmbeddedResource Include="Web\tv\*.mp4" />
+    <!-- One lockup per channel, drawn rather than set: the F and the
+         channel's own tag, as vector. -->
+    <EmbeddedResource Include="Web\tv\logos\*.svg" />
   </ItemGroup>
 
 </Project>

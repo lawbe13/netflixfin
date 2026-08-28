@@ -222,8 +222,34 @@ public class NetflixFinController : ControllerBase
     }
 
     /// <summary>
+    /// Gets a channel's lockup.
+    /// </summary>
+    /// <param name="channel">The channel's id, as the theme knows it.</param>
+    [HttpGet("tv/logo/{channel}")]
+    [Produces("image/svg+xml")]
+    public ActionResult GetChannelLogo(string channel)
+    {
+        // Matched rather than trusted: the name goes into a resource path.
+        if (string.IsNullOrEmpty(channel) || !Channels.Contains(channel, StringComparer.Ordinal))
+        {
+            return NotFound();
+        }
+
+        var assembly = typeof(NetflixFinController).Assembly;
+        var name = typeof(Plugin).Namespace + ".Web.tv.logos." + channel + ".svg";
+        var stream = assembly.GetManifestResourceStream(name);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = "public, max-age=604800, immutable";
+        return File(stream, "image/svg+xml");
+    }
+
+    /// <summary>
     /// The channels the theme defines, mirrored here only so that a request for
-    /// an ident cannot ask for an arbitrary embedded resource.
+    /// an ident or a lockup cannot ask for an arbitrary embedded resource.
     /// </summary>
     private static readonly string[] Channels =
     {

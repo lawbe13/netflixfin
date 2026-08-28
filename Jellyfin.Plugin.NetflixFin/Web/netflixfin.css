@@ -3462,147 +3462,39 @@ body.nf-tv {
 
 /* The lockup.
 
-   Two parts, the way a broadcaster's family works: a mark that never changes
-   and a tag that always does. The mark is Filmettino's own F, printed white so
-   that colour belongs to the tag alone - which is the trick behind Sky's
-   twelve, where the word is always the same grey and only the block beside it
-   changes.
-
-   No box around the pair. A dark chip behind a coloured tag is three boxes
-   stacked and it read as a button rather than a logo; the mark carries a shadow
-   instead, which is what keeps it legible over a bright frame.
-
-   One number drives the whole thing - --nf-mark-h, the cap height of the F -
-   and the tag is measured off it, so a lockup scales as one object. */
+   Each channel has one of its own, drawn as vector and shipped with the plugin:
+   the F and the channel's tag as a single piece of artwork. Nothing here
+   composes anything - the only decision left is how tall it hangs, which is one
+   number per place it appears. The shadow is what holds it against a bright
+   frame, the way a bug on air does. */
 .nf-tv-logo {
-    --nf-mark-h: 15px;
+    --nf-logo-h: 21px;
     display: inline-flex;
     align-items: center;
-    gap: calc(var(--nf-mark-h) * 0.42);
     align-self: flex-start;
     padding: 0;
     background: none;
-    backdrop-filter: none;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 12px rgba(0, 0, 0, 0.35));
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 14px rgba(0, 0, 0, 0.3));
 }
 
-.nf-tv-logo-mark {
-    color: #fff;
-    font-size: var(--nf-mark-h);
-    font-weight: 900;
-    line-height: 1;
-    -webkit-text-stroke: 0;
+.nf-tv-logo-art {
+    display: block;
+    height: var(--nf-logo-h);
+    width: auto;
 }
 
-.nf-tv-logo-name,
-.nf-tv-bug .nf-tv-logo-name {
-    padding: calc(var(--nf-mark-h) * 0.19) calc(var(--nf-mark-h) * 0.42) calc(var(--nf-mark-h) * 0.21);
-    border-radius: 2px;
-    background: var(--nf-tv-tag, var(--nf-tv-tone, #333));
-    color: var(--nf-tv-ink, #fff);
-    font-size: calc(var(--nf-mark-h) * 0.78);
-    font-weight: 700;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-/* Uno and Serie: open and unhurried, set lowercase. */
-.nf-tv-logo[data-face="wide"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="wide"] .nf-tv-logo-name {
-    padding-right: calc(var(--nf-mark-h) * 0.28);
-    letter-spacing: 0.15em;
-    text-transform: lowercase;
-}
-
-/* Action: leaning forward. */
-.nf-tv-logo[data-face="italic"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="italic"] .nf-tv-logo-name {
-    font-style: italic;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-}
-
-/* Comedy, Family, Sitcom: a lozenge, softer weight. */
-.nf-tv-logo[data-face="round"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="round"] .nf-tv-logo-name {
-    border-radius: 9999px;
-    padding-left: calc(var(--nf-mark-h) * 0.5);
-    padding-right: calc(var(--nf-mark-h) * 0.5);
-    letter-spacing: 0.005em;
-}
-
-/* Sci-Fi: machine type, spaced out. */
-.nf-tv-logo[data-face="mono"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="mono"] .nf-tv-logo-name {
-    font-family: "Consolas", "SF Mono", ui-monospace, monospace;
-    font-size: calc(var(--nf-mark-h) * 0.66);
-    letter-spacing: 0.14em;
-    padding-right: calc(var(--nf-mark-h) * 0.28);
-    text-transform: uppercase;
-}
-
-/* Drama and Classici: a serif, because they are the ones with a past. */
-.nf-tv-logo[data-face="serif"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="serif"] .nf-tv-logo-name {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: calc(var(--nf-mark-h) * 0.76);
-    letter-spacing: 0.015em;
-}
-
-/* Suspense and Saghe: small wide capitals. */
-.nf-tv-logo[data-face="caps"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="caps"] .nf-tv-logo-name {
-    font-size: calc(var(--nf-mark-h) * 0.62);
-    letter-spacing: 0.2em;
-    padding-right: calc(var(--nf-mark-h) * 0.22);
-    text-transform: uppercase;
-}
-
-/* 24: a number, set as a number. */
-.nf-tv-logo[data-face="digit"] .nf-tv-logo-name,
-.nf-tv-bug[data-face="digit"] .nf-tv-logo-name {
-    font-size: calc(var(--nf-mark-h) * 0.92);
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    font-variant-numeric: tabular-nums;
-}
-
-/* The lettermark itself: the same crop as the header - the numbers are measured
-   off the file - but taken as a mask rather than pasted as a picture, because
-   the wordmark is red and a channel mark wants it white. */
-.nf-has-logo .nf-tv-logo-mark {
-    width: calc(90 * var(--nf-mark-h) / 266);
-    height: var(--nf-mark-h);
-    color: transparent;
-    background-color: #fff;
-    background-image: none;
-    -webkit-mask-image: var(--nf-logo);
-    mask-image: var(--nf-logo);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: calc(1302 * var(--nf-mark-h) / 266) calc(378 * var(--nf-mark-h) / 266);
-    mask-size: calc(1302 * var(--nf-mark-h) / 266) calc(378 * var(--nf-mark-h) / 266);
-    -webkit-mask-position: calc(-140 * var(--nf-mark-h) / 266) calc(-56 * var(--nf-mark-h) / 266);
-    mask-position: calc(-140 * var(--nf-mark-h) / 266) calc(-56 * var(--nf-mark-h) / 266);
-}
-
-/* One number per context. */
 .nf-tv-bill .nf-tv-logo,
 .nf-tv-hero .nf-tv-logo {
-    --nf-mark-h: 25px;
+    --nf-logo-h: 34px;
 }
 
 .nf-tv-cover .nf-tv-logo {
-    --nf-mark-h: 34px;
+    --nf-logo-h: 52px;
+    align-self: center;
 }
 
 .nf-p-channel-shot .nf-tv-logo {
-    --nf-mark-h: 14px;
-}
-
-.nf-tv-bug {
-    --nf-mark-h: 28px;
+    --nf-logo-h: 19px;
 }
 
 /* Beside a lockup with no box of its own, the live badge cannot have one. */
@@ -4054,11 +3946,26 @@ body.nf-tv-on .nf-tv-skin {
     transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
 }
 
-/* A broadcaster's bug has no box; it is the lockup, larger, with a shadow to
-   hold it against a bright frame. */
+/* A broadcaster's bug has no box; it is the channel's own lockup, larger, with
+   a shadow to hold it against a bright frame - and gone for as long as the
+   controls are up, because a bug and a control bar never share the screen. */
+.nf-tv-bug {
+    position: absolute;
+    bottom: 9%;
+    right: 3%;
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 16px rgba(0, 0, 0, 0.4));
+    transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
+}
 
-/* Gone for as long as the controls are up: a broadcaster's bug and a control
-   bar never share the screen. */
+.nf-tv-bug .nf-tv-logo-art {
+    display: block;
+    height: 40px;
+    width: auto;
+}
+
 body.nf-chrome-up .nf-tv-bug {
     opacity: 0;
     transform: translateY(-10px);
