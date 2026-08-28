@@ -6059,6 +6059,20 @@
      * time the element exists with a source and nothing decoded. Pressing play
      * again then does real harm: it starts the whole thing over, so the wait
      * never ends and the channel eventually gives up on itself. */
+    /* The server can fail to play a file outright - a codec its hardware cannot
+     * decode, a broken remux - and jellyfin-web then puts up a dialog and waits
+     * for someone to acknowledge it. Behind that dialog the channel would sit
+     * for its four minutes of patience and leave on its own, so it is dismissed
+     * and the channel closes at once, which at least says what happened. */
+    function tvFatalDialog() {
+        var dialogs = document.querySelectorAll('.dialogContainer, .dialog');
+        for (var i = 0; i < dialogs.length; i++) {
+            var text = dialogs[i].textContent || '';
+            if (/playback error|fatal player|errore di riproduzione/i.test(text)) return dialogs[i];
+        }
+        return null;
+    }
+
     function tvPlayerBusy() {
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
         return !!(video && (video.currentSrc || video.src));
@@ -6231,6 +6245,15 @@
 
         tvPaintIdent(on);
         tvPaintOsd(on);
+
+        var fatal = tvFatalDialog();
+        if (fatal) {
+            var acknowledge = fatal.querySelector('button');
+            if (acknowledge) acknowledge.click();
+            log('tv: the server could not play this one');
+            tvStop();
+            return;
+        }
 
         if (!video) {
             if (!tvState.started) {

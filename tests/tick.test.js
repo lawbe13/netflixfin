@@ -46,6 +46,8 @@ function run(scene) {
         tvLiveVideo: () => scene.video || null,
         // Asked for and loading, which is not the same as playing.
         tvPlayerBusy: () => !!scene.busy,
+        // The dialog jellyfin-web puts up when a file will not play at all.
+        tvFatalDialog: () => (scene.fatal ? { querySelector: () => ({ click: () => calls.push('dismiss') }) } : null),
         tvCover: () => calls.push('cover'),
         tvAmbient: () => calls.push('ambient'),
         tvPaintIdent: () => calls.push('ident'),
@@ -114,6 +116,11 @@ const cases = [
         what: 'nothing started after seventy seconds',
         scene: { on: slot('a', 40 * MIN), video: null, state: { started: false, retried: 3, tunedAt: now - 70000, pending: { slot: {} } } },
         want: (r) => !r.calls.includes('stop')
+    },
+    {
+        what: 'the server says it cannot play this one',
+        scene: { on: slot('a', 40 * MIN), video: null, fatal: true },
+        want: (r) => r.calls.includes('dismiss') && r.calls.includes('stop')
     },
     {
         what: 'the transcode is still warming up at eighty seconds',
