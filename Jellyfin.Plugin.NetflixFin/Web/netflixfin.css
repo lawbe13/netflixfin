@@ -1198,6 +1198,17 @@ body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
     transition: background-color 0.15s var(--nf-ease);
 }
 
+/* Measured on a phone: 197 pixels square. An inline SVG with no width of its
+   own takes whatever the box will give it, and a button stretched to the width
+   of the screen gives it everything - so the play glyph on "Guarda" filled the
+   billboard. It is sized off the text it sits beside. */
+.nf-btn svg {
+    flex: 0 0 auto;
+    width: 1.1em;
+    height: 1.1em;
+    fill: currentColor;
+}
+
 .nf-btn .material-icons {
     font-size: 24px;
 }
@@ -3932,21 +3943,6 @@ body.nf-tv {
     white-space: nowrap;
 }
 
-@media (max-width: 820px) {
-    .nf-tv-row-more {
-        padding-left: 0;
-        gap: 14px;
-    }
-
-    .nf-tv-row-poster {
-        width: 92px;
-    }
-
-    .nf-tv-row-blurb {
-        -webkit-line-clamp: 6;
-    }
-}
-
 /* --- tuning in ------------------------------------------------------------ */
 
 /* Over the details page while a channel is starting. That page is how playback
@@ -4448,7 +4444,7 @@ body.nf-tv-on .nf-p-restart-btn {
         font-size: 14.5px;
     }
 
-    .nf-tv-actions .nf-btn-primary {
+    .nf-tv-actions:has(> :nth-child(3)) .nf-btn-primary {
         flex: 1 1 100%;
     }
 
@@ -4559,18 +4555,97 @@ body.nf-tv-on .nf-p-restart-btn {
 }
 
 /* --- phone, held upright ---------------------------------------------------
-   Portrait is where the billboard has the least width and the most height to
-   play with, so the picture is allowed to be taller than it is on a laptop. */
+
+   A billboard on a phone is not a poster with a column of copy laid over it -
+   there is no width to lay it over. It becomes a picture with its caption
+   underneath: the artwork takes the top of the screen at something near
+   sixteen by nine, fades into the page, and the words sit on the page's own
+   black below it, where they have the whole width to themselves. */
 
 @media (max-width: 560px) {
     .nf-tv-bill,
     .nf-tv-hero {
-        min-height: 96vw;
+        display: block;
+        min-height: 0;
+        padding: 55vw var(--nf-gutter) 26px;
     }
 
+    .nf-tv-bill-art,
+    .nf-tv-hero-art {
+        inset: 0 0 auto 0;
+        height: 62vw;
+    }
+
+    .nf-tv-bill::after,
+    .nf-tv-hero::after {
+        inset: 0 0 auto 0;
+        height: 68vw;
+        background:
+            linear-gradient(180deg,
+                rgba(0, 0, 0, 0.45) 0%,
+                rgba(0, 0, 0, 0) 28%,
+                rgba(20, 20, 20, 0.5) 70%,
+                var(--nf-bg) 97%);
+    }
+
+    .nf-tv-bill-copy,
+    .nf-tv-hero-copy {
+        max-width: 100%;
+    }
+
+    .nf-tv-bill-copy > * + *,
+    .nf-tv-hero-copy > * + * {
+        margin-top: 12px;
+    }
+
+    .nf-tv-badges {
+        gap: 12px;
+    }
+
+    .nf-tv-badges + .nf-tv-bill-title {
+        margin-top: 14px;
+    }
+
+    .nf-tv-bill-title {
+        font-size: clamp(23px, 7.2vw, 30px);
+    }
+
+    .nf-tv-bill-title.has-logo {
+        width: min(230px, 62vw);
+        height: clamp(48px, 15vw, 74px);
+    }
+
+    /* The back button belongs over the picture, not over the words. */
+    .nf-tv-back {
+        top: 12px;
+    }
+
+    /* Two channels across at this width; the words under each are one line
+       apiece and clipped, which is what a caption is. */
     .nf-tv-grid {
-        grid-template-columns: 1fr;
-        gap: 18px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px 10px;
+    }
+
+    .nf-tv-onair {
+        font-size: 12.5px;
+    }
+
+    .nf-tv-follow {
+        font-size: 11px;
+    }
+
+    /* Two buttons share a line. Three - which is what a channel page has -
+       give the first the whole width and let the other two share the next. */
+    .nf-tv-actions .nf-btn {
+        flex: 1 1 0;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 14px;
+    }
+
+    .nf-tv-actions:has(> :nth-child(3)) .nf-btn-primary {
+        flex: 1 1 100%;
     }
 
     .nf-p-channels {
