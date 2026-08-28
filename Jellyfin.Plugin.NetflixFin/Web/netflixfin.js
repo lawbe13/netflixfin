@@ -3831,6 +3831,42 @@
         buildPlayer(video);
     }
 
+    /* --------------------------------------------------------- shuffled rows
+     *
+     * The sagas arrive in the home row alphabetically, which means the row opens
+     * on the same three collections every day and the twentieth is never seen.
+     * They are dealt again on each visit instead - once per row per page, since
+     * every mutation of the page runs refresh() and a row that reshuffled under
+     * the cursor would be unusable.
+     */
+
+    var SHUFFLE_ROWS = /cofanett/i;
+    var shuffleSeed = Math.floor(Math.random() * 4294967296);
+
+    function shuffleRows() {
+        var sections = document.querySelectorAll('.verticalSection');
+
+        Array.prototype.forEach.call(sections, function (section, index) {
+            if (section.dataset.nfShuffled) return;
+
+            var heading = section.querySelector('.sectionTitle');
+            if (!heading || !SHUFFLE_ROWS.test(heading.textContent)) return;
+
+            var slider = section.querySelector('.itemsContainer');
+            if (!slider) return;
+
+            var cards = Array.prototype.slice.call(slider.children);
+            // Still filling: shuffling two of twenty would fix their order for
+            // the rest of the page.
+            if (cards.length < 3) return;
+
+            section.dataset.nfShuffled = '1';
+            tvShuffle(cards, tvHash(shuffleSeed + ':' + index)).forEach(function (card) {
+                slider.appendChild(card);
+            });
+        });
+    }
+
     /* ------------------------------------------------------------ billboard */
 
     /* Netflix's billboard puts a play glyph on the primary button and nothing at
@@ -6357,6 +6393,7 @@
         mountHero();
         decorateTop10();
         decorateRows();
+        shuffleRows();
         managePlayer();
         widenCards();
         reapplyThumbs();
