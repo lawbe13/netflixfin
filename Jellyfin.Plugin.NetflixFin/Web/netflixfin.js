@@ -2621,6 +2621,9 @@
             'M3 3h18a2 2 0 012 2v12a2 2 0 01-2 2H7l-5 4V5a2 2 0 011-2zm3 6v2h6V9H6zm8 0v2h4V9h-4zM6 13v2h4v-2H6zm6 0v2h6v-2h-6z',
         fullscreen: 'M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 0h2v7h-7v-2h5v-5z',
         back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z',
+        // Round the clock and back to the start - not the ten-second skip, which
+        // is what this button was borrowing.
+        restart: 'M12 5V2L7 6l5 4V7a5.5 5.5 0 11-5.5 5.5H4.5A7.5 7.5 0 1012 5z',
         chevronup: 'M12 8.6l-7.4 7.4 1.4 1.4L12 11.4l6 6 1.4-1.4L12 8.6z',
         chevrondown: 'M12 15.4l7.4-7.4L18 6.6l-6 6-6-6L4.6 8l7.4 7.4z',
         // A screen with a stand: the channel list.
@@ -3386,6 +3389,12 @@
         });
         playBtn.classList.add('nf-p-play-btn');
         left.appendChild(playBtn);
+        // Only while a channel is on, where it means the programme's beginning.
+        left.appendChild(
+            playerButton('restart', "Dall'inizio", function () {
+                if (tvState.channel) tvTune(tvState.channel, 'restart');
+            }, 'nf-p-restart-btn')
+        );
         left.appendChild(
             playerButton('back10', 'Indietro di 10 secondi', function () {
                 seekTo(video, video.currentTime - 10);
@@ -3504,14 +3513,12 @@
         liveCopy.appendChild(liveTitle);
         liveCopy.appendChild(liveSub);
 
+        /* The line above the bar says what is on; the controls are all in the
+         * row below it. Having one of them up here was half the reason the
+         * player read as scattered. */
         var liveHead = el('div', 'nf-p-live-head');
         liveHead.appendChild(pill);
         liveHead.appendChild(liveCopy);
-        liveHead.appendChild(
-            playerButton('back10', "Dall'inizio", function () {
-                if (tvState.channel) tvTune(tvState.channel, 'restart');
-            }, 'nf-p-live-restart')
-        );
         live.appendChild(liveHead);
 
         var track = el('div', 'nf-p-live-track');
@@ -5715,11 +5722,6 @@
         panel.appendChild(bill);
         tvPaintBill(bill, panel);
 
-        var head = el('div', 'nf-tv-head');
-        head.appendChild(el('h2', null, 'Tutti i canali'));
-        head.appendChild(el('p', null, 'Dodici canali sempre in onda. Niente di quello che guardi qui viene segnato come visto.'));
-        panel.appendChild(head);
-
         var grid = el('div', 'nf-tv-grid');
         panel.appendChild(grid);
 
@@ -5907,7 +5909,7 @@
 
             var restart = el('button', 'nf-btn nf-btn-secondary');
             restart.type = 'button';
-            restart.appendChild(svgIcon('back10'));
+            restart.appendChild(svgIcon('restart'));
             restart.appendChild(el('span', null, "Dall'inizio"));
             restart.addEventListener('click', function () {
                 tvTune(channel.id, 'restart');

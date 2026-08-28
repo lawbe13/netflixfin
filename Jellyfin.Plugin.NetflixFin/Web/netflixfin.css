@@ -2356,9 +2356,14 @@ body.nf-playing .volumeIndicator {
     text-align: right;
 }
 
+/* Left cluster at the left edge, right cluster at the right. The centre title
+   held them apart by being flexible; with a channel on it is not there, and
+   without this every control collected in the bottom-left corner while the
+   panels they open still came down on the right. */
 .nf-p-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
 }
 
@@ -3347,6 +3352,9 @@ body.nf-tv {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 26px 16px;
+    /* Tucked under the foot of the billboard, where the picture has already
+       faded into the page. */
+    margin-top: -14px;
     padding: 0 var(--nf-gutter);
 }
 
@@ -3388,7 +3396,7 @@ body.nf-tv {
 .nf-tv-shot {
     position: relative;
     aspect-ratio: 16 / 9;
-    border-radius: 6px;
+    border-radius: var(--nf-card-radius);
     overflow: hidden;
     background-color: #1b1b1b;
     background-size: cover;
@@ -4041,11 +4049,6 @@ body.nf-tv-on .nf-p-title {
     text-overflow: ellipsis;
 }
 
-.nf-p-live-restart {
-    margin-left: auto;
-    flex: 0 0 auto;
-}
-
 .nf-p-live-track {
     display: flex;
     align-items: center;
@@ -4067,17 +4070,22 @@ body.nf-tv-on .nf-p-title {
 /* Changing channel from the player. The arrows only exist while a channel is
    on; a file has nothing above or below it. */
 .nf-p-zap-btn,
-.nf-p-channels-btn {
+.nf-p-channels-btn,
+.nf-p-restart-btn {
     display: none;
 }
 
 body.nf-tv-on .nf-p-zap-btn,
-body.nf-tv-on .nf-p-channels-btn {
+body.nf-tv-on .nf-p-channels-btn,
+body.nf-tv-on .nf-p-restart-btn {
     display: inline-flex;
 }
 
+/* The panel comes down under the button that opens it, on the right, where
+   those buttons are. */
 .nf-p-panel-channels {
     width: min(560px, 88vw);
+    min-width: 0;
 }
 
 .nf-p-channels {
@@ -4117,6 +4125,7 @@ body.nf-tv-on .nf-p-channels-btn {
     width: 84px;
     aspect-ratio: 16 / 9;
     border-radius: 4px;
+    overflow: hidden;
     background-color: var(--nf-tv-tone, #222);
     background-size: cover;
     background-position: center;
@@ -4190,9 +4199,6 @@ body.nf-tv-on .nf-p-channels-btn {
         font-size: 15px;
     }
 
-    .nf-p-live-restart {
-        display: none;
-    }
 }
 
 /* ==========================================================================
