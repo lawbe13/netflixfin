@@ -5429,7 +5429,8 @@
         route: null,
         slotId: null,
         ambient: false,
-        ended: false
+        ended: false,
+        lostAt: 0
     };
 
     function tvGuardReporting(on) {
@@ -6287,6 +6288,7 @@
         tvState.started = false;
         tvState.retried = false;
         tvState.ended = false;
+        tvState.lostAt = 0;
         if (tvState.timer) {
             clearInterval(tvState.timer);
             tvState.timer = null;
@@ -6400,6 +6402,7 @@
         var video = tvLiveVideo();
         if (video) {
             tvState.started = true;
+            tvState.lostAt = 0;
             tvCover(false);
             if (tvState.ambient) tvAmbient(video);
         }
@@ -6459,6 +6462,20 @@
             if (on && tvState.slotId && on.slot.item.id !== tvState.slotId) {
                 tvHandOver(on);
                 return;
+            }
+
+            /* Still holding a source, just not decoding one. Jellyfin restarts
+             * the stream in the middle of a programme - after a seek, or when it
+             * changes its mind about the codec - and for those few seconds there
+             * is a player with nothing in it. Read as a departure, that took the
+             * channel down mid-film and left the same film playing from the
+             * beginning as an ordinary title. It is given a minute and a half to
+             * come back before it counts as gone. */
+            if (tvPlayerBusy()) {
+                if (!tvState.lostAt) tvState.lostAt = Date.now();
+                if (Date.now() - tvState.lostAt < 90000) return;
+            } else {
+                tvState.lostAt = 0;
             }
 
             /* The player is gone while the line-up still has this programme on.
@@ -6571,6 +6588,7 @@
         tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
         tvState.ended = false;
         tvState.started = false;
+        tvState.lostAt = 0;
         tvState.retried = false;
         tvState.tunedAt = Date.now();
         tvPlay(on.slot.item, on.offset);

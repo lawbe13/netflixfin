@@ -30,7 +30,7 @@ function run(scene) {
     const state = Object.assign({
         channel: 'uno', shift: 0, timer: 1, pending: null, tunedAt: now,
         started: true, retried: false, route: '#/details?id=a', slotId: 'a',
-        ambient: false, ended: false
+        ambient: false, ended: false, lostAt: 0
     }, scene.state);
 
     const scope = {
@@ -116,6 +116,16 @@ const cases = [
         what: 'nothing started after seventy seconds',
         scene: { on: slot('a', 40 * MIN), video: null, state: { started: false, retried: 3, tunedAt: now - 70000, pending: { slot: {} } } },
         want: (r) => !r.calls.includes('stop')
+    },
+    {
+        what: 'the stream restarts itself in the middle of a programme',
+        scene: { on: slot('a', 40 * MIN), video: null, busy: true },
+        want: (r) => !r.calls.includes('stop') && r.state.lostAt > 0
+    },
+    {
+        what: 'the stream never came back, ninety seconds on',
+        scene: { on: slot('a', 40 * MIN), video: null, busy: true, state: { lostAt: now - 95000 } },
+        want: (r) => r.calls.includes('stop')
     },
     {
         what: 'the server says it cannot play this one',
