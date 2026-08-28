@@ -3354,6 +3354,17 @@
         var top = el('div', 'nf-p-top');
         top.appendChild(
             playerButton('back', 'Indietro', function () {
+                /* Leaving a channel is a decision, and this is the one place the
+                 * app can be sure of it. Everything else - the player going
+                 * away, the page changing under it - looks the same whether the
+                 * programme ended or the viewer walked out, which is how
+                 * pressing back once ended up handing over to the next
+                 * programme instead of closing the channel. */
+                if (tvState.channel) {
+                    tvStop();
+                    window.location.hash = '#/home?nftv=1';
+                    return;
+                }
                 window.history.back();
             }, 'nf-p-back')
         );
