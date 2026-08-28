@@ -4697,32 +4697,32 @@
      * `ink` is the colour the tag's word takes, chosen against the tone rather
      * than assumed white; `face` is how that word is set. */
     var TV_CHANNELS = [
-        { id: 'uno', name: 'Uno', tone: '#1d3f8f', ink: '#fff', face: 'wide', kind: 'movie', blurb: 'Il meglio della libreria',
+        { id: 'uno', name: 'Uno', tone: '#1d3f8f', ink: '#fff', tag: '#0a84ff', face: 'wide', kind: 'movie', blurb: 'Il meglio della libreria',
           test: function (m) { return (m.rating || 0) >= 7.5; } },
-        { id: 'action', name: 'Action', tone: '#a4161a', ink: '#fff', face: 'italic', kind: 'movie', blurb: 'Azione e avventura',
+        { id: 'action', name: 'Action', tone: '#a4161a', ink: '#fff', tag: '#e11d2e', face: 'italic', kind: 'movie', blurb: 'Azione e avventura',
           genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'], notGenres: TV_ANIMATION },
-        { id: 'comedy', name: 'Comedy', tone: '#e09f3e', ink: '#1a1200', face: 'round', kind: 'movie', blurb: 'Da ridere, sempre',
+        { id: 'comedy', name: 'Comedy', tone: '#e09f3e', ink: '#231702', tag: '#f5b301', face: 'round', kind: 'movie', blurb: 'Da ridere, sempre',
           genres: ['Commedia', 'Comedy'], notGenres: TV_ANIMATION },
-        { id: 'family', name: 'Family', tone: '#2a9d8f', ink: '#fff', face: 'round', kind: 'movie', blurb: 'Per tutta la famiglia',
+        { id: 'family', name: 'Family', tone: '#2a9d8f', ink: '#04231a', tag: '#12b981', face: 'round', kind: 'movie', blurb: 'Per tutta la famiglia',
           genres: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'] },
-        { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', ink: '#fff', face: 'mono', kind: 'movie', blurb: 'Fantascienza e fantasy',
+        { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', ink: '#fff', tag: '#7c3aed', face: 'mono', kind: 'movie', blurb: 'Fantascienza e fantasy',
           genres: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Sci-Fi & Fantasy'],
           notGenres: TV_ANIMATION },
-        { id: 'suspense', name: 'Suspense', tone: '#3d0e12', ink: '#ffd9d9', face: 'caps', kind: 'movie', blurb: 'Thriller, horror, crime',
+        { id: 'suspense', name: 'Suspense', tone: '#3d0e12', ink: '#ff4d5e', tag: '#0f0f12', face: 'caps', kind: 'movie', blurb: 'Thriller, horror, crime',
           genres: ['Thriller', 'Horror', 'Mistero', 'Mystery', 'Crime'], notGenres: TV_ANIMATION },
-        { id: 'drama', name: 'Drama', tone: '#264653', ink: '#fff', face: 'serif', kind: 'movie', blurb: 'Storie e sentimenti',
+        { id: 'drama', name: 'Drama', tone: '#264653', ink: '#fff', tag: '#2f7d8c', face: 'serif', kind: 'movie', blurb: 'Storie e sentimenti',
           genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'], notGenres: TV_ANIMATION },
-        { id: 'saghe', name: 'Saghe', tone: '#6a4c93', ink: '#fff', face: 'caps', kind: 'boxset', blurb: 'Una saga per serata' },
-        { id: 'classici', name: 'Classici', tone: '#7f5539', ink: '#fff4e6', face: 'serif', kind: 'movie', blurb: 'Prima del 1990',
+        { id: 'saghe', name: 'Saghe', tone: '#6a4c93', ink: '#fff', tag: '#7c5cc4', face: 'caps', kind: 'boxset', blurb: 'Una saga per serata' },
+        { id: 'classici', name: 'Classici', tone: '#7f5539', ink: '#231404', tag: '#b08968', face: 'serif', kind: 'movie', blurb: 'Prima del 1990',
           test: function (m) { return !!m.year && m.year < 1990; } },
         /* The two episode channels split on shape rather than on genre alone, and
          * they split on the same test, so whatever Sitcom does not take Serie
          * gets and nothing falls between them. */
-        { id: 'serie', name: 'Serie', tone: '#14213d', ink: '#fff', face: 'wide', kind: 'episode', blurb: 'Episodi in ordine',
+        { id: 'serie', name: 'Serie', tone: '#14213d', ink: '#fff', tag: '#2d55e8', face: 'wide', kind: 'episode', blurb: 'Episodi in ordine',
           showTest: function (genres, episodes) { return !tvIsSitcom(genres, episodes); } },
-        { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', ink: '#1a0f00', face: 'round', kind: 'episode', blurb: 'Comedy a episodi',
+        { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', ink: '#2b1000', tag: '#ff8a3d', face: 'round', kind: 'episode', blurb: 'Comedy a episodi',
           genres: ['Commedia', 'Comedy'], showTest: tvIsSitcom },
-        { id: 'nonstop', name: '24', tone: '#495057', ink: '#fff', face: 'digit', kind: 'movie', blurb: 'Tutto, senza sosta' }
+        { id: 'nonstop', name: '24', tone: '#495057', ink: '#15161a', tag: '#d7dae0', face: 'digit', kind: 'movie', blurb: 'Tutto, senza sosta' }
     ];
 
     function tvChannel(id) {
@@ -5568,6 +5568,7 @@
         var badge = el('div', 'nf-tv-logo' + (cls ? ' ' + cls : ''));
         badge.setAttribute('data-face', channel.face || 'wide');
         badge.style.setProperty('--nf-tv-tone', channel.tone);
+        badge.style.setProperty('--nf-tv-tag', channel.tag || channel.tone);
         badge.style.setProperty('--nf-tv-ink', channel.ink || '#fff');
         badge.appendChild(el('span', 'nf-tv-logo-mark', 'F'));
         badge.appendChild(el('span', 'nf-tv-logo-name', channel.name));
@@ -6362,6 +6363,7 @@
             var bug = skin.querySelector('.nf-tv-bug');
             bug.querySelector('.nf-tv-logo-name').textContent = channel.name;
             bug.setAttribute('data-face', channel.face || 'wide');
+            bug.style.setProperty('--nf-tv-tag', channel.tag || channel.tone);
             bug.style.setProperty('--nf-tv-ink', channel.ink || '#fff');
             skin.style.setProperty('--nf-tv-tone', channel.tone);
         }

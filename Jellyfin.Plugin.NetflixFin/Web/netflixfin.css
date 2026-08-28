@@ -3460,172 +3460,159 @@ body.nf-tv {
 
 /* --- the marks ------------------------------------------------------------ */
 
-/* A mark that never changes and a tag that always does: the F, then the
-   channel's name set in the channel's own colour and its own way. It is the
-   shape a broadcaster's family of channels takes - twelve marks that read as
-   twelve channels of one thing rather than twelve logos. */
+/* The lockup.
+
+   Two parts, the way a broadcaster's family works: a mark that never changes
+   and a tag that always does. The mark is Filmettino's own F, printed white so
+   that colour belongs to the tag alone - which is the trick behind Sky's
+   twelve, where the word is always the same grey and only the block beside it
+   changes.
+
+   No box around the pair. A dark chip behind a coloured tag is three boxes
+   stacked and it read as a button rather than a logo; the mark carries a shadow
+   instead, which is what keeps it legible over a bright frame.
+
+   One number drives the whole thing - --nf-mark-h, the cap height of the F -
+   and the tag is measured off it, so a lockup scales as one object. */
 .nf-tv-logo {
+    --nf-mark-h: 15px;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: calc(var(--nf-mark-h) * 0.42);
     align-self: flex-start;
-    padding: 5px 6px 5px 9px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(8px);
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 12px rgba(0, 0, 0, 0.35));
 }
 
-.nf-tv-logo-name {
-    padding: 3px 9px 4px;
-    border-radius: 3px;
-    background: var(--nf-tv-tone, #333);
+.nf-tv-logo-mark {
+    color: #fff;
+    font-size: var(--nf-mark-h);
+    font-weight: 900;
+    line-height: 1;
+    -webkit-text-stroke: 0;
+}
+
+.nf-tv-logo-name,
+.nf-tv-bug .nf-tv-logo-name {
+    padding: calc(var(--nf-mark-h) * 0.19) calc(var(--nf-mark-h) * 0.42) calc(var(--nf-mark-h) * 0.21);
+    border-radius: 2px;
+    background: var(--nf-tv-tag, var(--nf-tv-tone, #333));
     color: var(--nf-tv-ink, #fff);
-    font-size: 14px;
-    font-weight: 800;
-    line-height: 1.1;
+    font-size: calc(var(--nf-mark-h) * 0.78);
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
 }
 
-/* Uno and Serie: open, calm, spaced out. */
-.nf-tv-logo[data-face="wide"] .nf-tv-logo-name {
-    letter-spacing: 0.16em;
-    padding-right: 5px;
+/* Uno and Serie: open and unhurried, set lowercase. */
+.nf-tv-logo[data-face="wide"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="wide"] .nf-tv-logo-name {
+    padding-right: calc(var(--nf-mark-h) * 0.28);
+    letter-spacing: 0.15em;
     text-transform: lowercase;
 }
 
 /* Action: leaning forward. */
-.nf-tv-logo[data-face="italic"] .nf-tv-logo-name {
+.nf-tv-logo[data-face="italic"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="italic"] .nf-tv-logo-name {
     font-style: italic;
-    font-weight: 900;
-    letter-spacing: -0.01em;
+    font-weight: 800;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
 }
 
-/* Comedy, Family, Sitcom: soft corners, friendly weight. */
-.nf-tv-logo[data-face="round"] .nf-tv-logo-name {
+/* Comedy, Family, Sitcom: a lozenge, softer weight. */
+.nf-tv-logo[data-face="round"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="round"] .nf-tv-logo-name {
     border-radius: 9999px;
-    padding: 3px 11px 4px;
-    font-weight: 800;
-    letter-spacing: 0.01em;
+    padding-left: calc(var(--nf-mark-h) * 0.5);
+    padding-right: calc(var(--nf-mark-h) * 0.5);
+    letter-spacing: 0.005em;
 }
 
-/* Sci-Fi: machine type. */
-.nf-tv-logo[data-face="mono"] .nf-tv-logo-name {
+/* Sci-Fi: machine type, spaced out. */
+.nf-tv-logo[data-face="mono"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="mono"] .nf-tv-logo-name {
     font-family: "Consolas", "SF Mono", ui-monospace, monospace;
-    font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-size: calc(var(--nf-mark-h) * 0.66);
+    letter-spacing: 0.14em;
+    padding-right: calc(var(--nf-mark-h) * 0.28);
     text-transform: uppercase;
 }
 
 /* Drama and Classici: a serif, because they are the ones with a past. */
-.nf-tv-logo[data-face="serif"] .nf-tv-logo-name {
+.nf-tv-logo[data-face="serif"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="serif"] .nf-tv-logo-name {
     font-family: Georgia, "Times New Roman", serif;
-    font-weight: 700;
-    letter-spacing: 0.02em;
+    font-size: calc(var(--nf-mark-h) * 0.76);
+    letter-spacing: 0.015em;
 }
 
-/* Suspense and Saghe: small, wide capitals. */
-.nf-tv-logo[data-face="caps"] .nf-tv-logo-name {
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    padding-right: 5px;
+/* Suspense and Saghe: small wide capitals. */
+.nf-tv-logo[data-face="caps"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="caps"] .nf-tv-logo-name {
+    font-size: calc(var(--nf-mark-h) * 0.62);
+    letter-spacing: 0.2em;
+    padding-right: calc(var(--nf-mark-h) * 0.22);
     text-transform: uppercase;
 }
 
 /* 24: a number, set as a number. */
-.nf-tv-logo[data-face="digit"] .nf-tv-logo-name {
-    font-size: 16px;
-    font-weight: 900;
-    letter-spacing: -0.02em;
+.nf-tv-logo[data-face="digit"] .nf-tv-logo-name,
+.nf-tv-bug[data-face="digit"] .nf-tv-logo-name {
+    font-size: calc(var(--nf-mark-h) * 0.92);
+    font-weight: 800;
+    letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
 }
 
-/* On a billboard the channel signs itself larger, and the live badge beside it
-   is a badge too rather than loose small caps. */
-.nf-tv-bill .nf-tv-logo,
-.nf-tv-hero .nf-tv-logo {
-    padding: 8px 15px 8px 11px;
-}
-
-.nf-tv-bill .nf-tv-logo-name,
-.nf-tv-hero .nf-tv-logo-name {
-    font-size: 16px;
-    padding: 4px 11px 5px;
-}
-
-.nf-tv-bill .nf-tv-logo[data-face="mono"] .nf-tv-logo-name,
-.nf-tv-hero .nf-tv-logo[data-face="mono"] .nf-tv-logo-name,
-.nf-tv-bill .nf-tv-logo[data-face="caps"] .nf-tv-logo-name,
-.nf-tv-hero .nf-tv-logo[data-face="caps"] .nf-tv-logo-name {
-    font-size: 13.5px;
-}
-
-.nf-has-logo .nf-tv-bill .nf-tv-logo-mark,
-.nf-has-logo .nf-tv-hero .nf-tv-logo-mark {
-    --nf-mark-h: 24px;
-}
-
-.nf-tv-bill .nf-tv-kicker,
-.nf-tv-hero .nf-tv-kicker {
-    padding: 8px 14px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.58);
-    backdrop-filter: blur(8px);
-    font-size: 11.5px;
-}
-
-.nf-tv-logo-mark {
-    color: var(--nf-accent);
-    font-size: 20px;
-    font-weight: 900;
-    line-height: 1;
-    -webkit-text-stroke: 0.6px var(--nf-accent);
-}
-
-/* Filmettino's own letter rather than one drawn here - and cropped from the
-   image's real geometry, not from its left edge. Measured off the file: it is
-   1302x378, the ink does not begin until column 140, and the F occupies columns
-   140-229 over rows 56-321. Cropping "the left slice" was showing 140px of
-   transparent padding with a sliver of the letter, which is what looked
-   stretched. Every number below is one of those, scaled by the height asked for.
-
-   The channel badge and the watermark take the whole wordmark instead: this F
-   is a third as wide as it is tall, so on its own at badge size it is a few
-   pixels of nothing - and a channel identifies itself by the whole name
-   anyway. */
-.nf-has-logo .nf-mark {
-    --nf-mark-h: 30px;
-    width: calc(90 * var(--nf-mark-h) / 266);
-    color: transparent;
-    -webkit-text-stroke: 0;
-    background-image: var(--nf-logo);
-    background-repeat: no-repeat;
-    background-size: calc(1302 * var(--nf-mark-h) / 266) calc(378 * var(--nf-mark-h) / 266);
-    background-position: calc(-140 * var(--nf-mark-h) / 266) calc(-56 * var(--nf-mark-h) / 266);
-}
-
-/* The lettermark, everywhere the channel signs itself. Same crop as the header,
-   only the height changes - and the watermark's is larger, because it is read
-   across a room rather than at arm's length. */
+/* The lettermark itself: the same crop as the header - the numbers are measured
+   off the file - but taken as a mask rather than pasted as a picture, because
+   the wordmark is red and a channel mark wants it white. */
 .nf-has-logo .nf-tv-logo-mark {
-    --nf-mark-h: 20px;
     width: calc(90 * var(--nf-mark-h) / 266);
     height: var(--nf-mark-h);
     color: transparent;
-    -webkit-text-stroke: 0;
-    background-image: var(--nf-logo);
-    background-repeat: no-repeat;
-    background-size: calc(1302 * var(--nf-mark-h) / 266) calc(378 * var(--nf-mark-h) / 266);
-    background-position: calc(-140 * var(--nf-mark-h) / 266) calc(-56 * var(--nf-mark-h) / 266);
+    background-color: #fff;
+    background-image: none;
+    -webkit-mask-image: var(--nf-logo);
+    mask-image: var(--nf-logo);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: calc(1302 * var(--nf-mark-h) / 266) calc(378 * var(--nf-mark-h) / 266);
+    mask-size: calc(1302 * var(--nf-mark-h) / 266) calc(378 * var(--nf-mark-h) / 266);
+    -webkit-mask-position: calc(-140 * var(--nf-mark-h) / 266) calc(-56 * var(--nf-mark-h) / 266);
+    mask-position: calc(-140 * var(--nf-mark-h) / 266) calc(-56 * var(--nf-mark-h) / 266);
 }
 
-.nf-has-logo .nf-tv-bug .nf-tv-logo-mark {
+/* One number per context. */
+.nf-tv-bill .nf-tv-logo,
+.nf-tv-hero .nf-tv-logo {
+    --nf-mark-h: 25px;
+}
+
+.nf-tv-cover .nf-tv-logo {
     --nf-mark-h: 34px;
 }
 
-.nf-has-logo .nf-tv-cover .nf-tv-logo-mark {
-    --nf-mark-h: 30px;
+.nf-p-channel-shot .nf-tv-logo {
+    --nf-mark-h: 14px;
 }
+
+.nf-tv-bug {
+    --nf-mark-h: 28px;
+}
+
+/* Beside a lockup with no box of its own, the live badge cannot have one. */
+.nf-tv-bill .nf-tv-kicker,
+.nf-tv-hero .nf-tv-kicker {
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
 /* The live dot, the one thing on the page that moves. */
 .nf-tv-dot {
     width: 7px;
@@ -4015,9 +4002,6 @@ body.nf-tv {
    corner, which in this centred column put it against the left edge. */
 .nf-tv-cover .nf-tv-logo {
     align-self: center;
-    transform: scale(1.6);
-    background: transparent;
-    backdrop-filter: none;
 }
 
 .nf-tv-cover .nf-tv-kicker {
@@ -4062,61 +4046,15 @@ body.nf-tv-on .nf-tv-skin {
     right: 3%;
     display: inline-flex;
     align-items: center;
-    gap: 9px;
-    padding: 8px 14px 8px 11px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
-    opacity: 0.8;
+    gap: calc(var(--nf-mark-h) * 0.42);
+    opacity: 0.88;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 14px rgba(0, 0, 0, 0.4));
     font-family: var(--nf-font);
     transition: opacity 0.24s var(--nf-ease), transform 0.24s var(--nf-ease);
 }
 
-/* The watermark carries the same tag, at the size a bug is read across a
-   room. */
-.nf-tv-bug .nf-tv-logo-name {
-    padding: 4px 12px 5px;
-    border-radius: 3px;
-    background: var(--nf-tv-tone, #333);
-    color: var(--nf-tv-ink, #fff);
-    font-size: 19px;
-    font-weight: 800;
-}
-
-.nf-tv-bug[data-face="round"] .nf-tv-logo-name {
-    border-radius: 9999px;
-}
-
-.nf-tv-bug[data-face="italic"] .nf-tv-logo-name {
-    font-style: italic;
-    text-transform: uppercase;
-}
-
-.nf-tv-bug[data-face="serif"] .nf-tv-logo-name {
-    font-family: Georgia, "Times New Roman", serif;
-}
-
-.nf-tv-bug[data-face="mono"] .nf-tv-logo-name {
-    font-family: "Consolas", "SF Mono", ui-monospace, monospace;
-    font-size: 16px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.nf-tv-bug[data-face="caps"] .nf-tv-logo-name {
-    font-size: 15px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-}
-
-.nf-tv-bug[data-face="wide"] .nf-tv-logo-name {
-    letter-spacing: 0.14em;
-    text-transform: lowercase;
-}
-
-body.nf-chrome-up .nf-tv-bug {
-    opacity: 0;
-    transform: translateY(-10px);
-}
+/* A broadcaster's bug has no box; it is the lockup, larger, with a shadow to
+   hold it against a bright frame. */
 
 /* Offered only when the browser turned the corner window down. */
 .nf-tv-corner {
@@ -4314,20 +4252,28 @@ body.nf-tv-on .nf-p-restart-btn {
 /* The panel comes down under the button that opens it, on the right, where
    those buttons are. */
 .nf-p-panel-channels {
-    width: min(740px, 92vw);
+    top: 12%;
+    bottom: 13%;
+    width: min(680px, 92vw);
     min-width: 0;
+    padding-bottom: 6px;
 }
 
 /* Twelve of them side by side at eighty pixels was a contact sheet. Two
    columns of picture-led cards: the channel's mark on its own artwork, what is
    on underneath it, and how far in. */
+/* The panel is a fixed box; its list is what scrolls. Giving the list a height
+   of its own left the cards spilling past the bottom of the panel with a field
+   of empty behind them, and the columns went to whatever width was left. */
 .nf-p-channels {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    max-height: min(62vh, 520px);
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    align-content: start;
+    gap: 16px 14px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 6px;
 }
 
 .nf-p-channel {
