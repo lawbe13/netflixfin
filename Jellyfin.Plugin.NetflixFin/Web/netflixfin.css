@@ -3202,7 +3202,7 @@ body.nf-tv {
     display: flex;
     align-items: flex-end;
     min-height: min(62vh, 620px);
-    padding: 0 var(--nf-gutter) 46px;
+    padding: 0 var(--nf-gutter) 78px;
     overflow: hidden;
     isolation: isolate;
 }
@@ -3295,7 +3295,9 @@ body.nf-tv {
 
 .nf-tv-head {
     position: relative;
-    margin-top: -46px;
+    /* Tucked under the foot of the billboard, where the picture has already
+       faded into the page. */
+    margin-top: -34px;
     padding: 0 var(--nf-gutter);
 }
 

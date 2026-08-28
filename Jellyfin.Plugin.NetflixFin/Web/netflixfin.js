@@ -4789,7 +4789,8 @@
                 return {
                     // A saga worth an evening has more than one film in it.
                     list: all.filter(function (set) { return set && set.episodes.length > 1; }),
-                    failed: all.filter(function (set) { return !set; }).length
+                    failed: all.filter(function (set) { return !set; }).length,
+                    found: all.length
                 };
             });
 
@@ -4805,7 +4806,11 @@
                  * refused, Saghe lost its hundred sagas, and the answer was then
                  * kept for twelve hours. A partial answer is used but never
                  * written down. */
-                partial: !parts[0].length || !parts[1].length || parts[2].failed > 0
+                partial: !parts[0].length || !parts[1].length || parts[2].failed > 0 ||
+                    /* A hundred and twenty-three collections that all report
+                     * nothing inside them is a library being scanned, not a
+                     * hundred and twenty-three empty collections. */
+                    (parts[2].found > 0 && !parts[2].list.length)
             };
         });
     }
