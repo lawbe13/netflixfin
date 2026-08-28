@@ -3489,7 +3489,7 @@ body.nf-tv {
 }
 
 .nf-tv-cover .nf-tv-logo {
-    --nf-logo-h: 52px;
+    --nf-logo-h: 78px;
     align-self: center;
 }
 
@@ -3885,8 +3885,11 @@ body.nf-tv {
     align-items: center;
     justify-content: center;
     gap: 14px;
+    /* The channel's colour taken well down, for the same reason the idents
+       take it down: a green mark on a green field is not a mark. */
     background:
-        radial-gradient(120% 90% at 50% 40%, var(--nf-tv-tone, #111) 0%, #0a0a0a 78%);
+        radial-gradient(120% 90% at 50% 42%,
+            color-mix(in srgb, var(--nf-tv-tone, #111) 55%, #05050a) 0%, #08080b 76%);
     font-family: var(--nf-font);
 }
 
@@ -4009,7 +4012,7 @@ body.nf-chrome-up .nf-tv-bug {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: var(--nf-tv-tone, #111);
+    background: color-mix(in srgb, var(--nf-tv-tone, #111) 55%, #05050a);
     text-align: center;
     font-family: var(--nf-font);
 }
