@@ -44,6 +44,8 @@ function run(scene) {
         tvNow: () => scene.on,
         tvOnAir: () => scene.onAir !== false,
         tvLiveVideo: () => scene.video || null,
+        // Asked for and loading, which is not the same as playing.
+        tvPlayerBusy: () => !!scene.busy,
         tvCover: () => calls.push('cover'),
         tvAmbient: () => calls.push('ambient'),
         tvPaintIdent: () => calls.push('ident'),
@@ -112,6 +114,16 @@ const cases = [
         what: 'nothing started after seventy seconds',
         scene: { on: slot('a', 40 * MIN), video: null, state: { started: false, retried: 3, tunedAt: now - 70000, pending: { slot: {} } } },
         want: (r) => !r.calls.includes('stop')
+    },
+    {
+        what: 'the transcode is still warming up at eighty seconds',
+        scene: { on: slot('a', 40 * MIN), video: null, busy: true, state: { started: false, retried: 1, tunedAt: now - 80000, pending: { slot: {} } } },
+        want: (r) => !r.calls.includes('press') && !r.calls.includes('stop')
+    },
+    {
+        what: 'the transcode never delivered, five minutes on',
+        scene: { on: slot('a', 40 * MIN), video: null, busy: true, state: { started: false, retried: 1, tunedAt: now - 300000, pending: { slot: {} } } },
+        want: (r) => r.calls.includes('stop')
     },
     {
         what: 'nothing started after two minutes',

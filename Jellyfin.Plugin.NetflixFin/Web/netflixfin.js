@@ -2621,6 +2621,10 @@
             'M3 3h18a2 2 0 012 2v12a2 2 0 01-2 2H7l-5 4V5a2 2 0 011-2zm3 6v2h6V9H6zm8 0v2h4V9h-4zM6 13v2h4v-2H6zm6 0v2h6v-2h-6z',
         fullscreen: 'M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 0h2v7h-7v-2h5v-5z',
         back: 'M10.4 4.6L3 12l7.4 7.4 1.4-1.4-5-5H21v-2H6.8l5-5-1.4-1.4z',
+        chevronup: 'M12 8.6l-7.4 7.4 1.4 1.4L12 11.4l6 6 1.4-1.4L12 8.6z',
+        chevrondown: 'M12 15.4l7.4-7.4L18 6.6l-6 6-6-6L4.6 8l7.4 7.4z',
+        // A screen with a stand: the channel list.
+        channels: 'M21 3H3a2 2 0 00-2 2v11a2 2 0 002 2h5l-1.6 2.4 1.6 1.1L11 18h2l2 3.5 1.6-1.1L15 18h6a2 2 0 002-2V5a2 2 0 00-2-2zm0 13H3V5h18v11z',
         close: 'M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z',
         search: 'M10 2a8 8 0 105 14.3l5.3 5.3 1.4-1.4-5.3-5.3A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z',
         /* Netflix's award call-out uses a laurel wreath, not a trophy: two branches
@@ -3031,6 +3035,72 @@
             });
     }
 
+    /* Changing channel from inside the player, which is the one thing a remote
+     * control is for. Two arrows for the channel either side, and a panel with
+     * all twelve and what is on each - the same shape as the episodes panel, so
+     * it behaves the way the rest of the player already does. */
+    function tvChannelStep(step) {
+        if (!tvState.channel) return;
+        var here = 0;
+        TV_CHANNELS.forEach(function (channel, i) {
+            if (channel.id === tvState.channel) here = i;
+        });
+        var next = TV_CHANNELS[(here + step + TV_CHANNELS.length) % TV_CHANNELS.length];
+        tvTune(next.id, 'live');
+    }
+
+    function openChannelsPanel(hovered) {
+        if (!player || !tvState.channel) return;
+
+        var wasOpen = player.node.querySelector('.nf-p-panel-channels');
+        if (wasOpen && hovered === true) return;
+        closePanels();
+        if (wasOpen) return;
+
+        var panel = el('div', 'nf-p-panel nf-p-panel-channels');
+        var head = el('div', 'nf-p-panel-head');
+        head.appendChild(el('h3', null, 'Canali'));
+        panel.appendChild(head);
+
+        var body = el('div', 'nf-p-panel-body nf-p-channels');
+        panel.appendChild(body);
+        player.node.appendChild(panel);
+        closeOnLeave(panel, player.node.querySelector('.nf-p-channels-btn'));
+
+        var client = api();
+
+        TV_CHANNELS.forEach(function (channel) {
+            var row = el('button', 'nf-p-channel' + (channel.id === tvState.channel ? ' is-on' : ''));
+            row.type = 'button';
+            row.style.setProperty('--nf-tv-tone', channel.tone);
+
+            var shot = el('div', 'nf-p-channel-shot');
+            row.appendChild(shot);
+
+            var copy = el('div', 'nf-p-channel-copy');
+            copy.appendChild(el('strong', null, channel.name));
+            var line = el('span', null, channel.blurb);
+            copy.appendChild(line);
+            row.appendChild(copy);
+
+            row.addEventListener('click', function () {
+                closePanels();
+                if (channel.id !== tvState.channel) tvTune(channel.id, 'live');
+            });
+            body.appendChild(row);
+
+            tvLoadPool(channel).then(function (pool) {
+                if (!pool || !row.isConnected) return;
+                var on = tvNow(channel, pool, tvClock());
+                if (!on) return;
+                line.textContent = on.slot.item.name;
+                if (client) {
+                    shot.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
+                }
+            });
+        });
+    }
+
     function openTracksPanel(hovered, retried) {
         if (!player) return;
         var client = api();
@@ -3379,6 +3449,23 @@
         episodesBtn.classList.add('nf-p-episodes-btn');
         episodesBtn.hidden = true;
         right.appendChild(episodesBtn);
+
+        // Only on while a channel is: a file has no channel above or below it.
+        right.appendChild(
+            playerButton('chevronup', 'Canale successivo', function () {
+                tvChannelStep(1);
+            }, 'nf-p-zap-btn')
+        );
+        right.appendChild(
+            playerButton('chevrondown', 'Canale precedente', function () {
+                tvChannelStep(-1);
+            }, 'nf-p-zap-btn')
+        );
+        var channelsBtn = hoverPanel(
+            playerButton('channels', 'Canali', openChannelsPanel, 'nf-p-channels-btn'),
+            openChannelsPanel
+        );
+        right.appendChild(channelsBtn);
 
         var tracksBtn = hoverPanel(playerButton('subtitles', 'Sottotitoli e audio', openTracksPanel), openTracksPanel);
         tracksBtn.classList.add('nf-p-tracks-btn');
@@ -4670,6 +4757,8 @@
      * requests and a hundred and twenty-three collections - which is most of
      * the traffic this was written to remove. */
     var TV_LIBRARY_SOFT_MS = 3600000;
+    // And how long a half-answer is worth keeping.
+    var TV_LIBRARY_PARTIAL_MS = 600000;
     // How many collections to ask about at a time.
     var TV_QUEUE_WIDTH = 4;
 
@@ -4821,7 +4910,12 @@
             if (!raw) return null;
             var kept = JSON.parse(raw);
             if (kept.version !== TV_LIBRARY_VERSION) return null;
-            if (!kept.library || Date.now() - kept.library.at > TV_LIBRARY_MS) return null;
+            var age = Date.now() - (kept.library ? kept.library.at : 0);
+            if (!kept.library) return null;
+            /* A library missing a section is still worth keeping for a few
+             * minutes: throwing it away outright meant every visit re-read the
+             * whole library before a single channel could paint. */
+            if (age > (kept.library.partial ? TV_LIBRARY_PARTIAL_MS : TV_LIBRARY_MS)) return null;
             return kept.library;
         } catch (err) {
             return null;
@@ -4841,7 +4935,8 @@
     }
 
     function tvLibraryTake(library) {
-        // Whatever came back empty keeps what it had.
+        // Whatever came back empty keeps what it had, so the merge is what gets
+        // kept as well as what gets used.
         if (tvLibrary) {
             if (!library.films.length) library.films = tvLibrary.films;
             if (!library.shows.length) library.shows = tvLibrary.shows;
@@ -4869,12 +4964,11 @@
         tvFetchLibrary().then(function (fresh) {
             if (!fresh) return;
             if (fresh.partial) {
-                log('tv: part of the library did not answer; not keeping this one');
+                log('tv: part of the library did not answer; keeping it briefly');
                 // Worth another try, but not immediately.
                 setTimeout(function () { tvLibraryRefreshed = false; }, 60000);
-            } else {
-                tvLibraryWrite(fresh);
             }
+            tvLibraryWrite(fresh);
             if (tvState.channel) return;
             tvLibraryTake(fresh);
             tvRunUpdates();
@@ -4899,12 +4993,12 @@
                 tvLibraryRequest = null;
                 if (!library) return null;
                 if (library.partial) {
-                    log('tv: part of the library did not answer; not keeping this one');
+                    log('tv: part of the library did not answer; keeping it briefly');
                     setTimeout(function () { tvLibraryRefreshed = false; }, 60000);
                 } else {
                     tvLibraryRefreshed = true;
-                    tvLibraryWrite(library);
                 }
+                tvLibraryWrite(library);
                 return tvLibraryTake(library);
             })
             .catch(function (err) {
@@ -5322,19 +5416,29 @@
         return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
     }
 
+    /* Wide art is asked for at the width it will be drawn at. A billboard is the
+     * width of the window - two thousand pixels on this screen - and it was
+     * being handed the same 780px file as a card an eighth of the size, which is
+     * what "sgranate quando sono grandi" was. */
+    var TV_ART_WIDTH = { hero: 1920, wide: 780, poster: 400 };
+
     function tvArt(entry, client, shape) {
         if (!entry || !client) return '';
 
+        var width = TV_ART_WIDTH[shape] || TV_ART_WIDTH.wide;
+        var options = {
+            type: shape === 'poster' ? 'Primary' : 'Backdrop',
+            maxWidth: width,
+            quality: shape === 'hero' ? 92 : 90
+        };
+
         /* An episode has no wide art of its own - the backdrop belongs to the
          * series - so the two channels made of episodes showed empty cards. */
-        if (entry.type === 'Episode' && entry.seriesId) {
-            return client.getImageUrl(entry.seriesId, { type: 'Backdrop', maxWidth: 780 });
+        if (shape !== 'poster' && entry.type === 'Episode' && entry.seriesId) {
+            return client.getImageUrl(entry.seriesId, options);
         }
 
-        return client.getImageUrl(entry.id, {
-            type: shape === 'wide' ? 'Backdrop' : 'Primary',
-            maxWidth: shape === 'wide' ? 780 : 400
-        });
+        return client.getImageUrl(entry.id, options);
     }
 
     /* What a programme has left, said the way a listings page says it. */
@@ -5437,15 +5541,26 @@
                 art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
 
                 copy.textContent = '';
-                copy.appendChild(tvLockup(channel));
 
+                var badges = el('div', 'nf-tv-badges');
+                badges.appendChild(tvLockup(channel));
                 var kicker = el('div', 'nf-tv-kicker');
                 kicker.appendChild(el('span', 'nf-tv-dot'));
                 kicker.appendChild(el('span', null, 'In onda ora'));
-                copy.appendChild(kicker);
+                badges.appendChild(kicker);
+                copy.appendChild(badges);
 
                 var title = el('h2', 'nf-tv-bill-title', on.slot.item.name);
                 copy.appendChild(title);
+
+                /* The clock, the progress and what is left read as one line of
+                 * information, so they are one block rather than three. */
+                var meter = el('div', 'nf-tv-bill-meter');
+                meter.appendChild(el('div', 'nf-tv-bill-clock', ''));
+                var bar = el('div', 'nf-tv-bar');
+                bar.appendChild(el('span'));
+                meter.appendChild(bar);
+                copy.appendChild(meter);
 
                 tvDetails(on.slot.item.id).then(function (item) {
                     if (painted !== on.slot.item.id || !item) return;
@@ -5453,20 +5568,13 @@
                     if (logo) {
                         title.classList.add('has-logo');
                         title.style.backgroundImage = 'url("' + logo + '")';
+                        title.setAttribute('aria-label', on.slot.item.name);
                     }
                     if (item.Overview) {
                         var line = el('p', 'nf-tv-bill-blurb', item.Overview);
-                        copy.insertBefore(line, copy.querySelector('.nf-tv-bill-meter'));
+                        copy.insertBefore(line, copy.querySelector('.nf-tv-actions'));
                     }
                 });
-
-                var meter = el('div', 'nf-tv-bill-meter');
-                meter.appendChild(el('span', 'nf-tv-bill-clock', ''));
-                var bar = el('div', 'nf-tv-bar');
-                bar.appendChild(el('span'));
-                meter.appendChild(bar);
-                meter.appendChild(el('span', 'nf-tv-bill-left', ''));
-                copy.appendChild(meter);
 
                 var actions = el('div', 'nf-tv-actions');
                 var watch = el('button', 'nf-btn nf-btn-primary');
@@ -5493,10 +5601,13 @@
             var span = on.slot.end - on.slot.start;
             var clock = copy.querySelector('.nf-tv-bill-clock');
             var fill = copy.querySelector('.nf-tv-bar > span');
-            var left = copy.querySelector('.nf-tv-bill-left');
-            if (clock) clock.textContent = tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end);
+            if (clock) {
+                clock.textContent =
+                    (on.slot.show ? on.slot.show + '  ·  ' : '') +
+                    tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end) +
+                    '  ·  ' + tvRemaining(on);
+            }
             if (fill) fill.style.width = Math.min(100, Math.round((on.offset / span) * 100)) + '%';
-            if (left) left.textContent = tvRemaining(on);
         };
 
         tvCardUpdates.push(update);
@@ -5647,19 +5758,23 @@
 
             var on = tvNow(channel, pool, tvClock());
             copy.textContent = '';
-            copy.appendChild(tvLockup(channel));
+
+            var badges = el('div', 'nf-tv-badges');
+            badges.appendChild(tvLockup(channel));
 
             if (!on) {
-                copy.appendChild(el('h2', null, 'Fuori onda'));
+                copy.appendChild(badges);
+                copy.appendChild(el('h2', 'nf-tv-bill-title', 'Fuori onda'));
                 return;
             }
-
-            if (client) art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'wide') + '")';
 
             var kicker = el('div', 'nf-tv-kicker');
             if (!on.inIdent) kicker.appendChild(el('span', 'nf-tv-dot'));
             kicker.appendChild(el('span', null, on.inIdent ? 'Fra poco' : 'In onda ora'));
-            copy.appendChild(kicker);
+            badges.appendChild(kicker);
+            copy.appendChild(badges);
+
+            if (client) art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'hero') + '")';
 
             var title = el('h2', 'nf-tv-bill-title', on.slot.item.name);
             copy.appendChild(title);
@@ -5668,23 +5783,28 @@
                 if (!logo) return;
                 title.classList.add('has-logo');
                 title.style.backgroundImage = 'url("' + logo + '")';
+                title.setAttribute('aria-label', on.slot.item.name);
             });
 
-            copy.appendChild(
-                el('div', 'nf-tv-meta',
-                    (on.slot.show ? on.slot.show + ' · ' : '') +
-                        tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end))
-            );
-
             var meter = el('div', 'nf-tv-bill-meter');
+            meter.appendChild(
+                el('div', 'nf-tv-bill-clock',
+                    (on.slot.show ? on.slot.show + '  ·  ' : '') +
+                        tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end) +
+                        '  ·  ' + tvRemaining(on))
+            );
             var bar = el('div', 'nf-tv-bar');
             var fill = el('span');
             bar.appendChild(fill);
             meter.appendChild(bar);
-            meter.appendChild(el('span', 'nf-tv-bill-left', tvRemaining(on)));
             fill.style.width =
                 Math.min(100, Math.round((on.offset / (on.slot.end - on.slot.start)) * 100)) + '%';
             copy.appendChild(meter);
+
+            tvDetails(on.slot.item.id).then(function (item) {
+                if (!item || !item.Overview) return;
+                copy.insertBefore(el('p', 'nf-tv-bill-blurb', item.Overview), copy.querySelector('.nf-tv-actions'));
+            });
 
             var actions = el('div', 'nf-tv-actions');
             var watch = el('button', 'nf-btn nf-btn-primary');
@@ -5844,6 +5964,16 @@
      * paused, with nothing loaded. Taking that for a running player is what
      * wedged the hand-over on the tuning card: the channel believed the next
      * programme had started, so it stopped waiting for it and stopped trying. */
+    /* Asked for, and on its way. A transcode of a film this server has to encode
+     * from scratch takes a while to produce its first segment, and during that
+     * time the element exists with a source and nothing decoded. Pressing play
+     * again then does real harm: it starts the whole thing over, so the wait
+     * never ends and the channel eventually gives up on itself. */
+    function tvPlayerBusy() {
+        var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+        return !!(video && (video.currentSrc || video.src));
+    }
+
     function tvLiveVideo() {
         var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
         if (!video) return null;
@@ -6029,14 +6159,16 @@
                  * every second and never reached the point of giving up. */
                 var rungs = [6000, 20000, 45000];
                 var asked = tvState.retried || 0;
-                if (asked < rungs.length && waited > rungs[asked] && tvState.pending) {
+                if (asked < rungs.length && waited > rungs[asked] && tvState.pending && !tvPlayerBusy()) {
                     tvState.retried = asked + 1;
                     log('tv: nothing started yet, asking again (' + (asked + 1) + ')');
                     tvPressPlay(0);
                     return;
                 }
 
-                if (waited > 90000) {
+                // Four minutes of patience while something is loading, ninety
+                // seconds when nothing was ever asked for.
+                if (waited > (tvPlayerBusy() ? 240000 : 90000)) {
                     log('tv: nothing started, leaving the channel');
                     tvStop();
                 }
