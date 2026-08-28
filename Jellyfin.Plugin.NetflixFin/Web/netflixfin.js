@@ -3840,30 +3840,84 @@
      * the cursor would be unusable.
      */
 
-    var SHUFFLE_ROWS = /cofanett/i;
-    var shuffleSeed = Math.floor(Math.random() * 4294967296);
+    var SAGA_ROW = /cofanett/i;
 
-    function shuffleRows() {
+    /* Dealing the row again in the browser is not enough: the row is sixteen
+     * cards of a hundred and two collections, and which sixteen is decided by
+     * name before it ever reaches us - so shuffling them only ever reshuffles
+     * the same first sixteen. The cards are re-pointed instead, at sixteen
+     * collections drawn at random by the server, which is also why a saga added
+     * tomorrow turns up here without anyone maintaining a list. */
+    function paintSagaRow() {
         var sections = document.querySelectorAll('.verticalSection');
 
-        Array.prototype.forEach.call(sections, function (section, index) {
-            if (section.dataset.nfShuffled) return;
+        Array.prototype.forEach.call(sections, function (section) {
+            if (section.dataset.nfSagas) return;
 
             var heading = section.querySelector('.sectionTitle');
-            if (!heading || !SHUFFLE_ROWS.test(heading.textContent)) return;
+            if (!heading || !SAGA_ROW.test(heading.textContent)) return;
 
             var slider = section.querySelector('.itemsContainer');
             if (!slider) return;
 
-            var cards = Array.prototype.slice.call(slider.children);
-            // Still filling: shuffling two of twenty would fix their order for
-            // the rest of the page.
+            var cards = Array.prototype.slice.call(slider.children).filter(function (card) {
+                return card.classList.contains('card');
+            });
+            // Still filling: re-pointing two of sixteen would strand the rest.
             if (cards.length < 3) return;
 
-            section.dataset.nfShuffled = '1';
-            tvShuffle(cards, tvHash(shuffleSeed + ':' + index)).forEach(function (card) {
-                slider.appendChild(card);
-            });
+            var client = api();
+            if (!client) return;
+
+            section.dataset.nfSagas = '1';
+
+            client
+                .getItems(client.getCurrentUserId(), {
+                    IncludeItemTypes: 'BoxSet',
+                    Recursive: true,
+                    SortBy: 'Random',
+                    Fields: 'ChildCount',
+                    Limit: cards.length * 2
+                })
+                .then(function (result) {
+                    // A saga worth the name has more than one film in it.
+                    var sets = (result.Items || []).filter(function (set) {
+                        return (set.ChildCount || 0) > 1;
+                    });
+
+                    cards.forEach(function (card, index) {
+                        var set = sets[index];
+                        if (!set) return;
+
+                        card.setAttribute('data-id', set.Id);
+                        card.setAttribute('data-serverid', set.ServerId);
+
+                        var text = card.querySelector('.cardText-first') || card.querySelector('.cardText');
+                        if (text) text.textContent = set.Name;
+
+                        var url = client.getImageUrl(set.Id, { type: 'Primary', maxWidth: 400 });
+                        var image = card.querySelector('img.cardImage');
+                        if (image) {
+                            image.src = url;
+                            return;
+                        }
+
+                        /* A collection made minutes ago has no artwork yet, so
+                         * its card is a placeholder with an icon in it. Give it
+                         * the picture and take the placeholder away. */
+                        var box = card.querySelector('.cardImageContainer');
+                        if (!box) return;
+                        box.style.backgroundImage = 'url("' + url + '")';
+                        box.style.backgroundSize = 'cover';
+                        box.style.backgroundPosition = 'center';
+                        box.classList.remove('defaultCardBackground');
+                        var icon = box.querySelector('.cardImageIcon');
+                        if (icon) icon.remove();
+                    });
+                })
+                .catch(function (err) {
+                    log('could not deal the sagas row', err);
+                });
         });
     }
 
@@ -6393,7 +6447,7 @@
         mountHero();
         decorateTop10();
         decorateRows();
-        shuffleRows();
+        paintSagaRow();
         managePlayer();
         widenCards();
         reapplyThumbs();
