@@ -287,10 +287,16 @@
                 setTimeout(pickOpen, 30);
             });
 
-            // Immediately before the dice, which is the neighbour it belongs to.
-            var dice = right.querySelector('#randomItemButtonContainer, #randomItemButton');
-            right.insertBefore(button, dice || right.firstChild);
+            right.appendChild(button);
         }
+
+        /* Where it sits is checked on every pass, not settled once: the dice
+         * belongs to another plugin, which puts itself at the head of the row
+         * whenever it likes - inserting before it at build time left the board
+         * stranded on the far side of the notifications bell. */
+        var dice = right.querySelector('#randomItemButtonContainer, #randomItemButton');
+        var anchor = dice && dice.parentElement === right ? dice : right.firstChild;
+        if (anchor && button.nextSibling !== anchor) right.insertBefore(button, anchor);
 
         button.classList.toggle('is-on', pickOnPage());
     }
