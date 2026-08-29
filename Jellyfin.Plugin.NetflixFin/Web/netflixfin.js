@@ -266,6 +266,35 @@
         });
     }
 
+    /* The quiz is a tool, not a place: it belongs on the right of the header
+     * with the other things you press - the dice above all, which is the same
+     * question asked without any of the thinking - and not in the row of words
+     * that name the sections. It carries no box of its own; a button in that row
+     * is a glyph and nothing else. */
+    function pickHeaderButton() {
+        var right = document.querySelector('.headerRight');
+        if (!right) return;
+
+        var button = right.querySelector('.nf-pick-btn');
+        if (!button) {
+            button = el('button', 'paper-icon-button-light headerButton headerButtonRight nf-pick-btn');
+            button.type = 'button';
+            button.title = 'Che guardo?';
+            button.setAttribute('aria-label', 'Che guardo?');
+            button.appendChild(navIcon('clapper'));
+            button.addEventListener('click', function () {
+                if (!pickOnPage()) window.location.hash = '#/home?nfpick=1';
+                setTimeout(pickOpen, 30);
+            });
+
+            // Immediately before the dice, which is the neighbour it belongs to.
+            var dice = right.querySelector('#randomItemButtonContainer, #randomItemButton');
+            right.insertBefore(button, dice || right.firstChild);
+        }
+
+        button.classList.toggle('is-on', pickOnPage());
+    }
+
     function applyLogo() {
         if (!cfg.logoUrl) return;
         document.querySelectorAll('.pageTitleWithDefaultLogo, .pageTitleWithLogo').forEach(function (node) {
@@ -350,9 +379,6 @@
          * link is put back here. */
         targets.push({ label: 'La mia lista', hash: '#/home?tab=1' });
         targets.push({ label: 'TV', hash: '#/home?nftv=1' });
-        /* A tool rather than a place, so it is drawn rather than written: the
-         * board with the question on it, at the end of the row. */
-        targets.push({ label: 'Che guardo?', hash: '#/home?nfpick=1', icon: 'clapper' });
         targets.push({ label: 'Categorie', genres: true });
 
         return targets;
@@ -1067,12 +1093,7 @@
                 return;
             }
             if (target.hash) {
-                node = el('a', target.icon ? 'nf-nav-mark' : null, target.icon ? '' : target.label);
-                if (target.icon) {
-                    node.appendChild(navIcon(target.icon));
-                    node.title = target.label;
-                    node.setAttribute('aria-label', target.label);
-                }
+                node = el('a', null, target.label);
                 node.href = target.hash;
                 node.setAttribute('data-nf-hash', target.hash);
 
@@ -1093,12 +1114,6 @@
                     node.addEventListener('click', function () {
                         if (tvState.channel) tvStop();
                         setTimeout(tvOpen, 30);
-                    });
-                }
-
-                if (target.hash.indexOf('nfpick=1') > -1) {
-                    node.addEventListener('click', function () {
-                        setTimeout(pickOpen, 30);
                     });
                 }
 
@@ -7769,6 +7784,7 @@
         applyLogo();
         publishBrandLogo();
         netflixHeaderIcons();
+        pickHeaderButton();
         buildNav();
         buildTabBar();
         decorateDetail();

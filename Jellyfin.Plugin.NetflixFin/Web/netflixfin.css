@@ -5596,7 +5596,8 @@ body.nf-tv-on .nf-p-restart-btn {
         font-size: 22px !important;
     }
 
-    .headerRight .nf-header-icon svg {
+    .headerRight .nf-header-icon svg,
+    .nf-pick-btn svg {
         width: 22px;
         height: 22px;
     }
@@ -6677,37 +6678,35 @@ body.nf-pick .docspinner {
     margin-top: 34px;
 }
 
-/* The board in the header. It is a tool, not a place, so it is drawn rather
-   than written - and given an edge of its own so it does not read as a word
-   that failed to load. */
-.nf-nav-mark {
-    display: inline-grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--nf-text);
-    transition: background 0.2s var(--nf-ease), border-color 0.2s var(--nf-ease),
-        transform 0.2s var(--nf-ease);
+/* The board in the header, among the tools on the right rather than in the row
+   of words on the left. No box: every other button up there is a glyph and
+   nothing else, and a frame around one of them read as a badge that had failed
+   to load its label. */
+.nf-pick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0.92;
+    transition: opacity 0.2s var(--nf-ease), color 0.2s var(--nf-ease), transform 0.2s var(--nf-ease);
 }
 
-.nf-nav-mark svg {
-    width: 21px;
-    height: 21px;
-    stroke-width: 1.8;
+.nf-pick-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
 }
 
-.nf-nav-mark:hover {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.32);
+.nf-pick-btn:hover {
+    opacity: 1;
     transform: translateY(-1px);
 }
 
-.nf-nav-mark.is-active {
-    border-color: var(--nf-accent);
-    background: rgba(229, 9, 20, 0.18);
+.nf-pick-btn.is-on {
+    color: var(--nf-accent);
+    opacity: 1;
 }
 
 /* --- tablet and phone -------------------------------------------------------- */
