@@ -1086,10 +1086,6 @@
                 /* The hash may already be this one - it is left alone while a
                  * channel plays - and setting it to itself fires nothing, so the
                  * entry would do nothing at all. Open the page directly. */
-                if (target.hash.indexOf('nfpick=1') > -1) {
-                    setTimeout(pickOpen, 30);
-                    return;
-                }
                 if (target.hash.indexOf('nftv=1') > -1) {
                     node.addEventListener('click', function () {
                         if (tvState.channel) tvStop();
@@ -7297,7 +7293,10 @@
     function pickClose() {
         document.body.classList.remove('nf-pick');
         var page = document.querySelector('.nf-pick-page');
-        if (page) page.remove();
+        if (page) {
+            if (page.pickKeys) document.removeEventListener('keydown', page.pickKeys);
+            page.remove();
+        }
         pickState = null;
     }
 
@@ -7578,6 +7577,9 @@
     }
 
     function pickPaintEmpty(page) {
+        // Reached from inside the reel's own callback rather than through
+        // pickPaint, so it clears the page itself or it lands under the reel.
+        page.textContent = '';
         var shell = pickShell(page, 'is-empty');
         shell.appendChild(pickMark());
         shell.appendChild(el('h2', null, 'Qui non ci arrivo'));
@@ -7622,6 +7624,11 @@
     }
 
     function pickPaintResult(page) {
+        // Same again: the reel calls this when it stops, and choosing one of the
+        // runners-up calls it a second time.
+        page.textContent = '';
+        page.scrollTop = 0;
+
         var ranked = pickState.ranked || [];
         var winner = ranked[0];
         if (!winner) return pickPaintEmpty(page);
