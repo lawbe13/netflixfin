@@ -3075,7 +3075,7 @@
         TV_CHANNELS.forEach(function (channel) {
             var row = el('button', 'nf-p-channel' + (channel.id === tvState.channel ? ' is-on' : ''));
             row.type = 'button';
-            row.style.setProperty('--nf-tv-tone', channel.tone);
+            tvTint(row, channel);
 
             var shot = el('div', 'nf-p-channel-shot');
             shot.appendChild(tvLockup(channel));
@@ -4707,34 +4707,67 @@
      *
      * `ink` is the colour the tag's word takes, chosen against the tone rather
      * than assumed white; `face` is how that word is set. */
+    /* The colours are the marks' own.
+     *
+     * Every lockup is drawn as a two-stop gradient, and those two stops are the
+     * channel's brand - there is nothing to invent. `tone` is the brighter stop,
+     * the one that reads as type on black; `deep` is the other, which is what
+     * the washes and the fields are made of. Anything that wants a colour here
+     * takes one of those two, so the page and the artwork on it cannot disagree.
+     */
     var TV_CHANNELS = [
-        { id: 'uno', name: 'Uno', tone: '#1d3f8f', kind: 'movie', blurb: 'Il meglio della libreria',
+        { id: 'uno', name: 'Uno', tone: '#64DDF6', deep: '#1095E4', kind: 'movie', blurb: 'Il meglio della libreria',
           test: function (m) { return (m.rating || 0) >= 7.5; } },
-        { id: 'action', name: 'Action', tone: '#a4161a', kind: 'movie', blurb: 'Azione e avventura',
+        { id: 'action', name: 'Action', tone: '#FF6200', deep: '#FF0000', kind: 'movie', blurb: 'Azione e avventura',
           genres: ['Azione', 'Avventura', 'Guerra', 'Action & Adventure'], notGenres: TV_ANIMATION },
-        { id: 'comedy', name: 'Comedy', tone: '#e09f3e', kind: 'movie', blurb: 'Da ridere, sempre',
+        { id: 'comedy', name: 'Comedy', tone: '#FFC344', deep: '#FE9F03', kind: 'movie', blurb: 'Da ridere, sempre',
           genres: ['Commedia', 'Comedy'], notGenres: TV_ANIMATION },
-        { id: 'family', name: 'Family', tone: '#2a9d8f', kind: 'movie', blurb: 'Per tutta la famiglia',
+        { id: 'family', name: 'Family', tone: '#1ED760', deep: '#008B09', kind: 'movie', blurb: 'Per tutta la famiglia',
           genres: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'] },
-        { id: 'scifi', name: 'Sci-Fi', tone: '#5a189a', kind: 'movie', blurb: 'Fantascienza e fantasy',
+        { id: 'scifi', name: 'Sci-Fi', tone: '#C822FF', deep: '#560088', kind: 'movie', blurb: 'Fantascienza e fantasy',
           genres: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Sci-Fi & Fantasy'],
           notGenres: TV_ANIMATION },
-        { id: 'suspense', name: 'Suspense', tone: '#3d0e12', kind: 'movie', blurb: 'Thriller, horror, crime',
+        { id: 'suspense', name: 'Suspense', tone: '#D40F0F', deep: '#591114', kind: 'movie', blurb: 'Thriller, horror, crime',
           genres: ['Thriller', 'Horror', 'Mistero', 'Mystery', 'Crime'], notGenres: TV_ANIMATION },
-        { id: 'drama', name: 'Drama', tone: '#264653', kind: 'movie', blurb: 'Storie e sentimenti',
+        { id: 'drama', name: 'Drama', tone: '#FF6E6E', deep: '#7D7D7D', kind: 'movie', blurb: 'Storie e sentimenti',
           genres: ['Dramma', 'Drama', 'Romance', 'Storia', 'History'], notGenres: TV_ANIMATION },
-        { id: 'saghe', name: 'Saghe', tone: '#6a4c93', kind: 'boxset', blurb: 'Una saga per serata' },
-        { id: 'classici', name: 'Classici', tone: '#7f5539', kind: 'movie', blurb: 'Prima del 1990',
+        { id: 'saghe', name: 'Saghe', tone: '#FF8409', deep: '#9F187D', kind: 'boxset', blurb: 'Una saga per serata' },
+        { id: 'classici', name: 'Classici', tone: '#FFA952', deep: '#984D03', kind: 'movie', blurb: 'Prima del 1990',
           test: function (m) { return !!m.year && m.year < 1990; } },
         /* The two episode channels split on shape rather than on genre alone, and
          * they split on the same test, so whatever Sitcom does not take Serie
          * gets and nothing falls between them. */
-        { id: 'serie', name: 'Serie', tone: '#14213d', kind: 'episode', blurb: 'Episodi in ordine',
+        { id: 'serie', name: 'Serie', tone: '#9F187D', deep: '#591114', kind: 'episode', blurb: 'Episodi in ordine',
           showTest: function (genres, episodes) { return !tvIsSitcom(genres, episodes); } },
-        { id: 'sitcom', name: 'Sitcom', tone: '#bc6c25', kind: 'episode', blurb: 'Comedy a episodi',
+        { id: 'sitcom', name: 'Sitcom', tone: '#F5ED00', deep: '#1ED760', kind: 'episode', blurb: 'Comedy a episodi',
           genres: ['Commedia', 'Comedy'], showTest: tvIsSitcom },
-        { id: 'nonstop', name: '24', tone: '#495057', kind: 'movie', blurb: 'Tutto, senza sosta' }
+        { id: 'nonstop', name: '24', tone: '#A8A8A8', deep: '#323232', kind: 'movie', blurb: 'Tutto, senza sosta' }
     ];
+
+    /* White type does not survive on Sitcom's yellow or Uno's cyan, so a tinted
+     * surface is told which ink it can carry. Rec. 709 luma, which is more than
+     * enough for a yes or no about one flat colour. */
+    function tvInk(hex) {
+        var n = parseInt(hex.slice(1), 16);
+        var r = (n >> 16) & 255;
+        var g = (n >> 8) & 255;
+        var b = n & 255;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b > 150 ? '#0b0b0b' : '#ffffff';
+    }
+
+    function tvTint(node, channel) {
+        if (!node || !channel) return;
+        node.style.setProperty('--nf-tv-tone', channel.tone);
+        node.style.setProperty('--nf-tv-deep', channel.deep || channel.tone);
+        node.style.setProperty('--nf-tv-ink', tvInk(channel.tone));
+    }
+
+    function tvUntint(node) {
+        if (!node) return;
+        node.style.removeProperty('--nf-tv-tone');
+        node.style.removeProperty('--nf-tv-deep');
+        node.style.removeProperty('--nf-tv-ink');
+    }
 
     function tvChannel(id) {
         return TV_CHANNELS.filter(function (c) { return c.id === id; })[0] || null;
@@ -5586,7 +5619,7 @@
         var panel = document.querySelector('.nf-tv-page');
         if (panel) {
             panel.classList.remove('is-channel');
-            panel.style.removeProperty('--nf-tv-tone');
+            tvUntint(panel);
             panel.removeAttribute('data-channel');
         }
         if (panel) panel.remove();
@@ -5660,7 +5693,7 @@
      * it is going asks for. */
     function tvLockup(channel, cls) {
         var badge = el('div', 'nf-tv-logo' + (cls ? ' ' + cls : ''));
-        badge.style.setProperty('--nf-tv-tone', channel.tone);
+        tvTint(badge, channel);
 
         var art = el('img', 'nf-tv-logo-art');
         art.src = '/NetflixFin/tv/logo/' + channel.id;
@@ -5740,7 +5773,7 @@
 
             var channel = feature.channel;
             var on = feature.on;
-            host.style.setProperty('--nf-tv-tone', channel.tone);
+            tvTint(host, channel);
 
             /* Asked for again on every pass rather than kept: the page is
              * painted while jellyfin-web is still signing in, and a client taken
@@ -5830,6 +5863,7 @@
     }
 
     function tvPaintGrid(panel) {
+        panel.classList.remove('is-off');
         panel.textContent = '';
         panel.scrollTop = 0;
         tvCardUpdates = [];
@@ -5844,7 +5878,7 @@
         TV_CHANNELS.forEach(function (channel) {
             var card = el('button', 'nf-tv-card');
             card.type = 'button';
-            card.style.setProperty('--nf-tv-tone', channel.tone);
+            tvTint(card, channel);
 
             /* Artwork, the channel's mark on it, and the progress of what is on
              * along its bottom edge; the words sit under the picture on the
@@ -6044,6 +6078,14 @@
         return new Date(time).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
     }
 
+    /* A channel's own page.
+     *
+     * Walking into a channel should not feel like filtering a list: it is a
+     * place that is already on air, so the page is built the way a station is.
+     * A bar across the top with the mark, a lamp and the clock, which stays put
+     * while everything else scrolls. Under it what is on, full bleed, graded in
+     * the channel's own two colours. Then the rundown - what follows, in order,
+     * as cards you can walk along - and then the listings themselves. */
     function tvPaintChannel(panel, id) {
         var channel = tvChannel(id);
         if (!channel) return;
@@ -6051,8 +6093,8 @@
         panel.textContent = '';
         panel.scrollTop = 0;
         panel.classList.add('is-channel');
-        // The page takes the channel's colour, not just its hero.
-        panel.style.setProperty('--nf-tv-tone', channel.tone);
+        panel.classList.remove('is-off');
+        tvTint(panel, channel);
         panel.setAttribute('data-channel', channel.id);
 
         tvCardUpdates = [];
@@ -6061,8 +6103,10 @@
             tvGridTimer = null;
         }
 
-        var hero = el('div', 'nf-tv-hero');
-        hero.style.setProperty('--nf-tv-tone', channel.tone);
+        /* The station bar. The back button rides inside it rather than floating
+         * over the artwork, which is the last place the mark could collide with
+         * anything. */
+        var studio = el('div', 'nf-tv-studio');
 
         var back = el('button', 'nf-tv-back');
         back.type = 'button';
@@ -6070,17 +6114,41 @@
         back.appendChild(el('span', null, 'Tutti i canali'));
         back.addEventListener('click', function () {
             panel.classList.remove('is-channel');
-            panel.style.removeProperty('--nf-tv-tone');
+            tvUntint(panel);
             panel.removeAttribute('data-channel');
             tvPaintGrid(panel);
         });
-        hero.appendChild(back);
+        studio.appendChild(back);
 
+        var station = el('div', 'nf-tv-station');
+        station.appendChild(tvLockup(channel, 'is-station'));
+        station.appendChild(el('span', 'nf-tv-station-blurb', channel.blurb));
+        studio.appendChild(station);
+
+        var lamp = el('div', 'nf-tv-lamp');
+        lamp.appendChild(el('i'));
+        lamp.appendChild(el('span', null, 'ON AIR'));
+
+        var clock = el('div', 'nf-tv-clock', tvTimeLabel(tvClock()));
+
+        var side = el('div', 'nf-tv-studio-side');
+        side.appendChild(lamp);
+        side.appendChild(clock);
+        studio.appendChild(side);
+        panel.appendChild(studio);
+
+        var hero = el('div', 'nf-tv-hero');
         var art = el('div', 'nf-tv-hero-art');
         hero.appendChild(art);
+        // The grade: the channel's two stops over the picture, and the fine
+        // horizontal rule of a screen being looked at rather than a page.
+        hero.appendChild(el('div', 'nf-tv-scan'));
         var copy = el('div', 'nf-tv-hero-copy');
         hero.appendChild(copy);
         panel.appendChild(hero);
+
+        var rundown = el('div', 'nf-tv-rundown');
+        panel.appendChild(rundown);
 
         var guide = el('div', 'nf-tv-guide');
         panel.appendChild(guide);
@@ -6099,20 +6167,16 @@
             var on = tvNow(channel, pool, tvClock());
             copy.textContent = '';
 
-            var badges = el('div', 'nf-tv-badges');
-            badges.appendChild(tvLockup(channel));
-
             if (!on) {
-                copy.appendChild(badges);
                 copy.appendChild(el('h2', 'nf-tv-bill-title', 'Fuori onda'));
+                panel.classList.add('is-off');
                 return;
             }
 
             var kicker = el('div', 'nf-tv-kicker');
             if (!on.inIdent) kicker.appendChild(el('span', 'nf-tv-dot'));
             kicker.appendChild(el('span', null, on.inIdent ? 'Fra poco' : 'In onda ora'));
-            badges.appendChild(kicker);
-            copy.appendChild(badges);
+            copy.appendChild(kicker);
 
             if (client) art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'hero') + '")';
 
@@ -6141,12 +6205,13 @@
                 Math.min(100, Math.round((on.offset / (on.slot.end - on.slot.start)) * 100)) + '%';
             copy.appendChild(meter);
 
+            var actions = el('div', 'nf-tv-actions');
+
             tvDetails(on.slot.item.id).then(function (item) {
                 if (!item || !item.Overview) return;
-                copy.insertBefore(el('p', 'nf-tv-bill-blurb', item.Overview), copy.querySelector('.nf-tv-actions'));
+                copy.insertBefore(el('p', 'nf-tv-bill-blurb', item.Overview), actions);
             });
 
-            var actions = el('div', 'nf-tv-actions');
             var watch = el('button', 'nf-btn nf-btn-primary');
             watch.type = 'button';
             watch.appendChild(svgIcon('play'));
@@ -6176,10 +6241,63 @@
             actions.appendChild(ambient);
             copy.appendChild(actions);
 
+            var listing = tvGuide(channel, pool, tvClock());
+            var rows = {};
+
+            /* The rundown: what follows, as far as the eye goes, in the order it
+             * will go out. A listings page answers "what is on at nine"; this
+             * answers "what am I in for tonight", which is the question someone
+             * standing in front of a channel actually has. */
+            rundown.textContent = '';
+            var ahead = listing.slice(1, 9);
+            if (ahead.length) {
+                var head = el('div', 'nf-tv-rundown-head');
+                head.appendChild(el('h3', null, 'A seguire'));
+                head.appendChild(el('span', null, 'La scaletta di ' + channel.name));
+                rundown.appendChild(head);
+
+                var railWrap = el('div', 'nf-tv-rail-wrap');
+                var rail = el('div', 'nf-tv-rail');
+                railWrap.appendChild(rail);
+                rundown.appendChild(railWrap);
+
+                ahead.forEach(function (slot) {
+                    var card = el('button', 'nf-tv-next');
+                    card.type = 'button';
+
+                    var shot = el('div', 'nf-tv-next-shot');
+                    if (client) {
+                        shot.style.backgroundImage = 'url("' + tvArt(slot.item, client, 'wide') + '")';
+                    }
+                    shot.appendChild(el('span', 'nf-tv-next-time', tvTimeLabel(slot.start)));
+                    card.appendChild(shot);
+
+                    var body = el('div', 'nf-tv-next-copy');
+                    body.appendChild(el('strong', null, slot.item.name));
+                    body.appendChild(
+                        el('em', null,
+                            (slot.show ? slot.show + '  ·  ' : '') +
+                                Math.round(slot.item.ms / 60000) + ' min')
+                    );
+                    card.appendChild(body);
+
+                    // The rail is a way into the listings, not a second copy of
+                    // them: it opens the row that programme already has.
+                    card.addEventListener('click', function () {
+                        var row = rows[slot.start];
+                        if (!row) return;
+                        if (!row.classList.contains('is-open')) tvOpenRow(row, slot, channel);
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+
+                    rail.appendChild(card);
+                });
+            }
+
             guide.appendChild(el('h3', null, 'Guida TV'));
 
             var day = null;
-            tvGuide(channel, pool, tvClock()).forEach(function (slot, i) {
+            listing.forEach(function (slot, i) {
                 var label = tvDayLabel(slot.start);
                 if (label !== day) {
                     day = label;
@@ -6187,6 +6305,7 @@
                 }
 
                 var row = el('div', 'nf-tv-row' + (i === 0 ? ' is-now' : ''));
+                rows[slot.start] = row;
                 row.setAttribute('role', 'button');
                 row.setAttribute('tabindex', '0');
                 row.addEventListener('click', function () {
@@ -6218,6 +6337,43 @@
                 row.appendChild(svgIcon('chevrondown'));
                 guide.appendChild(row);
             });
+
+            /* A page that says ON AIR has to be on air: the clock moves, the bar
+             * fills, and when the programme changes underneath the whole thing is
+             * drawn again rather than left saying something that stopped being
+             * true ten minutes ago. */
+            var showing = on.slot.item.id;
+            var update = function () {
+                if (!panel.isConnected || !panel.classList.contains('is-channel')) return;
+
+                var now = tvNow(channel, pool, tvClock());
+                if (!now) return;
+                if (now.slot.item.id !== showing) {
+                    tvPaintChannel(panel, id);
+                    return;
+                }
+
+                clock.textContent = tvTimeLabel(tvClock());
+
+                var span = now.slot.end - now.slot.start;
+                var width = Math.min(100, Math.round((now.offset / span) * 100)) + '%';
+                fill.style.width = width;
+
+                var rowFill = guide.querySelector('.nf-tv-row.is-now .nf-tv-row-fill');
+                if (rowFill) rowFill.style.width = width;
+
+                var line = copy.querySelector('.nf-tv-bill-clock');
+                if (line) {
+                    line.textContent =
+                        (now.slot.show ? now.slot.show + '  ·  ' : '') +
+                        tvTimeLabel(now.slot.start) + ' – ' + tvTimeLabel(now.slot.end) +
+                        '  ·  ' + tvRemaining(now);
+                }
+            };
+
+            tvCardUpdates.push(update);
+            if (tvGridTimer) clearInterval(tvGridTimer);
+            tvGridTimer = setInterval(tvRunUpdates, 10000);
         });
     }
 
@@ -6303,7 +6459,7 @@
             cover.appendChild(el('div', 'nf-tv-kicker', 'Sintonizzazione'));
             document.body.appendChild(cover);
         }
-        cover.style.setProperty('--nf-tv-tone', channel.tone);
+        tvTint(cover, channel);
     }
 
     /* On air while the app is either on the programme's own page or in the
@@ -6488,7 +6644,7 @@
             var art = bug.querySelector('.nf-tv-logo-art');
             art.src = '/NetflixFin/tv/logo/' + channel.id + '?mono=true';
             art.alt = channel.name;
-            skin.style.setProperty('--nf-tv-tone', channel.tone);
+            tvTint(skin, channel);
         }
         skin.classList.toggle('is-shifted', tvState.shift > 0);
 
@@ -6693,7 +6849,7 @@
 
         var channel = tvChannel(tvState.channel);
         var live = player.live;
-        if (channel) player.node.style.setProperty('--nf-tv-tone', channel.tone);
+        if (channel) tvTint(player.node, channel);
 
         var shifted = tvState.shift > 0;
         live.pill.classList.toggle('is-shifted', shifted);

@@ -3398,6 +3398,10 @@ body.nf-tv {
         width: min(420px, 52vw);
         height: clamp(80px, 12vw, 132px);
     }
+
+    .nf-tv-next {
+        flex-basis: 212px;
+    }
 }
 
 @media (max-width: 899px) {
@@ -3586,14 +3590,165 @@ body.nf-tv {
     transition: width 0.6s linear;
 }
 
-/* --- one channel ---------------------------------------------------------- */
+/* --- one channel ----------------------------------------------------------
+
+   A channel page is a place, not a filter. Everything below is built so that
+   arriving on one feels like walking into the station: a bar across the top
+   that stays put and says the transmitter is on, what is on air behind it in
+   the channel's own two colours, the rundown of what follows, and the listings
+   underneath. The two colours are the ones in the mark itself - --nf-tv-tone is
+   the brighter stop, --nf-tv-deep the other, --nf-tv-ink whichever of black or
+   white survives on top of the tone. Nothing here invents a colour. */
+
+/* --- the station bar ------------------------------------------------------ */
+
+.nf-tv-studio {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 13px var(--nf-gutter) 14px;
+    background:
+        linear-gradient(90deg,
+            color-mix(in srgb, var(--nf-tv-deep, #222) 40%, transparent) 0%,
+            color-mix(in srgb, var(--nf-tv-deep, #222) 8%, transparent) 34%,
+            transparent 62%),
+        rgba(9, 9, 11, 0.82);
+    backdrop-filter: blur(20px) saturate(1.35);
+    -webkit-backdrop-filter: blur(20px) saturate(1.35);
+}
+
+/* The line under a station banner is the station's colour, and it runs out of
+   colour the way the mark does. */
+.nf-tv-studio::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+        var(--nf-tv-tone, #fff) 0%,
+        var(--nf-tv-deep, #666) 34%,
+        rgba(255, 255, 255, 0.08) 78%,
+        transparent 100%);
+}
+
+.nf-tv-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 8px 16px 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--nf-text);
+    font-family: var(--nf-font);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s var(--nf-ease), border-color 0.2s var(--nf-ease);
+}
+
+.nf-tv-back:hover {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.nf-tv-back svg {
+    width: 17px;
+    height: 17px;
+    fill: currentColor;
+}
+
+.nf-tv-station {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+}
+
+.nf-tv-station .nf-tv-logo {
+    --nf-logo-h: 30px;
+}
+
+/* The strapline is separated from the mark by a rule rather than by space
+   alone: a drawn mark has no side bearing, and a rule is a cleaner edge than a
+   guessed gap. */
+.nf-tv-station-blurb {
+    position: relative;
+    padding-left: 18px;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nf-tv-station-blurb::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 1px;
+    height: 20px;
+    margin-top: -10px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.nf-tv-studio-side {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-left: auto;
+}
+
+/* The lamp. Red, because red is what a lamp on a studio door is - the channel's
+   own colour is everywhere else on this page and would say nothing here. */
+.nf-tv-lamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 13px 6px 11px;
+    border: 1px solid rgba(229, 9, 20, 0.42);
+    border-radius: 9999px;
+    background: rgba(229, 9, 20, 0.14);
+    color: #ff6b73;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.19em;
+}
+
+.nf-tv-lamp i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--nf-accent);
+    animation: nf-tv-pulse 2s ease-out infinite;
+}
+
+.nf-tv-clock {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+}
+
+/* --- what is on ----------------------------------------------------------- */
 
 .nf-tv-hero {
     position: relative;
     display: flex;
     align-items: flex-end;
-    min-height: min(76vh, 780px);
-    padding: 0 var(--nf-gutter) 92px;
+    min-height: min(74vh, 760px);
+    padding: 0 var(--nf-gutter) 84px;
     overflow: hidden;
     isolation: isolate;
 }
@@ -3601,55 +3756,51 @@ body.nf-tv {
 .nf-tv-hero-art {
     position: absolute;
     inset: 0;
-    z-index: -2;
+    z-index: -3;
     background-color: #101010;
     background-size: cover;
     background-position: center 18%;
+    animation: nf-tv-drift 44s ease-in-out infinite alternate;
 }
 
-/* The channel's colour is a wash over the picture rather than a field under it:
-   a flat tone at a third opacity was reading as "the art failed to load". */
+/* Barely a move - enough that the picture is alive rather than pasted on. */
+@keyframes nf-tv-drift {
+    from { transform: scale(1.02); }
+    to { transform: scale(1.09) translate3d(-1.2%, -0.8%, 0); }
+}
+
+/* The grade. Two scrims for the words to hold against, then the channel's own
+   two colours: the bright stop as a light thrown from the top right, the deep
+   one as the field the copy sits in. */
 .nf-tv-hero::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: -1;
     background:
-        linear-gradient(77deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.44) 46%, rgba(0, 0, 0, 0) 72%),
-        linear-gradient(115deg, var(--nf-tv-tone, transparent) 0%, rgba(0, 0, 0, 0) 55%),
-        linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0.92) 12%, rgba(20, 20, 20, 0.35) 32%, rgba(20, 20, 20, 0) 58%);
-    opacity: 0.96;
+        linear-gradient(84deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.5) 40%, rgba(0, 0, 0, 0) 70%),
+        linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0.9) 14%, rgba(20, 20, 20, 0.3) 36%, rgba(20, 20, 20, 0) 60%),
+        radial-gradient(90% 78% at 86% 6%,
+            color-mix(in srgb, var(--nf-tv-tone, #444) 34%, transparent) 0%,
+            transparent 62%),
+        linear-gradient(118deg,
+            color-mix(in srgb, var(--nf-tv-deep, #222) 58%, transparent) 0%,
+            color-mix(in srgb, var(--nf-tv-deep, #222) 10%, transparent) 42%,
+            transparent 64%);
 }
 
-.nf-tv-back {
+/* A screen being looked at, not a page: fine horizontal lines and a vignette,
+   both far below the threshold of noticing them on purpose. */
+.nf-tv-scan {
     position: absolute;
-    top: 22px;
-    left: var(--nf-gutter);
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px 8px 12px;
-    border: 0;
-    border-radius: 9999px;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(8px);
-    color: var(--nf-text);
-    font-family: var(--nf-font);
-    font-size: 13.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s var(--nf-ease);
-}
-
-.nf-tv-back:hover {
-    background: rgba(0, 0, 0, 0.8);
-}
-
-.nf-tv-back svg {
-    width: 17px;
-    height: 17px;
-    fill: currentColor;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+        repeating-linear-gradient(180deg,
+            rgba(255, 255, 255, 0.028) 0 1px,
+            rgba(0, 0, 0, 0) 1px 3px),
+        radial-gradient(122% 118% at 50% 38%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.6) 100%);
 }
 
 .nf-tv-meta {
@@ -3670,27 +3821,212 @@ body.nf-tv {
     font-size: 15.5px;
 }
 
-/* --- a channel's own colour ------------------------------------------------
-   A channel page should not be the same black page with a different picture at
-   the top. The tone washes down from the head of the page, the guide's heading
-   is underscored in it, its listings answer to it, and the buttons that are not
-   the primary one are tinted with it. The live marker stays red: that is what
-   red means here. */
+/* --- the channel's own colour ---------------------------------------------
+   The page under the artwork keeps a memory of the tone, the controls are made
+   of it, and the listings answer to it. The live marker stays red: on this page
+   red means on air and nothing else. */
 
 .nf-tv-page.is-channel {
+    /* The listings' day headings stick to the underside of the station bar, so
+       both have to agree on how tall it is. */
+    --nf-studio-h: 57px;
     background:
-        radial-gradient(140% 52% at 50% 0%,
-            color-mix(in srgb, var(--nf-tv-tone, #333) 30%, transparent) 0%,
-            transparent 62%),
+        radial-gradient(120% 44% at 50% 0%,
+            color-mix(in srgb, var(--nf-tv-deep, #333) 26%, transparent) 0%,
+            transparent 60%),
+        radial-gradient(80% 40% at 8% 92%,
+            color-mix(in srgb, var(--nf-tv-deep, #333) 12%, transparent) 0%,
+            transparent 70%),
         var(--nf-bg);
 }
 
-.nf-tv-page.is-channel .nf-tv-guide h3 {
-    position: relative;
-    padding-bottom: 12px;
+/* The button that starts the channel is the channel's colour. It is the one
+   surface on the page that has to be its colour rather than wear it. */
+.nf-tv-page.is-channel .nf-btn-primary {
+    background: var(--nf-tv-tone, #fff);
+    color: var(--nf-tv-ink, #0b0b0b);
 }
 
-.nf-tv-page.is-channel .nf-tv-guide h3::after {
+.nf-tv-page.is-channel .nf-btn-primary:hover {
+    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 82%, #fff);
+}
+
+.nf-tv-page.is-channel .nf-btn-secondary {
+    border: 1px solid color-mix(in srgb, var(--nf-tv-tone, #fff) 26%, transparent);
+    background: color-mix(in srgb, var(--nf-tv-deep, #333) 34%, rgba(28, 28, 30, 0.72));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.nf-tv-page.is-channel .nf-btn-secondary:hover {
+    border-color: color-mix(in srgb, var(--nf-tv-tone, #fff) 46%, transparent);
+    background: color-mix(in srgb, var(--nf-tv-deep, #333) 52%, rgba(38, 38, 40, 0.78));
+}
+
+/* Off air: there is no rundown to walk along and no clock worth running. */
+.nf-tv-page.is-off .nf-tv-rundown,
+.nf-tv-page.is-off .nf-tv-lamp {
+    display: none;
+}
+
+/* --- the rundown ---------------------------------------------------------- */
+
+/* What follows, in the order it goes out. A listings page answers "what is on
+   at nine"; this answers "what am I in for tonight", which is the question
+   someone standing in front of a channel actually has. */
+.nf-tv-rundown {
+    padding: 30px var(--nf-gutter) 2px;
+}
+
+.nf-tv-rundown-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+
+.nf-tv-rundown-head h3 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.nf-tv-rundown-head span {
+    color: var(--nf-text-dim);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* The rail runs to both edges of the screen and fades out into them, so it
+   reads as something continuing rather than something that stopped. */
+.nf-tv-rail-wrap {
+    margin: 0 calc(var(--nf-gutter) * -1);
+    padding: 0 var(--nf-gutter);
+    -webkit-mask-image: linear-gradient(90deg,
+        transparent 0,
+        #000 calc(var(--nf-gutter) - 4px),
+        #000 calc(100% - var(--nf-gutter) + 4px),
+        transparent 100%);
+    mask-image: linear-gradient(90deg,
+        transparent 0,
+        #000 calc(var(--nf-gutter) - 4px),
+        #000 calc(100% - var(--nf-gutter) + 4px),
+        transparent 100%);
+}
+
+.nf-tv-rail {
+    display: flex;
+    gap: 14px;
+    padding: 16px 0 8px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+}
+
+.nf-tv-rail::-webkit-scrollbar {
+    display: none;
+}
+
+.nf-tv-next {
+    flex: 0 0 236px;
+    scroll-snap-align: start;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-family: var(--nf-font);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.22s var(--nf-ease);
+}
+
+.nf-tv-next:hover,
+.nf-tv-next:focus-visible {
+    transform: translateY(-5px);
+}
+
+.nf-tv-next-shot {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--nf-radius, 6px);
+    background-color: #151515;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.9);
+    transition: box-shadow 0.22s var(--nf-ease), outline-color 0.22s var(--nf-ease);
+    outline: 2px solid transparent;
+    outline-offset: 0;
+}
+
+.nf-tv-next:hover .nf-tv-next-shot,
+.nf-tv-next:focus-visible .nf-tv-next-shot {
+    outline-color: color-mix(in srgb, var(--nf-tv-tone, #fff) 78%, transparent);
+    box-shadow:
+        0 16px 34px -16px rgba(0, 0, 0, 0.95),
+        0 0 34px -12px color-mix(in srgb, var(--nf-tv-tone, #fff) 60%, transparent);
+}
+
+/* The time is a slug of the channel's colour, the way a listings strip carries
+   it on air. */
+.nf-tv-next-time {
+    position: absolute;
+    left: 9px;
+    bottom: 9px;
+    padding: 3px 9px;
+    border-radius: 5px;
+    background: var(--nf-tv-tone, #fff);
+    color: var(--nf-tv-ink, #0b0b0b);
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+}
+
+.nf-tv-next-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 11px 2px 0;
+}
+
+.nf-tv-next-copy strong {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nf-tv-next-copy em {
+    color: var(--nf-text-dim);
+    font-size: 12px;
+    font-style: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- the guide ------------------------------------------------------------ */
+
+.nf-tv-guide {
+    margin-top: 22px;
+    padding: 0 var(--nf-gutter);
+}
+
+.nf-tv-guide h3 {
+    position: relative;
+    margin: 0 0 6px;
+    padding-bottom: 12px;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.nf-tv-guide h3::after {
     content: "";
     position: absolute;
     left: 0;
@@ -3698,58 +4034,36 @@ body.nf-tv {
     width: 44px;
     height: 3px;
     border-radius: 2px;
-    background: var(--nf-tv-tone, #fff);
-}
-
-.nf-tv-page.is-channel .nf-tv-day {
-    color: color-mix(in srgb, var(--nf-tv-tone, #fff) 55%, #cfcfcf);
-}
-
-.nf-tv-page.is-channel .nf-tv-row:hover {
-    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 14%, transparent);
-}
-
-.nf-tv-page.is-channel .nf-tv-row.is-open,
-.nf-tv-page.is-channel .nf-tv-row.is-now {
-    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 18%, transparent);
-}
-
-.nf-tv-page.is-channel .nf-btn-secondary {
-    background: color-mix(in srgb, var(--nf-tv-tone, #333) 42%, rgba(109, 109, 110, 0.6));
-}
-
-.nf-tv-page.is-channel .nf-btn-secondary:hover {
-    background: color-mix(in srgb, var(--nf-tv-tone, #333) 58%, rgba(109, 109, 110, 0.7));
-}
-
-/* --- the guide ------------------------------------------------------------ */
-
-.nf-tv-guide {
-    margin-top: 10px;
-    padding: 0 var(--nf-gutter);
-}
-
-.nf-tv-guide h3 {
-    margin: 0 0 6px;
-    font-size: 21px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    background: linear-gradient(90deg, var(--nf-tv-tone, #fff), var(--nf-tv-deep, #666));
 }
 
 /* A day's worth of listings under a heading that stays put while they scroll,
-   because "20:37" means nothing without it. */
+   because "20:37" means nothing without it. It sits below the station bar, not
+   under it. */
 .nf-tv-day {
     position: sticky;
-    top: 0;
-    z-index: 1;
+    top: var(--nf-studio-h, 0px);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-top: 18px;
     padding: 12px 0 8px;
-    background: linear-gradient(180deg, var(--nf-bg) 65%, rgba(20, 20, 20, 0));
-    color: var(--nf-text-dim);
+    background: linear-gradient(180deg, var(--nf-bg) 62%, rgba(20, 20, 20, 0));
+    color: color-mix(in srgb, var(--nf-tv-tone, #fff) 46%, #cfcfcf);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
+}
+
+.nf-tv-day::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--nf-tv-tone, #fff);
+    transform: rotate(45deg);
 }
 
 .nf-tv-row {
@@ -3764,12 +4078,33 @@ body.nf-tv {
     transition: background 0.16s var(--nf-ease);
 }
 
-.nf-tv-row:hover {
-    background: rgba(255, 255, 255, 0.05);
+/* The listings are a timeline: one hairline down the left of every row, with
+   each programme's dot sitting on it. */
+.nf-tv-row::before {
+    content: "";
+    position: absolute;
+    left: 22px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.09);
 }
 
-.nf-tv-row.is-now {
-    background: rgba(255, 255, 255, 0.07);
+.nf-tv-row:first-of-type::before {
+    top: 50%;
+}
+
+.nf-tv-row:last-of-type::before {
+    bottom: 50%;
+}
+
+.nf-tv-row:hover {
+    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 9%, transparent);
+}
+
+.nf-tv-row.is-now,
+.nf-tv-row.is-open {
+    background: color-mix(in srgb, var(--nf-tv-tone, #fff) 13%, transparent);
     border-bottom-color: transparent;
 }
 
@@ -3781,17 +4116,7 @@ body.nf-tv {
     bottom: 0;
     z-index: 0;
     background: var(--nf-tv-tone, rgba(255, 255, 255, 0.1));
-    opacity: 0.26;
-}
-
-.nf-tv-row.is-now::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--nf-accent);
+    opacity: 0.2;
 }
 
 .nf-tv-row-time,
@@ -3802,46 +4127,78 @@ body.nf-tv {
 }
 
 .nf-tv-row-time {
-    flex: 0 0 54px;
+    position: relative;
+    flex: 0 0 auto;
+    width: 78px;
+    padding-left: 24px;
     color: var(--nf-text-dim);
     font-size: 14px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
 
+/* The dot on the timeline. */
+.nf-tv-row-time::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    transition: background 0.16s var(--nf-ease), box-shadow 0.16s var(--nf-ease);
+}
+
+.nf-tv-row:hover .nf-tv-row-time::before {
+    background: rgba(255, 255, 255, 0.42);
+}
+
 .nf-tv-row.is-now .nf-tv-row-time {
-    color: #fff;
-    font-weight: 700;
+    color: var(--nf-tv-tone, #fff);
+}
+
+.nf-tv-row.is-now .nf-tv-row-time::before {
+    background: var(--nf-tv-tone, #fff);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--nf-tv-tone, #fff) 20%, transparent);
 }
 
 .nf-tv-row-text {
     flex: 1 1 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
     min-width: 0;
 }
 
 .nf-tv-row-text strong {
-    display: block;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .nf-tv-row-text em {
     color: var(--nf-text-dim);
-    font-size: 12.5px;
+    font-size: 13px;
     font-style: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .nf-tv-row-len {
     flex: 0 0 auto;
     color: var(--nf-text-dim);
-    font-size: 12.5px;
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
 }
 
-/* A listing that opens. The chevron is the only thing that says so until you
-   try it, so it turns over when the row is open. */
 .nf-tv-row {
-    cursor: pointer;
     flex-wrap: wrap;
+    cursor: pointer;
 }
 
 .nf-tv-row > svg {
@@ -3850,26 +4207,25 @@ body.nf-tv {
     flex: 0 0 auto;
     width: 18px;
     height: 18px;
-    fill: var(--nf-text-dim);
-    transition: transform 0.18s var(--nf-ease);
+    fill: rgba(255, 255, 255, 0.55);
+    transition: transform 0.2s var(--nf-ease), fill 0.2s var(--nf-ease);
+}
+
+.nf-tv-row:hover > svg {
+    fill: var(--nf-tv-tone, #fff);
 }
 
 .nf-tv-row.is-open > svg {
     transform: rotate(180deg);
 }
 
-.nf-tv-row.is-open {
-    background: rgba(255, 255, 255, 0.07);
-    border-bottom-color: transparent;
-}
-
 .nf-tv-row-more {
     position: relative;
     z-index: 1;
     display: flex;
-    gap: 20px;
+    gap: 22px;
     width: 100%;
-    padding: 18px 0 8px 70px;
+    padding: 20px 0 10px 78px;
     animation: nf-row-open 0.2s var(--nf-ease);
 }
 
@@ -3886,7 +4242,9 @@ body.nf-tv {
     background-color: #1b1b1b;
     background-size: cover;
     background-position: center;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.5),
+        0 0 0 1px color-mix(in srgb, var(--nf-tv-tone, #fff) 22%, transparent);
 }
 
 .nf-tv-row-copy {
@@ -3942,6 +4300,7 @@ body.nf-tv {
     font-size: 14px;
     white-space: nowrap;
 }
+
 
 /* --- tuning in ------------------------------------------------------------ */
 
@@ -4409,8 +4768,27 @@ body.nf-tv-on .nf-p-restart-btn {
         max-width: 100%;
     }
 
-    .nf-tv-back {
-        top: 14px;
+    /* The bar is the page's own header at this width: the strapline goes, the
+       lamp and the clock stay, because they are what say the channel is on. */
+    .nf-tv-page.is-channel {
+        --nf-studio-h: 53px;
+    }
+
+    .nf-tv-studio {
+        gap: 14px;
+        padding: 10px var(--nf-gutter) 11px;
+    }
+
+    .nf-tv-station-blurb {
+        display: none;
+    }
+
+    .nf-tv-station .nf-tv-logo {
+        --nf-logo-h: 26px;
+    }
+
+    .nf-tv-next {
+        flex-basis: 196px;
     }
 
     .nf-tv-grid {
@@ -4615,9 +4993,56 @@ body.nf-tv-on .nf-p-restart-btn {
         height: clamp(48px, 15vw, 74px);
     }
 
-    /* The back button belongs over the picture, not over the words. */
+    /* At this width the bar carries the mark, a lamp and the time - the label
+       on the back button is what goes, not the way back itself. */
+    .nf-tv-page.is-channel {
+        --nf-studio-h: 48px;
+    }
+
+    .nf-tv-studio {
+        gap: 12px;
+        padding: 8px var(--nf-gutter) 9px;
+    }
+
     .nf-tv-back {
-        top: 12px;
+        padding: 7px 11px;
+    }
+
+    .nf-tv-back span {
+        display: none;
+    }
+
+    .nf-tv-station .nf-tv-logo {
+        --nf-logo-h: 22px;
+    }
+
+    .nf-tv-lamp {
+        padding: 5px 10px 5px 9px;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+    }
+
+    .nf-tv-clock {
+        font-size: 13.5px;
+    }
+
+    /* The grain belongs on the picture; below it the copy sits on the page's
+       own black and has nothing to be grained over. */
+    .nf-tv-scan {
+        inset: 0 0 auto 0;
+        height: 68vw;
+    }
+
+    .nf-tv-rundown {
+        padding-top: 24px;
+    }
+
+    .nf-tv-next {
+        flex-basis: 172px;
+    }
+
+    .nf-tv-row-more {
+        padding-left: 0;
     }
 
     /* Two channels across at this width; the words under each are one line
@@ -4926,6 +5351,15 @@ body.nf-tv-on .nf-p-restart-btn {
     .nf-tab-icon {
         animation: none;
         transition: none;
+    }
+
+    .nf-tv-hero-art {
+        animation: none;
+    }
+
+    .nf-tv-lamp i,
+    .nf-tv-dot {
+        animation: none;
     }
 }
 
