@@ -5444,6 +5444,80 @@
         lostAt: 0
     };
 
+    /* What a channel borrowed.
+     *
+     * Shadowing the three reporting methods is not enough on its own, and the
+     * server's log says why: "Playback stopped reported ... playing Finch.
+     * Stopped at 6101910 ms". That report goes out *after* the channel has let
+     * go - the player is still winding down when the shadow comes off - so the
+     * position of a film nobody chose to watch was written into the library and
+     * turned up in Continue Watching.
+     *
+     * Two answers, because this must not happen: the shadow is left on for a
+     * while after the channel closes, and every programme a channel touches has
+     * its user data read first and written back afterwards. The second is what
+     * makes it certain: whatever leaks through, the item ends where it started.
+     */
+    var tvBorrowed = {};
+    var tvReturnTimer = null;
+
+    function tvBorrow(id) {
+        if (!id || tvBorrowed[id]) return;
+
+        var client = api();
+        if (!client) return;
+
+        // Reserved before the answer arrives, so a second pass does not ask again.
+        tvBorrowed[id] = true;
+
+        client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                var data = item.UserData || {};
+                tvBorrowed[id] = {
+                    Played: !!data.Played,
+                    PlaybackPositionTicks: data.PlaybackPositionTicks || 0,
+                    PlayCount: data.PlayCount || 0
+                };
+            })
+            .catch(function (err) {
+                log('tv: could not note how this title stood', err);
+            });
+    }
+
+    function tvReturn(keep) {
+        var client = api();
+        var ids = Object.keys(tvBorrowed);
+        if (!client || !ids.length) {
+            tvBorrowed = {};
+            return;
+        }
+
+        ids.forEach(function (id) {
+            if (keep && keep === id) return;
+
+            var was = tvBorrowed[id];
+            // Reserved but never answered: nothing was known, so nothing is the
+            // safest thing to put back.
+            if (!was || was === true) {
+                was = { Played: false, PlaybackPositionTicks: 0, PlayCount: 0 };
+            }
+
+            client
+                .ajax({
+                    type: 'POST',
+                    url: client.getUrl('UserItems/' + id + '/UserData'),
+                    data: JSON.stringify(was),
+                    contentType: 'application/json'
+                })
+                .catch(function (err) {
+                    log('tv: could not put this title back as it was', err);
+                });
+        });
+
+        tvBorrowed = {};
+    }
+
     function tvGuardReporting(on) {
         var client = api();
         if (!client) return;
@@ -5848,6 +5922,15 @@
         var route = '#/details?id=' + id;
 
         if (!attempt) {
+            /* Chosen deliberately, so it counts - and whatever the channel had
+             * noted about this title is forgotten rather than written back over
+             * what the viewer is about to do with it. */
+            if (tvReturnTimer) {
+                clearTimeout(tvReturnTimer);
+                tvReturnTimer = null;
+            }
+            tvReturn(id);
+            delete tvBorrowed[id];
             tvGuardReporting(false);
             window.location.hash = route + (client ? '&serverId=' + client.serverId() : '');
         }
@@ -6158,6 +6241,10 @@
             tvState.pending = { channel: channel, slot: on.slot, offset: mode === 'restart' ? 0 : on.offset };
         tvState.ended = false;
 
+            if (tvReturnTimer) {
+                clearTimeout(tvReturnTimer);
+                tvReturnTimer = null;
+            }
             tvGuardReporting(true);
             /* Only the panel comes down. Navigating away from the hash - which
              * this used to do - rebuilt the page underneath while playNow was
@@ -6188,6 +6275,7 @@
          * route, and the moment you stop, Jellyfin goes back and it is not. */
         tvState.route = route;
         tvState.slotId = item.id;
+        tvBorrow(item.id);
 
         if (window.location.hash.indexOf(route) !== 0) {
             window.location.hash = route + (client ? '&serverId=' + client.serverId() : '');
@@ -6313,7 +6401,16 @@
             clearInterval(tvState.timer);
             tvState.timer = null;
         }
-        tvGuardReporting(false);
+        /* Not disarmed here: the player is still winding down, and its last
+         * report - the one carrying the position - has not gone out yet. */
+        if (tvReturnTimer) clearTimeout(tvReturnTimer);
+        tvReturnTimer = setTimeout(function () {
+            tvReturnTimer = null;
+            if (tvState.channel) return;
+            tvGuardReporting(false);
+            tvReturn();
+        }, 15000);
+
         document.body.classList.remove('nf-tv-on');
         tvCover(false);
         var skin = document.querySelector('.nf-tv-skin');
