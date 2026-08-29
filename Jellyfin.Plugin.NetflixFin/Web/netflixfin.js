@@ -3103,7 +3103,7 @@
                 var on = tvNow(channel, pool, tvClock());
                 if (!on) return;
 
-                line.textContent = on.slot.item.name;
+                line.textContent = tvName(on.slot);
                 after.textContent = tvRemaining(on);
                 fill.style.width =
                     Math.min(100, Math.round((on.offset / (on.slot.end - on.slot.start)) * 100)) + '%';
@@ -5678,6 +5678,18 @@
         return client.getImageUrl(entry.id, options);
     }
 
+    /* What a programme is called.
+     *
+     * An episode's own name is not a programme: "Straniero in terra straniera"
+     * is a line nobody recognises, "Lost - Straniero in terra straniera" is a
+     * thing that is on television. The series comes first, the way it does in
+     * every listings page there has ever been, and everywhere a programme is
+     * named goes through here so the page cannot disagree with itself. */
+    function tvName(slot) {
+        if (!slot || !slot.item) return '';
+        return slot.show ? slot.show + ' - ' + slot.item.name : slot.item.name;
+    }
+
     /* What a programme has left, said the way a listings page says it. */
     function tvRemaining(on) {
         var left = Math.round((on.slot.end - tvClock()) / 60000);
@@ -5796,7 +5808,7 @@
                 badges.appendChild(kicker);
                 copy.appendChild(badges);
 
-                var title = el('h2', 'nf-tv-bill-title', on.slot.item.name);
+                var title = el('h2', 'nf-tv-bill-title', tvName(on.slot));
                 copy.appendChild(title);
 
                 /* The clock, the progress and what is left read as one line of
@@ -5814,7 +5826,12 @@
                     if (logo) {
                         title.classList.add('has-logo');
                         title.style.backgroundImage = 'url("' + logo + '")';
-                        title.setAttribute('aria-label', on.slot.item.name);
+                        title.setAttribute('aria-label', tvName(on.slot));
+                        if (on.slot.show && !copy.querySelector('.nf-tv-bill-sub')) {
+                            copy.insertBefore(
+                                el('div', 'nf-tv-bill-sub', on.slot.item.name),
+                                title.nextSibling);
+                        }
                     }
                     if (item.Overview) {
                         var line = el('p', 'nf-tv-bill-blurb', item.Overview);
@@ -5849,7 +5866,6 @@
             var fill = copy.querySelector('.nf-tv-bar > span');
             if (clock) {
                 clock.textContent =
-                    (on.slot.show ? on.slot.show + '  ·  ' : '') +
                     tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end) +
                     '  ·  ' + tvRemaining(on);
             }
@@ -5917,9 +5933,9 @@
                         return;
                     }
 
-                    line.textContent = on.slot.item.name;
+                    line.textContent = tvName(on.slot);
                     follow.textContent = on.next
-                        ? tvRemaining(on) + ' · a seguire ' + on.next.item.name
+                        ? tvRemaining(on) + ' · a seguire ' + tvName(on.next)
                         : tvRemaining(on);
 
                     var span = on.slot.end - on.slot.start;
@@ -6020,7 +6036,7 @@
 
         var meta = el('div', 'nf-tv-row-meta', '');
         var blurb = el('p', 'nf-tv-row-blurb', 'Caricamento…');
-        copy.appendChild(el('h4', null, slot.item.name));
+        copy.appendChild(el('h4', null, tvName(slot)));
         copy.appendChild(meta);
         copy.appendChild(blurb);
 
@@ -6051,7 +6067,6 @@
             if (!item || !row.isConnected) return;
 
             var bits = [];
-            if (slot.show) bits.push(slot.show);
             if (item.ProductionYear) bits.push(String(item.ProductionYear));
             bits.push(Math.round(slot.item.ms / 60000) + ' min');
             if (item.OfficialRating) bits.push(item.OfficialRating);
@@ -6188,7 +6203,7 @@
                 return;
             }
 
-            tickerName.textContent = on.slot.item.name;
+            tickerName.textContent = tvName(on.slot);
 
             var kicker = el('div', 'nf-tv-kicker');
             if (!on.inIdent) kicker.appendChild(el('span', 'nf-tv-dot'));
@@ -6197,21 +6212,25 @@
 
             if (client) art.style.backgroundImage = 'url("' + tvArt(on.slot.item, client, 'hero') + '")';
 
-            var title = el('h2', 'nf-tv-bill-title', on.slot.item.name);
+            var title = el('h2', 'nf-tv-bill-title', tvName(on.slot));
             copy.appendChild(title);
             tvDetails(on.slot.item.id).then(function (item) {
                 var logo = tvLogoUrl(item, client);
                 if (!logo) return;
                 title.classList.add('has-logo');
                 title.style.backgroundImage = 'url("' + logo + '")';
-                title.setAttribute('aria-label', on.slot.item.name);
+                title.setAttribute('aria-label', tvName(on.slot));
+                if (on.slot.show && !copy.querySelector('.nf-tv-bill-sub')) {
+                    copy.insertBefore(
+                        el('div', 'nf-tv-bill-sub', on.slot.item.name),
+                        title.nextSibling);
+                }
             });
 
             var meter = el('div', 'nf-tv-bill-meter');
             meter.appendChild(
                 el('div', 'nf-tv-bill-clock',
-                    (on.slot.show ? on.slot.show + '  ·  ' : '') +
-                        tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end) +
+                    tvTimeLabel(on.slot.start) + ' – ' + tvTimeLabel(on.slot.end) +
                         '  ·  ' + tvRemaining(on))
             );
             var bar = el('div', 'nf-tv-bar');
@@ -6290,11 +6309,9 @@
                     card.appendChild(shot);
 
                     var body = el('div', 'nf-tv-next-copy');
-                    body.appendChild(el('strong', null, slot.item.name));
+                    body.appendChild(el('strong', null, tvName(slot)));
                     body.appendChild(
-                        el('em', null,
-                            (slot.show ? slot.show + '  ·  ' : '') +
-                                Math.round(slot.item.ms / 60000) + ' min')
+                        el('em', null, Math.round(slot.item.ms / 60000) + ' min')
                     );
                     card.appendChild(body);
 
@@ -6344,8 +6361,7 @@
                 row.appendChild(el('span', 'nf-tv-row-time', tvTimeLabel(slot.start)));
 
                 var text = el('span', 'nf-tv-row-text');
-                text.appendChild(el('strong', null, slot.item.name));
-                if (slot.show) text.appendChild(el('em', null, slot.show));
+                text.appendChild(el('strong', null, tvName(slot)));
                 row.appendChild(text);
 
                 row.appendChild(
@@ -6371,7 +6387,7 @@
                 }
 
                 clock.textContent = tvTimeLabel(tvClock());
-                tickerName.textContent = now.slot.item.name;
+                tickerName.textContent = tvName(now.slot);
 
                 var span = now.slot.end - now.slot.start;
                 var width = Math.min(100, Math.round((now.offset / span) * 100)) + '%';
@@ -6383,7 +6399,6 @@
                 var line = copy.querySelector('.nf-tv-bill-clock');
                 if (line) {
                     line.textContent =
-                        (now.slot.show ? now.slot.show + '  ·  ' : '') +
                         tvTimeLabel(now.slot.start) + ' – ' + tvTimeLabel(now.slot.end) +
                         '  ·  ' + tvRemaining(now);
                 }
@@ -6875,10 +6890,10 @@
 
         if (!on) return;
 
-        live.title.textContent = on.slot.item.name;
+        live.title.textContent = tvName(on.slot);
         live.sub.textContent =
             (channel ? channel.name : '') +
-            (on.next ? ' · A seguire ' + on.next.item.name + ' alle ' + tvTimeLabel(on.next.start) : '');
+            (on.next ? ' · A seguire ' + tvName(on.next) + ' alle ' + tvTimeLabel(on.next.start) : '');
         live.start.textContent = tvTimeLabel(on.slot.start);
         live.end.textContent = tvTimeLabel(on.slot.end);
 
@@ -6888,7 +6903,7 @@
 
     function tvHandOver(on) {
         var channel = tvChannel(tvState.channel);
-        log('tv: handing over to ' + on.slot.item.name);
+        log('tv: handing over to ' + tvName(on.slot));
         tvState.pending = { channel: channel, slot: on.slot, offset: on.offset };
         tvState.ended = false;
         tvState.started = false;
@@ -6912,7 +6927,7 @@
         var card = skin.querySelector('.nf-tv-ident');
         var channel = tvChannel(tvState.channel);
         skin.classList.add('is-ident');
-        card.querySelector('h2').textContent = on.next ? on.next.item.name : '';
+        card.querySelector('h2').textContent = on.next ? tvName(on.next) : '';
         card.querySelector('.nf-tv-meta').textContent =
             (on.next && on.next.show) || (channel && channel.name) || '';
 

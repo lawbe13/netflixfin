@@ -3287,6 +3287,22 @@ body.nf-tv {
     margin-top: 24px;
 }
 
+/* An episode has no mark of its own - the one that appears is the series' -
+   so the episode's name goes under it, which is how a broadcaster writes a
+   strand and its title. Only ever set when the mark took the title's place. */
+.nf-tv-bill-sub {
+    color: rgba(255, 255, 255, 0.94);
+    font-size: clamp(17px, 1.5vw, 22px);
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+}
+
+.nf-tv-bill-copy > .nf-tv-bill-sub,
+.nf-tv-hero-copy > .nf-tv-bill-sub {
+    margin-top: 12px;
+}
+
 /* Two lines of type where a logo is not available, and the logo itself where it
    is: a title card drawn for the film beats the film's name set in our font. */
 .nf-tv-bill-title {
@@ -5069,6 +5085,15 @@ body.nf-tv-on .nf-p-restart-btn {
     .nf-tv-bill-title.has-logo {
         width: min(230px, 62vw);
         height: clamp(48px, 15vw, 74px);
+    }
+
+    .nf-tv-bill-sub {
+        font-size: 15.5px;
+    }
+
+    .nf-tv-bill-copy > .nf-tv-bill-sub,
+    .nf-tv-hero-copy > .nf-tv-bill-sub {
+        margin-top: 8px;
     }
 
     /* At this width the bar carries the mark, a lamp and the time - the label
