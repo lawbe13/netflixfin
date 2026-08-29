@@ -150,6 +150,12 @@ for (let seed = 1; seed <= 6; seed++) {
         new Set(three.map((c) => c.entry.id)).size === three.length);
     check('seed ' + seed + ' contenders are all real answers',
         three.every((c) => ranked.indexOf(c) > -1));
+    // Two of the same evening is not a choice.
+    const shared = (a, b) => a.genres.filter((g) => b.genres.indexOf(g) > -1).length;
+    check('seed ' + seed + ' contenders are three different sorts of evening',
+        shared(three[0], three[1]) < 2 && shared(three[0], three[2]) < 2 &&
+            shared(three[1], three[2]) < 2,
+        three.map((c) => c.genres.join('+')).join(' | '));
 }
 
 /* ---- another two really are another two ---------------------------------- */

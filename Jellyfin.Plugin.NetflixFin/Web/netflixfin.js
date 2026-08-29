@@ -7485,14 +7485,21 @@
      * from the same year is not a choice, it is a coin toss with extra steps. */
     function pickFinalists(ranked) {
         var out = [];
-        var used = {};
+
+        /* Two films that share more than one genre are the same evening twice:
+         * a duel between two comedies from the same decade is a coin toss with
+         * extra steps, and both cards end up saying the same thing about
+         * themselves. One shared genre is allowed - they did answer the same
+         * questions - two is not. */
+        var apart = function (candidate) {
+            return out.every(function (other) {
+                return pickHas(candidate.genres, other.genres) < 2 &&
+                    (!candidate.show || candidate.show !== other.show);
+            });
+        };
 
         for (var i = 0; i < ranked.length && out.length < 3; i++) {
-            var candidate = ranked[i];
-            var key = (candidate.genres[0] || '?') + ':' + (candidate.show || '');
-            if (used[key]) continue;
-            used[key] = true;
-            out.push(candidate);
+            if (apart(ranked[i])) out.push(ranked[i]);
         }
 
         // A thin library may not have three flavours in it; take what there is.
@@ -7823,10 +7830,24 @@
                     [candidate.year, (candidate.genres || []).slice(0, 2).join(', ')]
                         .filter(Boolean).join('  ·  ')));
 
+            /* Reasons both of them share tell you nothing about which to pick,
+             * and two cards reading "ti tiene sveglio · si prende il suo tempo"
+             * apiece is a duel with no information in it. Each card carries what
+             * the other one cannot say. */
+            var rival = candidate === left ? right : left;
+            var theirs = rival.why || [];
+            var mine = (candidate.why || []).filter(function (bit) {
+                return theirs.indexOf(bit) < 0;
+            });
+
             var chips = el('div', 'nf-pick-chips');
-            pickWhy(candidate).slice(0, 3).forEach(function (bit) {
+            mine.slice(0, 2).forEach(function (bit) {
                 chips.appendChild(el('span', null, bit));
             });
+            chips.appendChild(el('span', null, pickMinutes(candidate.entry.ms)));
+            if (candidate.rating >= 7.2) {
+                chips.appendChild(el('span', null, '★ ' + candidate.rating.toFixed(1)));
+            }
             copy.appendChild(chips);
             card.appendChild(copy);
 
