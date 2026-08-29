@@ -350,6 +350,9 @@
          * link is put back here. */
         targets.push({ label: 'La mia lista', hash: '#/home?tab=1' });
         targets.push({ label: 'TV', hash: '#/home?nftv=1' });
+        /* A tool rather than a place, so it is drawn rather than written: the
+         * board with the question on it, at the end of the row. */
+        targets.push({ label: 'Che guardo?', hash: '#/home?nfpick=1', icon: 'clapper' });
         targets.push({ label: 'Categorie', genres: true });
 
         return targets;
@@ -563,6 +566,16 @@
         tv: [
             ['path', 'M4 7h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z'],
             ['path', 'M17 2l-5 5-5-5']
+        ],
+        /* Lucide's clapperboard, with a question set inside the slate: the board
+         * says what this is about and the question says what it does. */
+        clapper: [
+            ['path', 'M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z'],
+            ['path', 'm6.2 5.3 3.1 3.9'],
+            ['path', 'm12.4 3.4 3.1 4'],
+            ['path', 'M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z'],
+            ['path', 'M10.4 14.4a1.7 1.7 0 0 1 3.3.5c0 1.1-1.65 1.65-1.65 1.65'],
+            ['path', 'M12.05 18.7h.01']
         ]
     };
 
@@ -597,6 +610,7 @@
         // the more specific entry is the later one.
         { glyph: 'house', label: 'Home', route: '#/home', match: /#\/home|^#?\/?$/ },
         { glyph: 'tv', label: 'TV', route: '#/home?nftv=1', match: /nftv=1/ },
+        { glyph: 'clapper', label: 'Che guardo', route: '#/home?nfpick=1', match: /nfpick=1/ },
         { glyph: 'search', label: 'Cerca', route: '#/search', match: /#\/search/ },
         { glyph: 'user', label: 'Il mio filmettino', route: '#/home?tab=1', match: /tab=1/ }
     ];
@@ -1050,7 +1064,12 @@
                 return;
             }
             if (target.hash) {
-                node = el('a', null, target.label);
+                node = el('a', target.icon ? 'nf-nav-mark' : null, target.icon ? '' : target.label);
+                if (target.icon) {
+                    node.appendChild(navIcon(target.icon));
+                    node.title = target.label;
+                    node.setAttribute('aria-label', target.label);
+                }
                 node.href = target.hash;
                 node.setAttribute('data-nf-hash', target.hash);
 
@@ -1067,10 +1086,20 @@
                 /* The hash may already be this one - it is left alone while a
                  * channel plays - and setting it to itself fires nothing, so the
                  * entry would do nothing at all. Open the page directly. */
+                if (target.hash.indexOf('nfpick=1') > -1) {
+                    setTimeout(pickOpen, 30);
+                    return;
+                }
                 if (target.hash.indexOf('nftv=1') > -1) {
                     node.addEventListener('click', function () {
                         if (tvState.channel) tvStop();
                         setTimeout(tvOpen, 30);
+                    });
+                }
+
+                if (target.hash.indexOf('nfpick=1') > -1) {
+                    node.addEventListener('click', function () {
+                        setTimeout(pickOpen, 30);
                     });
                 }
 
@@ -6952,6 +6981,772 @@
         }
     }
 
+    /* ==========================================================================
+       Che guardo?
+
+       The problem this answers is not a missing feature, it is a real evening:
+       nine hundred films on the server, twenty minutes of scrolling, and the
+       television goes off again without anything being watched. Choosing is the
+       expensive part, so this does the choosing - six taps, a minute, one title
+       with a reason attached to it.
+
+       It asks the questions a friend would ask before recommending something -
+       who is on the sofa, how long you have got, what kind of head you are in,
+       what you want to feel - and the last one is not a question at all but four
+       posters, because what someone's eye goes to says more than what they say
+       they like. Everything it knows comes from the library the TV page already
+       reads, so it costs one small request of its own.
+       ========================================================================== */
+
+    var PICK_MOOD = {
+        laugh: ['Commedia', 'Comedy'],
+        rush: ['Azione', 'Action', 'Avventura', 'Adventure', 'Guerra', 'War', 'Action & Adventure'],
+        fear: ['Horror', 'Thriller'],
+        cry: ['Dramma', 'Drama', 'Romance', 'Romantico', 'Sentimentale'],
+        wonder: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Animazione', 'Animation', 'Avventura', 'Sci-Fi & Fantasy'],
+        mystery: ['Mistero', 'Mystery', 'Crime', 'Thriller', 'Giallo']
+    };
+
+    var PICK_HEAD = {
+        off: ['Commedia', 'Comedy', 'Azione', 'Action', 'Animazione', 'Animation', 'Avventura', 'Adventure', 'Famiglia', 'Family'],
+        on: ['Dramma', 'Drama', 'Storia', 'History', 'Mistero', 'Mystery', 'Documentario', 'Documentary', 'Guerra', 'War', 'Fantascienza', 'Science Fiction']
+    };
+
+    var PICK_KIDS = ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids', 'Avventura', 'Adventure'];
+    var PICK_NOT_KIDS = ['Horror', 'Thriller', 'Crime', 'Guerra', 'War', 'Erotico'];
+
+    /* What each answer means for how long the thing may run. Short is the one
+     * that changes the shape of the answer rather than its length: half an hour
+     * is an episode, and an episode belongs to a series. */
+    var PICK_TIME = {
+        short: { min: 8 * 60000, max: 46 * 60000, episodes: true },
+        film: { min: 70 * 60000, max: 118 * 60000 },
+        long: { min: 100 * 60000, max: 280 * 60000 },
+        any: { min: 55 * 60000, max: 400 * 60000 }
+    };
+
+    var PICK_QUESTIONS = [
+        {
+            key: 'who',
+            ask: 'Chi c’è sul divano?',
+            hint: 'Cambia tutto, e lo sai',
+            options: [
+                { id: 'solo', mark: '🛋️', label: 'Solo io', sub: 'Nessun compromesso' },
+                { id: 'due', mark: '🍷', label: 'In due', sub: 'Serve l’accordo' },
+                { id: 'family', mark: '🧸', label: 'Con la famiglia', sub: 'Bambini compresi' },
+                { id: 'amici', mark: '🍕', label: 'Con gli amici', sub: 'Si parla sopra' }
+            ]
+        },
+        {
+            key: 'time',
+            ask: 'Quanto tempo hai davvero?',
+            hint: 'Sii onesto, è tardi',
+            options: [
+                { id: 'short', mark: '⏱️', label: 'Mezz’ora', sub: 'Un episodio e a letto' },
+                { id: 'film', mark: '🎬', label: 'Un film normale', sub: 'Un’ora e mezza' },
+                { id: 'long', mark: '🌙', label: 'Tutta la sera', sub: 'Anche due ore e passa' },
+                { id: 'any', mark: '🤷', label: 'Non ho limiti', sub: 'Domani si vedrà' }
+            ]
+        },
+        {
+            key: 'head',
+            ask: 'Che testa hai stasera?',
+            options: [
+                { id: 'off', mark: '💤', label: 'Spegnere il cervello', sub: 'Zero sforzo' },
+                { id: 'on', mark: '🔍', label: 'Voglio pensarci su', sub: 'Qualcosa che resta' },
+                { id: 'any', mark: '🎲', label: 'Decidi tu', sub: 'Mi fido' }
+            ]
+        },
+        {
+            key: 'mood',
+            ask: 'Che cosa vuoi sentire?',
+            hint: 'Una sola: quella vera',
+            options: [
+                { id: 'laugh', mark: '😂', label: 'Ridere' },
+                { id: 'rush', mark: '💥', label: 'Adrenalina' },
+                { id: 'fear', mark: '😱', label: 'Paura' },
+                { id: 'cry', mark: '💔', label: 'Commuovermi' },
+                { id: 'wonder', mark: '✨', label: 'Meraviglia' },
+                { id: 'mystery', mark: '🕵️', label: 'Mistero' }
+            ]
+        },
+        {
+            key: 'known',
+            ask: 'Roba nuova o porto sicuro?',
+            options: [
+                { id: 'new', mark: '🆕', label: 'Mai visto', sub: 'Voglio scoprire' },
+                { id: 'safe', mark: '🧣', label: 'Porto sicuro', sub: 'Lo conosco a memoria' },
+                { id: 'any', mark: '🤷', label: 'Indifferente' }
+            ]
+        }
+    ];
+
+    var pickState = null;
+    var pickSeen = null;
+    var pickSeenRequest = null;
+
+    /* Which films have already been watched. The library the TV page keeps has
+     * no user data in it - it is shared by every channel and kept for half a day
+     * - so this is asked for on its own, once, and it is a list of identifiers
+     * and nothing else. */
+    function pickLoadSeen() {
+        if (pickSeen) return Promise.resolve(pickSeen);
+        if (pickSeenRequest) return pickSeenRequest;
+
+        var client = api();
+        if (!client) return Promise.resolve({});
+
+        pickSeenRequest = tvAsk(client, client.getCurrentUserId(), {
+            IncludeItemTypes: 'Movie',
+            Filters: 'IsPlayed',
+            Limit: 4000
+        })
+            .then(function (items) {
+                pickSeen = {};
+                items.forEach(function (item) { pickSeen[item.Id] = true; });
+                pickSeenRequest = null;
+                return pickSeen;
+            })
+            .catch(function (err) {
+                log('pick: could not read what has been watched', err);
+                pickSeenRequest = null;
+                return {};
+            });
+
+        return pickSeenRequest;
+    }
+
+    function pickHas(genres, wanted) {
+        if (!genres || !wanted) return 0;
+        var hits = 0;
+        genres.forEach(function (genre) {
+            if (wanted.indexOf(genre) > -1) hits++;
+        });
+        return hits;
+    }
+
+    /* Everything the quiz could possibly answer with, before any of it is
+     * scored: films, or one episode of each series when there is half an hour to
+     * fill. A series contributes one episode rather than four hundred, so no
+     * single show can take over the shortlist. */
+    function pickCandidates(library, answers, seed) {
+        var bounds = PICK_TIME[answers.time] || PICK_TIME.any;
+
+        if (bounds.episodes) {
+            var rnd = tvRandom(tvHash('pick:ep:' + seed));
+            return (library.shows || [])
+                .map(function (show) {
+                    var fits = show.episodes.filter(function (ep) {
+                        return ep.ms >= bounds.min && ep.ms <= bounds.max;
+                    });
+                    if (!fits.length) return null;
+                    var episode = fits[Math.floor(rnd() * fits.length)];
+                    return {
+                        kind: 'episode',
+                        entry: episode,
+                        genres: show.genres || [],
+                        show: show.name,
+                        year: null,
+                        rating: 0,
+                        seen: false
+                    };
+                })
+                .filter(Boolean);
+        }
+
+        return (library.films || [])
+            .filter(function (film) {
+                return film.ms >= bounds.min && film.ms <= bounds.max;
+            })
+            .map(function (film) {
+                return {
+                    kind: 'film',
+                    entry: film,
+                    genres: film.genres || [],
+                    show: null,
+                    year: film.year,
+                    rating: film.rating || 0,
+                    seen: !!(pickSeen && pickSeen[film.id])
+                };
+            });
+    }
+
+    /* The scoring, which is the whole opinion of the thing.
+     *
+     * Every answer is worth something and none of them is worth everything: a
+     * comedy that has been seen twice can still beat a thriller nobody has
+     * watched if the rest of the evening points that way. The jitter at the end
+     * is what makes "un'altra" a real second opinion rather than the same list
+     * read further down. */
+    function pickScore(candidate, answers, jolly, rnd) {
+        var genres = candidate.genres;
+        var score = 0;
+        var why = [];
+
+        var mood = PICK_MOOD[answers.mood] || [];
+        var moodHits = pickHas(genres, mood);
+        if (moodHits) {
+            score += 3.2 + Math.min(moodHits - 1, 2) * 0.4;
+            why.push('mood');
+        } else {
+            score -= 2.4;
+        }
+
+        if (answers.head === 'off' || answers.head === 'on') {
+            var headHits = pickHas(genres, PICK_HEAD[answers.head]);
+            if (headHits) {
+                score += 1.5;
+                why.push('head');
+            } else {
+                score -= 0.6;
+            }
+        }
+
+        if (answers.who === 'family') {
+            if (pickHas(genres, PICK_NOT_KIDS)) return null;
+            if (pickHas(genres, PICK_KIDS)) {
+                score += 2.6;
+                why.push('kids');
+            } else {
+                score -= 1.2;
+            }
+        }
+
+        // Two people have to agree on it, so the crowd's opinion counts double.
+        if (answers.who === 'due') score += (candidate.rating || 0) * 0.22;
+        if (answers.who === 'amici' && pickHas(genres, PICK_MOOD.laugh)) score += 0.8;
+
+        if (candidate.kind === 'film') {
+            if (answers.known === 'new') {
+                if (candidate.seen) score -= 3.4;
+                else { score += 1.4; why.push('new'); }
+            } else if (answers.known === 'safe') {
+                if (candidate.seen) { score += 3; why.push('safe'); }
+                else score -= 1.8;
+            }
+        }
+
+        score += Math.min(candidate.rating || 0, 9) * 0.34;
+
+        var jollyHits = pickHas(genres, jolly);
+        if (jollyHits) {
+            score += 1.3 * Math.min(jollyHits, 2);
+            why.push('eye');
+        }
+
+        // Enough to shuffle the near-equals, never enough to promote a bad fit.
+        score += rnd() * 1.15;
+
+        candidate.why = why;
+        return score;
+    }
+
+    function pickRank(library, answers, jolly, roll) {
+        var seed = tvHash('pick:' + JSON.stringify(answers) + ':' + roll);
+        var rnd = tvRandom(seed);
+        var out = [];
+
+        pickCandidates(library, answers, seed).forEach(function (candidate) {
+            var score = pickScore(candidate, answers, jolly || [], rnd);
+            if (score === null) return;
+            candidate.score = score;
+            out.push(candidate);
+        });
+
+        out.sort(function (a, b) { return b.score - a.score; });
+
+        /* "Un'altra" has to mean another.
+         *
+         * Sorting alone does not give it: the jitter is deliberately too small
+         * to promote a bad fit, so the same handful of well-rated films won
+         * every roll - eight presses, two answers. What varies instead is which
+         * of the near-equals comes first. Everything within a point and a half
+         * of the leader is a genuinely good answer to the same questions, so
+         * they are dealt again on every roll and the rest of the list is left
+         * exactly where the scoring put it. */
+        if (out.length > 1) {
+            var band = out[0].score - 1.6;
+            var top = 0;
+            while (top < out.length && top < 14 && out[top].score >= band) top++;
+            if (top > 1) {
+                out = tvShuffle(out.slice(0, top), tvHash('pick:roll:' + roll + ':' + seed))
+                    .concat(out.slice(top));
+            }
+        }
+
+        return out;
+    }
+
+    /* --------------------------------------------------------------- the page */
+
+    function pickOnPage() {
+        return /[?&]nfpick=1/.test(window.location.hash);
+    }
+
+    function pickOpen() {
+        document.body.classList.add('nf-pick');
+        if (document.querySelector('.nf-pick-page')) return;
+
+        var page = el('div', 'nf-pick-page');
+        document.body.appendChild(page);
+
+        pickState = { step: -1, answers: {}, jolly: [], roll: 0, ranked: null, at: Date.now() };
+        pickPaint(page);
+    }
+
+    function pickClose() {
+        document.body.classList.remove('nf-pick');
+        var page = document.querySelector('.nf-pick-page');
+        if (page) page.remove();
+        pickState = null;
+    }
+
+    function pickPaint(page) {
+        page.textContent = '';
+        page.scrollTop = 0;
+
+        if (pickState.step < 0) return pickPaintIntro(page);
+        if (pickState.step < PICK_QUESTIONS.length) return pickPaintQuestion(page);
+        if (pickState.step === PICK_QUESTIONS.length) return pickPaintEye(page);
+        return pickPaintReel(page);
+    }
+
+    function pickShell(page, cls) {
+        var shell = el('div', 'nf-pick-shell' + (cls ? ' ' + cls : ''));
+        page.appendChild(shell);
+        return shell;
+    }
+
+    function pickMark() {
+        var wrap = el('div', 'nf-pick-mark');
+        wrap.appendChild(navIcon('clapper'));
+        return wrap;
+    }
+
+    function pickPaintIntro(page) {
+        var shell = pickShell(page, 'is-intro');
+
+        shell.appendChild(pickMark());
+        shell.appendChild(el('h1', null, 'Che guardo?'));
+        shell.appendChild(
+            el('p', 'nf-pick-lead',
+                'Sei domande, un minuto scarso, e sai cosa mettere su. ' +
+                'Perché il tempo perso a scegliere è tempo che potevi passare a guardare.')
+        );
+
+        var start = el('button', 'nf-btn nf-btn-primary nf-pick-start');
+        start.type = 'button';
+        start.appendChild(svgIcon('play'));
+        start.appendChild(el('span', null, 'Comincia'));
+        start.addEventListener('click', function () {
+            pickState.step = 0;
+            pickPaint(page);
+        });
+
+        var blind = el('button', 'nf-btn nf-btn-secondary');
+        blind.type = 'button';
+        blind.appendChild(el('span', null, 'Scegli tu e basta'));
+        blind.addEventListener('click', function () {
+            // No questions at all: a good film, of ordinary length, unseen.
+            pickState.answers = { who: 'solo', time: 'film', head: 'any', mood: 'any', known: 'new' };
+            pickState.step = PICK_QUESTIONS.length + 1;
+            pickPaint(page);
+        });
+
+        var row = el('div', 'nf-pick-actions');
+        row.appendChild(start);
+        row.appendChild(blind);
+        shell.appendChild(row);
+
+        var note = el('p', 'nf-pick-note',
+            'Niente di quello che rispondi viene salvato da nessuna parte.');
+        shell.appendChild(note);
+    }
+
+    function pickProgress(shell) {
+        var bar = el('div', 'nf-pick-progress');
+        var total = PICK_QUESTIONS.length + 1;
+        for (var i = 0; i < total; i++) {
+            var dot = el('span', i < pickState.step ? 'is-done' : i === pickState.step ? 'is-here' : null);
+            bar.appendChild(dot);
+        }
+        shell.appendChild(bar);
+    }
+
+    function pickBack(shell, page) {
+        if (pickState.step <= 0) return;
+        var back = el('button', 'nf-pick-back');
+        back.type = 'button';
+        back.appendChild(svgIcon('back'));
+        back.appendChild(el('span', null, 'Indietro'));
+        back.addEventListener('click', function () {
+            pickState.step--;
+            pickPaint(page);
+        });
+        shell.appendChild(back);
+    }
+
+    function pickAnswer(page, key, id) {
+        pickState.answers[key] = id;
+        pickState.step++;
+        pickPaint(page);
+    }
+
+    function pickPaintQuestion(page) {
+        var question = PICK_QUESTIONS[pickState.step];
+        var shell = pickShell(page, 'is-question');
+
+        pickProgress(shell);
+        shell.appendChild(el('div', 'nf-pick-step', 'Domanda ' + (pickState.step + 1) + ' di ' + (PICK_QUESTIONS.length + 1)));
+        shell.appendChild(el('h2', null, question.ask));
+        if (question.hint) shell.appendChild(el('p', 'nf-pick-hint', question.hint));
+
+        var grid = el('div', 'nf-pick-options' + (question.options.length > 4 ? ' is-six' : ''));
+        question.options.forEach(function (option, i) {
+            var card = el('button', 'nf-pick-opt');
+            card.type = 'button';
+            card.appendChild(el('span', 'nf-pick-opt-mark', option.mark));
+            var copy = el('span', 'nf-pick-opt-copy');
+            copy.appendChild(el('strong', null, option.label));
+            if (option.sub) copy.appendChild(el('em', null, option.sub));
+            card.appendChild(copy);
+            card.appendChild(el('span', 'nf-pick-key', String(i + 1)));
+            card.addEventListener('click', function () {
+                pickAnswer(page, question.key, option.id);
+            });
+            grid.appendChild(card);
+        });
+        shell.appendChild(grid);
+        pickBack(shell, page);
+
+        pickKeys(page, question.options.map(function (option) {
+            return function () { pickAnswer(page, question.key, option.id); };
+        }));
+    }
+
+    /* The sixth question, which is not a question: four posters, pick the one
+     * your eye goes to. People are far better at pointing than at describing,
+     * and what they point at is worth as much as anything they said before. */
+    function pickPaintEye(page) {
+        var shell = pickShell(page, 'is-eye');
+        pickProgress(shell);
+        shell.appendChild(el('div', 'nf-pick-step', 'Ultima, e non si ragiona'));
+        shell.appendChild(el('h2', null, 'Quale ti attira di più?'));
+        shell.appendChild(el('p', 'nf-pick-hint', 'Di pancia, senza pensarci'));
+
+        var grid = el('div', 'nf-pick-eye');
+        shell.appendChild(grid);
+        pickBack(shell, page);
+
+        Promise.all([tvLibraryLoad(), pickLoadSeen()]).then(function (parts) {
+            var library = parts[0];
+            var client = api();
+            if (!library || !client || !grid.isConnected) return;
+
+            /* Four films, each from a different corner of the library, so the
+             * choice says something: four thrillers would say nothing at all. */
+            var pool = (library.films || []).filter(function (film) {
+                return (film.rating || 0) >= 6.4 && (film.genres || []).length;
+            });
+            var families = ['laugh', 'rush', 'fear', 'cry', 'wonder', 'mystery'];
+            var order = tvShuffle(families, tvHash('pick:eye:' + pickState.at));
+            var chosen = [];
+            var used = {};
+
+            order.forEach(function (family) {
+                if (chosen.length >= 4) return;
+                var wanted = PICK_MOOD[family];
+                var fits = pool.filter(function (film) {
+                    return !used[film.id] && pickHas(film.genres, wanted);
+                });
+                if (!fits.length) return;
+                var rnd = tvRandom(tvHash('pick:eye:' + family + ':' + pickState.at));
+                var film = fits[Math.floor(rnd() * fits.length)];
+                used[film.id] = true;
+                chosen.push({ film: film, family: family });
+            });
+
+            if (chosen.length < 4) {
+                // A thin library: fill up with whatever is left worth showing.
+                tvShuffle(pool, tvHash('pick:eye:fill:' + pickState.at)).forEach(function (film) {
+                    if (chosen.length >= 4 || used[film.id]) return;
+                    used[film.id] = true;
+                    chosen.push({ film: film, family: null });
+                });
+            }
+
+            grid.textContent = '';
+            chosen.forEach(function (choice) {
+                var card = el('button', 'nf-pick-poster');
+                card.type = 'button';
+                card.style.backgroundImage = 'url("' + tvArt(choice.film, client, 'poster') + '")';
+                card.setAttribute('aria-label', choice.film.name);
+                card.addEventListener('click', function () {
+                    pickState.jolly = (choice.film.genres || []).slice(0, 4);
+                    pickState.step++;
+                    pickPaint(page);
+                });
+                grid.appendChild(card);
+            });
+
+            var skip = el('button', 'nf-pick-skip');
+            skip.type = 'button';
+            skip.textContent = 'Nessuna delle quattro';
+            skip.addEventListener('click', function () {
+                pickState.jolly = [];
+                pickState.step++;
+                pickPaint(page);
+            });
+            shell.insertBefore(skip, shell.querySelector('.nf-pick-back'));
+
+            pickKeys(page, chosen.map(function (choice) {
+                return function () {
+                    pickState.jolly = (choice.film.genres || []).slice(0, 4);
+                    pickState.step++;
+                    pickPaint(page);
+                };
+            }));
+        });
+    }
+
+    /* Number keys, because six taps is quick and six keystrokes is quicker. The
+     * handler belongs to the step that installed it and dies with it. */
+    function pickKeys(page, actions) {
+        if (page.pickKeys) document.removeEventListener('keydown', page.pickKeys);
+        page.pickKeys = function (event) {
+            if (!page.isConnected) {
+                document.removeEventListener('keydown', page.pickKeys);
+                return;
+            }
+            var n = parseInt(event.key, 10);
+            if (!n || n > actions.length) return;
+            event.preventDefault();
+            actions[n - 1]();
+        };
+        document.addEventListener('keydown', page.pickKeys);
+    }
+
+    /* The reel. A machine that thought for two seconds is trusted more than one
+     * that answered instantly - and watching the posters go past is the fun part
+     * of asking a machine what to watch. */
+    function pickPaintReel(page) {
+        var shell = pickShell(page, 'is-reel');
+        shell.appendChild(el('div', 'nf-pick-step', 'Sto scegliendo'));
+        shell.appendChild(el('h2', null, 'Vediamo un po’…'));
+
+        var window_ = el('div', 'nf-pick-reel-window');
+        var strip = el('div', 'nf-pick-reel-strip');
+        window_.appendChild(strip);
+        shell.appendChild(window_);
+
+        Promise.all([tvLibraryLoad(), pickLoadSeen()]).then(function (parts) {
+            var library = parts[0];
+            var client = api();
+            if (!library || !client || !shell.isConnected) return;
+
+            var ranked = pickRank(library, pickState.answers, pickState.jolly, pickState.roll);
+            pickState.ranked = ranked;
+
+            if (!ranked.length) {
+                pickPaintEmpty(page);
+                return;
+            }
+
+            var winner = ranked[0];
+            var reel = tvShuffle(ranked.slice(0, 40), tvHash('reel:' + pickState.roll)).slice(0, 11);
+            reel.push(winner);
+
+            reel.forEach(function (candidate) {
+                var tile = el('div', 'nf-pick-reel-tile');
+                tile.style.backgroundImage = 'url("' + tvArt(candidate.entry, client, 'poster') + '")';
+                strip.appendChild(tile);
+            });
+
+            // Measured off the tile itself so the stop lands on the winner at
+            // any width rather than at one width.
+            requestAnimationFrame(function () {
+                var tile = strip.firstChild;
+                if (!tile) return;
+                var step = tile.getBoundingClientRect().width + 14;
+                strip.style.transform = 'translateX(' + (-step * (reel.length - 1)) + 'px)';
+            });
+
+            setTimeout(function () {
+                if (shell.isConnected) pickPaintResult(page);
+            }, 2100);
+        });
+    }
+
+    function pickPaintEmpty(page) {
+        var shell = pickShell(page, 'is-empty');
+        shell.appendChild(pickMark());
+        shell.appendChild(el('h2', null, 'Qui non ci arrivo'));
+        shell.appendChild(
+            el('p', 'nf-pick-lead',
+                'Con queste risposte non trovo niente che regga. ' +
+                'Prova ad allargare il tempo a disposizione o a cambiare umore.')
+        );
+        var again = el('button', 'nf-btn nf-btn-primary');
+        again.type = 'button';
+        again.appendChild(el('span', null, 'Rifai il quiz'));
+        again.addEventListener('click', function () {
+            pickState = { step: 0, answers: {}, jolly: [], roll: 0, ranked: null, at: Date.now() };
+            pickPaint(page);
+        });
+        shell.appendChild(again);
+    }
+
+    function pickMinutes(ms) {
+        var mins = Math.round(ms / 60000);
+        if (mins < 60) return mins + ' min';
+        return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+    }
+
+    function pickWhy(candidate, answers) {
+        var bits = [];
+        var moodLabel = {
+            laugh: 'Ti fa ridere', rush: 'Ti tiene sveglio', fear: 'Fa paura',
+            cry: 'Ti prende dentro', wonder: 'Roba che stupisce', mystery: 'Da capire chi è stato'
+        };
+        if (candidate.why.indexOf('mood') > -1 && moodLabel[answers.mood]) bits.push(moodLabel[answers.mood]);
+        if (candidate.why.indexOf('kids') > -1) bits.push('Va bene per tutti');
+        if (candidate.why.indexOf('new') > -1) bits.push('Non l’hai mai visto');
+        if (candidate.why.indexOf('safe') > -1) bits.push('Lo conosci già');
+        if (candidate.why.indexOf('head') > -1) {
+            bits.push(answers.head === 'off' ? 'Non chiede niente' : 'Ha qualcosa da dire');
+        }
+        if (candidate.why.indexOf('eye') > -1) bits.push('Come quella che hai scelto');
+        bits.push(pickMinutes(candidate.entry.ms));
+        if (candidate.rating >= 7.2) bits.push('★ ' + candidate.rating.toFixed(1));
+        return bits;
+    }
+
+    function pickPaintResult(page) {
+        var ranked = pickState.ranked || [];
+        var winner = ranked[0];
+        if (!winner) return pickPaintEmpty(page);
+
+        var client = api();
+        var shell = pickShell(page, 'is-result');
+
+        var art = el('div', 'nf-pick-art');
+        if (client) art.style.backgroundImage = 'url("' + tvArt(winner.entry, client, 'hero') + '")';
+        shell.appendChild(art);
+
+        var copy = el('div', 'nf-pick-result-copy');
+        shell.appendChild(copy);
+
+        copy.appendChild(el('div', 'nf-pick-verdict', 'Stasera guardi questo'));
+
+        var name = winner.kind === 'episode' && winner.show
+            ? winner.show + ' - ' + winner.entry.name
+            : winner.entry.name;
+        var title = el('h2', 'nf-pick-title', name);
+        copy.appendChild(title);
+
+        var chips = el('div', 'nf-pick-chips');
+        pickWhy(winner, pickState.answers).forEach(function (bit) {
+            chips.appendChild(el('span', null, bit));
+        });
+        copy.appendChild(chips);
+
+        var blurb = el('p', 'nf-pick-blurb', '');
+        copy.appendChild(blurb);
+
+        tvDetails(winner.entry.id).then(function (item) {
+            if (!item || !copy.isConnected) return;
+            blurb.textContent = item.Overview || '';
+            var logo = tvLogoUrl(item, client);
+            if (logo) {
+                title.classList.add('has-logo');
+                title.style.backgroundImage = 'url("' + logo + '")';
+                title.setAttribute('aria-label', name);
+                if (winner.kind === 'episode') {
+                    copy.insertBefore(el('div', 'nf-pick-sub', winner.entry.name), title.nextSibling);
+                }
+            }
+        });
+
+        var actions = el('div', 'nf-pick-actions');
+
+        var watch = el('button', 'nf-btn nf-btn-primary');
+        watch.type = 'button';
+        watch.appendChild(svgIcon('play'));
+        watch.appendChild(el('span', null, 'Guarda questo'));
+        watch.addEventListener('click', function () {
+            var id = winner.entry.id;
+            pickClose();
+            tvWatchNow(id, 0);
+        });
+        actions.appendChild(watch);
+
+        var open = el('button', 'nf-btn nf-btn-secondary');
+        open.type = 'button';
+        open.appendChild(el('span', null, 'Dettagli'));
+        open.addEventListener('click', function () {
+            var id = winner.entry.id;
+            pickClose();
+            window.location.hash = '#/details?id=' + id + (client ? '&serverId=' + client.serverId() : '');
+        });
+        actions.appendChild(open);
+
+        var again = el('button', 'nf-btn nf-btn-secondary');
+        again.type = 'button';
+        again.appendChild(svgIcon('restart'));
+        again.appendChild(el('span', null, 'Un’altra'));
+        again.addEventListener('click', function () {
+            pickState.roll++;
+            pickState.step = PICK_QUESTIONS.length + 1;
+            pickPaint(page);
+        });
+        actions.appendChild(again);
+
+        copy.appendChild(actions);
+
+        /* The runners-up. Two is the right number: it is a second opinion, not
+         * the list the whole thing exists to save you from. */
+        var alts = ranked.slice(1, 3).filter(Boolean);
+        if (alts.length) {
+            var more = el('div', 'nf-pick-alts');
+            more.appendChild(el('h3', null, 'Oppure, se non ti convince'));
+            var row = el('div', 'nf-pick-alt-row');
+            alts.forEach(function (candidate) {
+                var card = el('button', 'nf-pick-alt');
+                card.type = 'button';
+                var shot = el('div', 'nf-pick-alt-shot');
+                if (client) shot.style.backgroundImage = 'url("' + tvArt(candidate.entry, client, 'wide') + '")';
+                card.appendChild(shot);
+                var body = el('div', 'nf-pick-alt-copy');
+                body.appendChild(el('strong', null,
+                    candidate.kind === 'episode' && candidate.show
+                        ? candidate.show + ' - ' + candidate.entry.name
+                        : candidate.entry.name));
+                body.appendChild(el('em', null, pickWhy(candidate, pickState.answers).slice(0, 2).join('  ·  ')));
+                card.appendChild(body);
+                card.addEventListener('click', function () {
+                    // Promote it and show it properly, rather than playing
+                    // something the viewer has only seen the name of.
+                    pickState.ranked = [candidate].concat(ranked.filter(function (other) {
+                        return other !== candidate;
+                    }));
+                    pickPaintResult(page);
+                });
+                row.appendChild(card);
+            });
+            more.appendChild(row);
+            shell.appendChild(more);
+        }
+
+        var restart = el('button', 'nf-pick-restart');
+        restart.type = 'button';
+        restart.textContent = 'Rifai il quiz da capo';
+        restart.addEventListener('click', function () {
+            pickState = { step: 0, answers: {}, jolly: [], roll: 0, ranked: null, at: Date.now() };
+            pickPaint(page);
+        });
+        shell.appendChild(restart);
+    }
+
     function refresh() {
         applyTileCount();
         applyBodyFlags();
@@ -6959,6 +7754,8 @@
         applyPhoneMark();
         if (tvOnPage() && !tvState.channel) tvOpen();
         else if (!tvOnPage()) tvClose();
+        if (pickOnPage()) pickOpen();
+        else pickClose();
         applyLogo();
         publishBrandLogo();
         netflixHeaderIcons();
