@@ -6150,6 +6150,10 @@ body.nf-pick .docspinner {
 }
 
 .nf-pick-shell {
+    /* Width plus padding, on a box that measures width without it, is thirteen
+       pixels of horizontal scroll on a phone - and a page that slides sideways
+       under the thumb reads as broken however good the rest of it is. */
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -6462,16 +6466,21 @@ body.nf-pick .docspinner {
     background-position: center;
 }
 
+/* The gate the reel stops in. Explicitly above the strip: the strip is
+   transformed, which makes a stacking context of it, and a frame the tiles slide
+   under is the whole point of drawing one. */
 .nf-pick-reel-window::after {
     content: "";
     position: absolute;
     left: 50%;
-    top: 0;
-    bottom: 0;
-    width: 152px;
-    margin-left: -76px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    border-radius: 10px;
+    top: -6px;
+    bottom: -6px;
+    z-index: 2;
+    width: 156px;
+    margin-left: -78px;
+    border: 2px solid rgba(255, 255, 255, 0.65);
+    border-radius: 12px;
+    box-shadow: 0 0 26px -6px rgba(229, 9, 20, 0.75);
     pointer-events: none;
 }
 
@@ -6509,6 +6518,7 @@ body.nf-pick .docspinner {
 /* The copy climbs over the bottom of the picture rather than starting under it:
    one object, not a photograph with a caption. */
 .nf-pick-result-copy {
+    box-sizing: border-box;
     position: relative;
     z-index: 1;
     width: min(760px, 100%);
