@@ -6191,6 +6191,12 @@ body.nf-pick .docspinner {
     width: min(860px, 100%);
 }
 
+.nf-pick-shell.is-duel {
+    width: min(920px, 100%);
+    justify-content: center;
+    min-height: 74vh;
+}
+
 /* The mark: the same board that sits in the menu, held up at the size of a
    title card and lit from behind so the page has somewhere to begin. */
 .nf-pick-mark {
@@ -6406,35 +6412,92 @@ body.nf-pick .docspinner {
     fill: currentColor;
 }
 
-/* --- the one that is not a question ---------------------------------------- */
+/* --- the duel ---------------------------------------------------------------
 
-.nf-pick-eye {
+   Two titles with enough of each to decide on. They are the same size and the
+   same weight: a duel in which one of them is drawn larger has already been
+   decided by whoever drew it. */
+
+.nf-pick-duel {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: stretch;
+    gap: 18px;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 14px;
 }
 
-.nf-pick-poster {
+.nf-pick-fighter {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+    color: var(--nf-text);
+    font-family: var(--nf-font);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s var(--nf-ease), border-color 0.2s var(--nf-ease),
+        background 0.2s var(--nf-ease), box-shadow 0.2s var(--nf-ease);
+}
+
+.nf-pick-fighter:hover,
+.nf-pick-fighter:focus-visible {
+    transform: translateY(-5px);
+    border-color: rgba(255, 255, 255, 0.34);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05));
+    box-shadow: 0 26px 50px -30px #000, 0 0 40px -20px rgba(229, 9, 20, 0.7);
+}
+
+.nf-pick-fighter-shot {
+    width: 100%;
     aspect-ratio: 2 / 3;
-    padding: 0;
-    border: 0;
     border-radius: 10px;
     background-color: #161616;
     background-size: cover;
     background-position: center;
     box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.95);
-    cursor: pointer;
-    outline: 2px solid transparent;
-    outline-offset: 3px;
-    transition: transform 0.2s var(--nf-ease), outline-color 0.2s var(--nf-ease);
 }
 
-.nf-pick-poster:hover,
-.nf-pick-poster:focus-visible {
-    transform: translateY(-6px) scale(1.02);
-    outline-color: var(--nf-accent);
+.nf-pick-fighter-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 0 2px 2px;
+}
+
+.nf-pick-fighter-copy strong {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.nf-pick-fighter-copy em {
+    color: var(--nf-text-dim);
+    font-size: 12.5px;
+    font-style: normal;
+}
+
+.nf-pick-fighter .nf-pick-chips {
+    margin-top: 2px;
+    gap: 6px;
+}
+
+.nf-pick-fighter .nf-pick-chips span {
+    padding: 4px 9px;
+    font-size: 11.5px;
+}
+
+.nf-pick-vs {
+    align-self: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
 }
 
 /* --- thinking about it ------------------------------------------------------ */
@@ -6755,9 +6818,29 @@ body.nf-pick .docspinner {
         display: none;
     }
 
-    .nf-pick-eye {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .nf-pick-duel {
+        grid-template-columns: 1fr;
         gap: 12px;
+    }
+
+    /* Side by side there is no room for two posters; one above the other there
+       is no room for two tall ones. On a phone a contender is a still with its
+       name beside it. */
+    .nf-pick-fighter {
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
+        padding: 12px;
+    }
+
+    .nf-pick-fighter-shot {
+        flex: 0 0 auto;
+        width: 92px;
+    }
+
+    .nf-pick-vs {
+        justify-self: center;
+        font-size: 13px;
     }
 
     .nf-pick-mark {

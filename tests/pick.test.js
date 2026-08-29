@@ -1,8 +1,9 @@
 /* Runs the quiz's opinion - exactly the scoring that ships - against a made-up
- * library, and checks the promises it makes to whoever answered: that the
- * family evening never turns up a horror, that half an hour means an episode
- * that fits in half an hour, that "mai visto" does not hand back something
- * already watched, and that asking for another really does give another. */
+ * library, and checks the promises it makes to whoever answered: that the family
+ * evening never turns up a horror, that half an hour means an episode that fits
+ * in half an hour, that "mai visto" does not hand back something already
+ * watched, that no two runs ask the same questions, and that the three titles it
+ * puts up for the duels are three different sorts of evening. */
 const fs = require('fs');
 const path = require('path');
 
@@ -12,17 +13,17 @@ const text = fs.readFileSync(SRC, 'utf8');
 /* The scoring needs the seeded random the schedule uses, so both slices are
  * taken: the generator, then the quiz itself. */
 const randFrom = text.indexOf('    function tvHash(text) {');
-const randTo = text.indexOf('    function tvShuffle(list, seed) {');
 const shuffleTo = text.indexOf('    function tvDayOf(time) {');
-const pickFrom = text.indexOf('    var PICK_MOOD = {');
+const pickFrom = text.indexOf('    var PICK_G = {');
 const pickTo = text.indexOf('    /* --------------------------------------------------------------- the page */');
-if (randFrom < 0 || randTo < 0 || pickFrom < 0 || pickTo < 0) throw new Error('slice not found');
+if (randFrom < 0 || shuffleTo < 0 || pickFrom < 0 || pickTo < 0) throw new Error('slice not found');
 
 const harness = new Function('log', 'api', 'tvAsk', 'tvLibraryLoad',
     text.slice(randFrom, shuffleTo) +
     text.slice(pickFrom, pickTo) + `
     return {
-        pickRank, pickCandidates, PICK_TIME, PICK_MOOD,
+        pickRank, pickCandidates, pickAskSet, pickFinalists, pickWording,
+        PICK_TIME, PICK_G, PICK_BANK,
         setSeen: function (map) { pickSeen = map; }
     };
 `);
@@ -30,9 +31,9 @@ const pick = harness(() => {}, () => null, () => Promise.resolve([]), () => Prom
 
 const MIN = 60000;
 
-/* A library with a known shape, so every expectation below is checkable by
- * hand: thirty films spread over six moods and three lengths, plus a dozen
- * series of episodes both short and long. */
+/* A library with a known shape, so every expectation below is checkable by hand:
+ * films spread over seven flavours and three lengths, plus a dozen series of
+ * episodes both short and long. */
 const GENRES = [
     ['Commedia'], ['Azione', 'Avventura'], ['Horror'], ['Dramma'],
     ['Fantascienza'], ['Mistero', 'Crime'], ['Animazione', 'Famiglia']
@@ -42,10 +43,8 @@ const films = [];
 for (let i = 0; i < 84; i++) {
     const genres = GENRES[i % GENRES.length];
     const lengths = [82, 96, 128];
-    // Real libraries do not sort into one genre apiece: every third film also
-    // carries a second, which is the only way the poster question has anything
-    // to grip on.
-    var mixed = i % 3 === 0 ? genres.concat(GENRES[(i + 3) % GENRES.length]) : genres;
+    // Real libraries do not sort into one genre apiece.
+    const mixed = i % 3 === 0 ? genres.concat(GENRES[(i + 3) % GENRES.length]) : genres;
     films.push({
         id: 'm' + i,
         name: 'Film ' + i,
@@ -75,92 +74,142 @@ for (let s = 0; s < 12; s++) {
 
 const library = { films: films, shows: shows, sets: [] };
 
-// Half of the comedies have been watched, which is what "mai visto" has to see.
+// Half the library has been watched, which is what "mai visto" has to see.
 const seen = {};
 films.forEach((film, i) => { if (i % 2 === 0) seen[film.id] = true; });
 pick.setSeen(seen);
-
-const answers = (over) => Object.assign(
-    { who: 'solo', time: 'film', head: 'any', mood: 'laugh', known: 'any' }, over);
 
 const failures = [];
 function check(name, ok, detail) {
     if (!ok) failures.push(name + (detail ? ': ' + detail : ''));
 }
 
+/* Effects are what an answer leaves behind, so the tests are written in them
+ * rather than in the labels above them. */
+const E = {
+    family: { want: pick.PICK_G.kids, banned: pick.PICK_G.grown, why: 'Va bene per tutti' },
+    short: { time: 'short' },
+    film: { time: 'film' },
+    any: { time: 'any' },
+    laugh: { love: pick.PICK_G.laugh, why: 'Ti fa ridere' },
+    fear: { love: pick.PICK_G.fear, why: 'Fa paura' },
+    cry: { love: pick.PICK_G.cry, why: 'Ti prende dentro' },
+    old: { years: [0, 1989], why: 'Un classico' },
+    fresh: { seen: 'new', why: 'Non l’hai mai visto' },
+    safe: { seen: 'safe', why: 'Lo conosci già' }
+};
+
 /* ---- the family evening ------------------------------------------------- */
-const forbidden = ['Horror', 'Thriller', 'Crime', 'Guerra', 'War', 'Erotico'];
-const family = pick.pickRank(library, answers({ who: 'family', mood: 'wonder' }), [], 0);
+const forbidden = pick.PICK_G.grown;
+const family = pick.pickRank(library, [E.family, E.any], 0, 1);
 check('family gets something at all', family.length > 0);
 check('family never gets a horror',
     family.every((c) => !c.genres.some((g) => forbidden.indexOf(g) > -1)),
     'a forbidden genre survived the filter');
 
 /* ---- half an hour means an episode -------------------------------------- */
-const short = pick.pickRank(library, answers({ time: 'short' }), [], 0);
+const short = pick.pickRank(library, [E.short, E.laugh], 0, 2);
 check('half an hour gets episodes', short.length > 0 && short.every((c) => c.kind === 'episode'));
 check('every episode fits in half an hour',
-    short.every((c) => c.entry.ms <= pick.PICK_TIME.short.max),
-    'something longer than 46 minutes came back');
+    short.every((c) => c.entry.ms <= pick.PICK_TIME.short.max));
 check('one episode per series, not four hundred',
-    new Set(short.map((c) => c.show)).size === short.length,
-    'a series appeared twice');
+    new Set(short.map((c) => c.show)).size === short.length);
 
 /* ---- a film is a film ---------------------------------------------------- */
-const evening = pick.pickRank(library, answers({ time: 'film' }), [], 0);
+const evening = pick.pickRank(library, [E.film, E.laugh], 0, 3);
 check('a normal film is between seventy minutes and two hours',
     evening.every((c) => c.entry.ms >= pick.PICK_TIME.film.min && c.entry.ms <= pick.PICK_TIME.film.max));
 
 /* ---- the mood is the strongest thing it knows ---------------------------- */
-['laugh', 'fear', 'cry', 'mystery'].forEach((mood) => {
-    const ranked = pick.pickRank(library, answers({ mood: mood, time: 'any' }), [], 0);
+[['laugh', E.laugh], ['fear', E.fear], ['cry', E.cry]].forEach(([name, effect]) => {
+    const ranked = pick.pickRank(library, [E.any, effect], 0, 4);
     const top = ranked.slice(0, 5);
-    const wanted = pick.PICK_MOOD[mood];
-    const hits = top.filter((c) => c.genres.some((g) => wanted.indexOf(g) > -1)).length;
-    check('mood ' + mood + ' leads the shortlist', hits >= 4, hits + ' of the top five matched');
+    const hits = top.filter((c) => c.genres.some((g) => effect.love.indexOf(g) > -1)).length;
+    check('mood ' + name + ' leads the shortlist', hits >= 4, hits + ' of the top five matched');
 });
+
+/* ---- the year is a real answer ------------------------------------------- */
+const oldies = pick.pickRank(library, [E.any, E.old], 0, 5).slice(0, 6);
+check('roba vecchia is old', oldies.every((c) => c.year <= 1989),
+    oldies.map((c) => c.year).join(','));
 
 /* ---- never seen means never seen ----------------------------------------- */
 for (let roll = 0; roll < 6; roll++) {
-    const fresh = pick.pickRank(library, answers({ known: 'new', time: 'any' }), [], roll);
-    check('roll ' + roll + ' of "mai visto" is unseen', fresh.length && !fresh[0].seen,
-        fresh.length ? fresh[0].entry.name + ' has been watched' : 'nothing came back');
+    const fresh = pick.pickRank(library, [E.any, E.laugh, E.fresh], roll, 6);
+    check('roll ' + roll + ' of "mai visto" is unseen', fresh.length && !fresh[0].seen);
+}
+const kept = pick.pickRank(library, [E.any, E.laugh, E.safe], 0, 7);
+check('a porto sicuro is something already watched', kept.length && kept[0].seen);
+
+/* ---- the duels get three different sorts of evening ---------------------- */
+for (let seed = 1; seed <= 6; seed++) {
+    const ranked = pick.pickRank(library, [E.any, E.laugh], 0, seed);
+    const three = pick.pickFinalists(ranked);
+    check('seed ' + seed + ' puts up three contenders', three.length === 3, three.length + ' of them');
+    check('seed ' + seed + ' does not put up the same film twice',
+        new Set(three.map((c) => c.entry.id)).size === three.length);
+    check('seed ' + seed + ' contenders are all real answers',
+        three.every((c) => ranked.indexOf(c) > -1));
 }
 
-const safe = pick.pickRank(library, answers({ known: 'safe', mood: 'laugh', time: 'any' }), [], 0);
-check('a porto sicuro is something already watched', safe.length && safe[0].seen);
-
-/* ---- another one really is another one ----------------------------------- */
-const tops = [];
+/* ---- another two really are another two ---------------------------------- */
+const seenSets = [];
 for (let roll = 0; roll < 8; roll++) {
-    const ranked = pick.pickRank(library, answers({ time: 'any' }), [], roll);
-    tops.push(ranked[0] && ranked[0].entry.id);
+    const ranked = pick.pickRank(library, [E.any, E.laugh], roll, 8);
+    seenSets.push(pick.pickFinalists(ranked).map((c) => c.entry.id).join('|'));
 }
-check('eight rolls do not all give the same film', new Set(tops).size >= 4,
-    'only ' + new Set(tops).size + ' different answers in eight');
+check('eight rolls do not all put up the same three', new Set(seenSets).size >= 5,
+    'only ' + new Set(seenSets).size + ' different line-ups in eight');
 
-/* ---- the eye counts for something, but not for everything ---------------- */
-const plain = pick.pickRank(library, answers({ mood: 'laugh', time: 'any' }), [], 3);
-const eyed = pick.pickRank(library, answers({ mood: 'laugh', time: 'any' }), ['Fantascienza'], 3);
-check('the poster you chose moves the order',
-    plain[0].entry.id !== eyed[0].entry.id ||
-        eyed.slice(0, 10).some((c) => c.genres.indexOf('Fantascienza') > -1));
-check('the poster you chose cannot override the mood',
-    eyed.slice(0, 3).every((c) => c.genres.some((g) => pick.PICK_MOOD.laugh.indexOf(g) > -1)),
-    'a science fiction film beat every comedy');
+/* ---- no two evenings ask the same thing ---------------------------------- */
+const sets = [];
+for (let seed = 1; seed <= 40; seed++) {
+    const asked = pick.pickAskSet(seed * 7919).map((q) => q.key);
+    sets.push(asked.join(','));
+    check('seed ' + seed + ' always asks who is watching', asked.indexOf('who') > -1, asked.join(','));
+    check('seed ' + seed + ' always settles the length of the evening',
+        asked.indexOf('time') > -1 || asked.indexOf('late') > -1, asked.join(','));
+    check('seed ' + seed + ' asks five questions or fewer', asked.length <= 5, String(asked.length));
+    check('seed ' + seed + ' never asks the same question twice',
+        new Set(asked).size === asked.length, asked.join(','));
+}
+check('forty runs are not forty copies of one quiz', new Set(sets).size >= 8,
+    'only ' + new Set(sets).size + ' different sets in forty');
+
+/* ---- and they are not worded the same way either ------------------------- */
+const words = new Set();
+for (let seed = 1; seed <= 40; seed++) {
+    const who = pick.PICK_BANK.filter((q) => q.key === 'who')[0];
+    words.add(pick.pickWording(who, seed * 104729));
+}
+check('the same question is not always asked in the same words', words.size >= 2,
+    words.size + ' phrasings seen');
+
+/* ---- every option in the bank is wired to something ---------------------- */
+pick.PICK_BANK.forEach((question) => {
+    check('question ' + question.key + ' has at least two ways of being asked',
+        question.asks.length >= 2);
+    question.options.forEach((option) => {
+        check('option ' + question.key + '/' + option.id + ' carries an effect',
+            !!option.effect && typeof option.effect === 'object');
+        if (option.effect.time) {
+            check('option ' + question.key + '/' + option.id + ' names a real length',
+                !!pick.PICK_TIME[option.effect.time]);
+        }
+    });
+});
 
 /* ---- nothing at all ------------------------------------------------------ */
-const empty = pick.pickRank({ films: [], shows: [], sets: [] }, answers({}), [], 0);
+const empty = pick.pickRank({ films: [], shows: [], sets: [] }, [E.any], 0, 9);
 check('an empty library answers with nothing rather than throwing', empty.length === 0);
-
-const impossible = pick.pickRank(library, answers({ who: 'family', mood: 'fear' }), [], 0);
-check('an impossible evening is allowed to come back empty', Array.isArray(impossible));
+check('and putting nothing up for a duel is allowed',
+    pick.pickFinalists(empty).length === 0);
 
 console.log(JSON.stringify({
     failed: failures.length,
-    failures: failures,
-    films: films.length,
-    shows: shows.length
+    failures: failures.slice(0, 12),
+    questionSets: new Set(sets).size,
+    films: films.length
 }, null, failures.length ? 1 : 0));
 
 if (failures.length) process.exit(1);

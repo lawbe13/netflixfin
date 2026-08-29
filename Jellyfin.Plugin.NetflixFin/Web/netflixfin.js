@@ -7007,37 +7007,42 @@
        The problem this answers is not a missing feature, it is a real evening:
        nine hundred films on the server, twenty minutes of scrolling, and the
        television goes off again without anything being watched. Choosing is the
-       expensive part, so this does the choosing - six taps, a minute, one title
-       with a reason attached to it.
+       expensive part, so this does the choosing.
 
-       It asks the questions a friend would ask before recommending something -
-       who is on the sofa, how long you have got, what kind of head you are in,
-       what you want to feel - and the last one is not a question at all but four
-       posters, because what someone's eye goes to says more than what they say
-       they like. Everything it knows comes from the library the TV page already
-       reads, so it costs one small request of its own.
+       Two things it learned the hard way.
+
+       The same five questions every night is a form, not a game: the second time
+       through you are filling it in rather than playing it. So the questions come
+       out of a bank, worded several ways, and a run draws its own set - the two
+       that decide the shape of the answer are always asked, the rest change every
+       time, and some of them only turn up when they mean something (nobody is
+       asked whether they can sit through two hours at four in the afternoon).
+
+       And pointing at a poster has to mean you get that film. The old last round
+       asked which artwork you liked and then handed you something else, which is
+       a bait and switch however good the reasoning behind it. Now the questions
+       only narrow the library to a shortlist, and the shortlist is settled by two
+       duels: this or that, then the winner against the next one up. Whatever you
+       point at last is what you watch.
        ========================================================================== */
 
-    var PICK_MOOD = {
+    var PICK_G = {
         laugh: ['Commedia', 'Comedy'],
         rush: ['Azione', 'Action', 'Avventura', 'Adventure', 'Guerra', 'War', 'Action & Adventure'],
         fear: ['Horror', 'Thriller'],
         cry: ['Dramma', 'Drama', 'Romance', 'Romantico', 'Sentimentale'],
-        wonder: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Animazione', 'Animation', 'Avventura', 'Sci-Fi & Fantasy'],
-        mystery: ['Mistero', 'Mystery', 'Crime', 'Thriller', 'Giallo']
+        wonder: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Animazione', 'Animation', 'Sci-Fi & Fantasy'],
+        mystery: ['Mistero', 'Mystery', 'Crime', 'Thriller', 'Giallo'],
+        kids: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids', 'Avventura', 'Adventure'],
+        grown: ['Horror', 'Thriller', 'Crime', 'Guerra', 'War', 'Erotico'],
+        real: ['Documentario', 'Documentary', 'Storia', 'History', 'Biografia'],
+        made: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Animazione', 'Animation'],
+        easy: ['Commedia', 'Comedy', 'Azione', 'Action', 'Animazione', 'Animation', 'Avventura', 'Adventure', 'Famiglia', 'Family'],
+        heavy: ['Dramma', 'Drama', 'Storia', 'History', 'Mistero', 'Mystery', 'Documentario', 'Documentary', 'Guerra', 'War', 'Fantascienza', 'Science Fiction']
     };
 
-    var PICK_HEAD = {
-        off: ['Commedia', 'Comedy', 'Azione', 'Action', 'Animazione', 'Animation', 'Avventura', 'Adventure', 'Famiglia', 'Family'],
-        on: ['Dramma', 'Drama', 'Storia', 'History', 'Mistero', 'Mystery', 'Documentario', 'Documentary', 'Guerra', 'War', 'Fantascienza', 'Science Fiction']
-    };
-
-    var PICK_KIDS = ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids', 'Avventura', 'Adventure'];
-    var PICK_NOT_KIDS = ['Horror', 'Thriller', 'Crime', 'Guerra', 'War', 'Erotico'];
-
-    /* What each answer means for how long the thing may run. Short is the one
-     * that changes the shape of the answer rather than its length: half an hour
-     * is an episode, and an episode belongs to a series. */
+    /* Kept as a table of its own because the answer's *shape* hangs off it: half
+     * an hour is not a short film, it is an episode of something. */
     var PICK_TIME = {
         short: { min: 8 * 60000, max: 46 * 60000, episodes: true },
         film: { min: 70 * 60000, max: 118 * 60000 },
@@ -7045,60 +7050,189 @@
         any: { min: 55 * 60000, max: 400 * 60000 }
     };
 
-    var PICK_QUESTIONS = [
+    /* The bank.
+     *
+     * Every option carries what it does to the scoring rather than being handled
+     * by name somewhere else, so a new question is a new entry here and nothing
+     * more. want/love add, banned excludes outright, years narrows, seen decides
+     * whether something already watched is a virtue or a fault, and ratingWeight
+     * says how much the crowd's opinion is worth tonight. */
+    var PICK_BANK = [
         {
             key: 'who',
-            ask: 'Chi c’è sul divano?',
+            fixed: true,
+            asks: ['Chi c’è sul divano?', 'Chi guarda con te?', 'Quante teste da accontentare?'],
             hint: 'Cambia tutto, e lo sai',
             options: [
-                { id: 'solo', mark: '🛋️', label: 'Solo io', sub: 'Nessun compromesso' },
-                { id: 'due', mark: '🍷', label: 'In due', sub: 'Serve l’accordo' },
-                { id: 'family', mark: '🧸', label: 'Con la famiglia', sub: 'Bambini compresi' },
-                { id: 'amici', mark: '🍕', label: 'Con gli amici', sub: 'Si parla sopra' }
+                { id: 'solo', mark: '🛋️', label: 'Solo io', sub: 'Nessun compromesso', effect: {} },
+                { id: 'due', mark: '🍷', label: 'In due', sub: 'Serve l’accordo',
+                  effect: { ratingWeight: 0.5, why: 'Mette d’accordo' } },
+                { id: 'family', mark: '🧸', label: 'Con la famiglia', sub: 'Bambini compresi',
+                  effect: { want: PICK_G.kids, banned: PICK_G.grown, why: 'Va bene per tutti' } },
+                { id: 'amici', mark: '🍕', label: 'Con gli amici', sub: 'Si parla sopra',
+                  effect: { want: PICK_G.laugh.concat(PICK_G.rush), why: 'Regge le chiacchiere' } }
             ]
         },
         {
             key: 'time',
-            ask: 'Quanto tempo hai davvero?',
-            hint: 'Sii onesto, è tardi',
+            fixed: true,
+            asks: ['Quanto tempo hai davvero?', 'Quanto dura la serata?', 'Fin dove arrivi stasera?'],
+            hint: 'Sii onesto',
             options: [
-                { id: 'short', mark: '⏱️', label: 'Mezz’ora', sub: 'Un episodio e a letto' },
-                { id: 'film', mark: '🎬', label: 'Un film normale', sub: 'Un’ora e mezza' },
-                { id: 'long', mark: '🌙', label: 'Tutta la sera', sub: 'Anche due ore e passa' },
-                { id: 'any', mark: '🤷', label: 'Non ho limiti', sub: 'Domani si vedrà' }
+                { id: 'short', mark: '⏱️', label: 'Mezz’ora', sub: 'Un episodio e a letto',
+                  effect: { time: 'short', why: 'Sta in mezz’ora' } },
+                { id: 'film', mark: '🎬', label: 'Un film normale', sub: 'Un’ora e mezza',
+                  effect: { time: 'film' } },
+                { id: 'long', mark: '🌙', label: 'Tutta la sera', sub: 'Anche due ore e passa',
+                  effect: { time: 'long' } },
+                { id: 'any', mark: '🤷', label: 'Non ho limiti', sub: 'Domani si vedrà',
+                  effect: { time: 'any' } }
+            ]
+        },
+
+        /* --- the ones that change ------------------------------------------- */
+
+        {
+            key: 'mood',
+            weight: 4,
+            asks: ['Che cosa vuoi sentire?', 'Come vuoi uscirne?', 'Che effetto ti serve?'],
+            hint: 'Una sola: quella vera',
+            options: [
+                { id: 'laugh', mark: '😂', label: 'Ridere', effect: { love: PICK_G.laugh, why: 'Ti fa ridere' } },
+                { id: 'rush', mark: '💥', label: 'Adrenalina', effect: { love: PICK_G.rush, why: 'Ti tiene sveglio' } },
+                { id: 'fear', mark: '😱', label: 'Paura', effect: { love: PICK_G.fear, why: 'Fa paura' } },
+                { id: 'cry', mark: '💔', label: 'Commuovermi', effect: { love: PICK_G.cry, why: 'Ti prende dentro' } },
+                { id: 'wonder', mark: '✨', label: 'Meraviglia', effect: { love: PICK_G.wonder, why: 'Roba che stupisce' } },
+                { id: 'mystery', mark: '🕵️', label: 'Mistero', effect: { love: PICK_G.mystery, why: 'Da capire chi è stato' } }
+            ]
+        },
+        {
+            key: 'snack',
+            weight: 2,
+            asks: ['Cosa c’è sul tavolino?', 'Che cosa stai per aprire?'],
+            hint: 'Dimmi cosa mangi e ti dico cosa guardi',
+            options: [
+                { id: 'corn', mark: '🍿', label: 'Pop-corn', sub: 'Roba grossa',
+                  effect: { love: PICK_G.rush, why: 'Da pop-corn' } },
+                { id: 'wine', mark: '🍷', label: 'Un bicchiere di rosso', sub: 'Con calma',
+                  effect: { love: PICK_G.cry, why: 'Da bicchiere di rosso' } },
+                { id: 'ice', mark: '🍦', label: 'Gelato dal barattolo', sub: 'Coccola',
+                  effect: { love: PICK_G.laugh.concat(PICK_G.kids), why: 'Da gelato e coperta' } },
+                { id: 'tea', mark: '🍵', label: 'Niente, sto per crollare', sub: 'Poco impegno',
+                  effect: { want: PICK_G.easy, ratingWeight: 0.42, why: 'Non chiede niente' } }
+            ]
+        },
+        {
+            key: 'world',
+            weight: 2,
+            asks: ['Dove ti va di andare?', 'In che mondo ti butti?'],
+            options: [
+                { id: 'far', mark: '🚀', label: 'Il più lontano possibile', sub: 'Spazio, altri mondi',
+                  effect: { love: PICK_G.made, why: 'Ti porta lontano' } },
+                { id: 'past', mark: '🏰', label: 'Indietro nel tempo', sub: 'Un’altra epoca',
+                  effect: { want: ['Storia', 'History', 'Guerra', 'War', 'Western'], years: [0, 1999], why: 'Un’altra epoca' } },
+                { id: 'here', mark: '🏙️', label: 'Qui e ora', sub: 'Gente come noi',
+                  effect: { want: PICK_G.laugh.concat(PICK_G.mystery, PICK_G.cry), why: 'Storie di qui' } },
+                { id: 'head', mark: '🌀', label: 'Dentro la testa di qualcuno', sub: 'Roba che gira',
+                  effect: { love: ['Dramma', 'Drama', 'Mistero', 'Mystery', 'Thriller'], why: 'Ti resta in testa' } }
+            ]
+        },
+        {
+            key: 'pace',
+            weight: 2,
+            asks: ['Che ritmo vuoi?', 'Quanto deve correre?'],
+            options: [
+                { id: 'fast', mark: '⚡', label: 'Non si ferma mai', effect: { love: PICK_G.rush.concat(PICK_G.fear), why: 'Non si ferma mai' } },
+                { id: 'slow', mark: '🌊', label: 'Lento e bello', effect: { love: PICK_G.cry.concat(PICK_G.real), why: 'Si prende il suo tempo' } },
+                { id: 'wave', mark: '🎢', label: 'Alti e bassi', effect: { want: PICK_G.laugh.concat(PICK_G.rush, PICK_G.wonder), why: 'Alti e bassi' } }
+            ]
+        },
+        {
+            key: 'truth',
+            weight: 1,
+            asks: ['Vero o inventato?', 'Storie vere o roba inventata?'],
+            options: [
+                { id: 'real', mark: '🎥', label: 'È successo davvero', effect: { love: PICK_G.real, why: 'È successo davvero' } },
+                { id: 'made', mark: '✨', label: 'Inventato di sana pianta', effect: { love: PICK_G.made, why: 'Inventato di sana pianta' } },
+                { id: 'any', mark: '🤷', label: 'Non m’importa', effect: {} }
+            ]
+        },
+        {
+            key: 'era',
+            weight: 2,
+            asks: ['Di che annata?', 'Che anni ti vanno?'],
+            options: [
+                { id: 'old', mark: '🎞️', label: 'Roba vecchia', sub: 'Prima del 1990',
+                  effect: { years: [0, 1989], why: 'Un classico' } },
+                { id: 'vhs', mark: '📼', label: 'Anni 90 e 2000', sub: 'Quelli lì',
+                  effect: { years: [1990, 2009], why: 'Sa di videoteca' } },
+                { id: 'new', mark: '🆕', label: 'Roba recente', sub: 'Ultimi anni',
+                  effect: { years: [2015, 3000], why: 'Roba recente' } },
+                { id: 'any', mark: '🤷', label: 'Indifferente', effect: {} }
             ]
         },
         {
             key: 'head',
-            ask: 'Che testa hai stasera?',
+            weight: 2,
+            asks: ['Che testa hai stasera?', 'Quanta attenzione ti va di metterci?'],
             options: [
-                { id: 'off', mark: '💤', label: 'Spegnere il cervello', sub: 'Zero sforzo' },
-                { id: 'on', mark: '🔍', label: 'Voglio pensarci su', sub: 'Qualcosa che resta' },
-                { id: 'any', mark: '🎲', label: 'Decidi tu', sub: 'Mi fido' }
-            ]
-        },
-        {
-            key: 'mood',
-            ask: 'Che cosa vuoi sentire?',
-            hint: 'Una sola: quella vera',
-            options: [
-                { id: 'laugh', mark: '😂', label: 'Ridere' },
-                { id: 'rush', mark: '💥', label: 'Adrenalina' },
-                { id: 'fear', mark: '😱', label: 'Paura' },
-                { id: 'cry', mark: '💔', label: 'Commuovermi' },
-                { id: 'wonder', mark: '✨', label: 'Meraviglia' },
-                { id: 'mystery', mark: '🕵️', label: 'Mistero' }
+                { id: 'off', mark: '💤', label: 'Spegnere il cervello', sub: 'Zero sforzo',
+                  effect: { want: PICK_G.easy, why: 'Non chiede niente' } },
+                { id: 'on', mark: '🔍', label: 'Voglio pensarci su', sub: 'Qualcosa che resta',
+                  effect: { want: PICK_G.heavy, why: 'Ha qualcosa da dire' } },
+                { id: 'any', mark: '🎲', label: 'Decidi tu', effect: {} }
             ]
         },
         {
             key: 'known',
-            ask: 'Roba nuova o porto sicuro?',
+            weight: 2,
+            asks: ['Roba nuova o porto sicuro?', 'Scoprire o rivedere?'],
             options: [
-                { id: 'new', mark: '🆕', label: 'Mai visto', sub: 'Voglio scoprire' },
-                { id: 'safe', mark: '🧣', label: 'Porto sicuro', sub: 'Lo conosco a memoria' },
-                { id: 'any', mark: '🤷', label: 'Indifferente' }
+                { id: 'new', mark: '🆕', label: 'Mai visto', sub: 'Voglio scoprire',
+                  effect: { seen: 'new', why: 'Non l’hai mai visto' } },
+                { id: 'safe', mark: '🧣', label: 'Porto sicuro', sub: 'Lo conosco a memoria',
+                  effect: { seen: 'safe', why: 'Lo conosci già' } },
+                { id: 'any', mark: '🤷', label: 'Indifferente', effect: {} }
+            ]
+        },
+        {
+            key: 'risk',
+            weight: 1,
+            asks: ['Quanto ti fidi di me?', 'Andiamo sul sicuro?'],
+            options: [
+                { id: 'safe', mark: '🎯', label: 'Dammi un sicuro', sub: 'Quelli che piacciono a tutti',
+                  effect: { ratingWeight: 0.72, why: 'Piace a tutti' } },
+                { id: 'gem', mark: '🃏', label: 'Rischiamo', sub: 'Qualcosa che nessuno guarda',
+                  effect: { ratingWeight: 0.08, seen: 'new', why: 'Un azzardo' } },
+                { id: 'mid', mark: '🤝', label: 'Via di mezzo', effect: {} }
+            ]
+        },
+        {
+            key: 'late',
+            weight: 3,
+            /* Only when it is actually late: a question about whether you will
+             * make it to the end means nothing at four in the afternoon. */
+            when: function () {
+                var hour = new Date().getHours();
+                return hour >= 22 || hour < 3;
+            },
+            asks: ['È tardi. Che si fa?', 'Sono le ore piccole. Reggi?'],
+            options: [
+                { id: 'quick', mark: '😴', label: 'Qualcosa di corto', sub: 'Poi si dorme',
+                  effect: { time: 'short', why: 'Corto, che è tardi' } },
+                { id: 'hold', mark: '☕', label: 'Reggo un film', sub: 'Un’ora e mezza',
+                  effect: { time: 'film' } },
+                { id: 'all', mark: '🌙', label: 'Tanto domani è domani', sub: 'Quello che viene',
+                  effect: { time: 'any', why: 'Nottata' } }
             ]
         }
+    ];
+
+    var PICK_OPENERS = [
+        'Rispondi d’istinto. Alla fine scegli tu fra due titoli.',
+        'Poche domande, nessuna sbagliata. L’ultima parola è tua.',
+        'Non è un test: serve solo a togliere di mezzo tutto il resto.',
+        'Quattro domande, due sfide, e sai cosa mettere su.'
     ];
 
     var pickState = null;
@@ -7145,12 +7279,59 @@
         return hits;
     }
 
-    /* Everything the quiz could possibly answer with, before any of it is
-     * scored: films, or one episode of each series when there is half an hour to
-     * fill. A series contributes one episode rather than four hundred, so no
-     * single show can take over the shortlist. */
-    function pickCandidates(library, answers, seed) {
-        var bounds = PICK_TIME[answers.time] || PICK_TIME.any;
+    /* A run's own set of questions: the two that decide the shape of the answer,
+     * then three drawn by weight from the rest - so no two evenings ask the same
+     * thing, and the ones that only make sense sometimes only turn up then. */
+    function pickAskSet(seed) {
+        var rnd = tvRandom(tvHash('pick:set:' + seed));
+        var fixed = PICK_BANK.filter(function (q) { return q.fixed; });
+        var pool = PICK_BANK.filter(function (q) {
+            return !q.fixed && (!q.when || q.when());
+        });
+
+        var drawn = [];
+        var bag = [];
+        pool.forEach(function (question) {
+            var weight = question.weight || 1;
+            for (var i = 0; i < weight; i++) bag.push(question);
+        });
+
+        while (drawn.length < 3 && bag.length) {
+            var choice = bag[Math.floor(rnd() * bag.length)];
+            drawn.push(choice);
+            bag = bag.filter(function (q) { return q !== choice; });
+        }
+
+        /* The time question is asked first when it is the plain one, but a late
+         * night asks its own version instead - two questions about the length of
+         * the evening in a row is a form again. */
+        var late = drawn.filter(function (q) { return q.key === 'late'; })[0];
+        var set = fixed.filter(function (q) { return !(late && q.key === 'time'); });
+
+        return tvShuffle(set.concat(drawn), tvHash('pick:order:' + seed))
+            .sort(function (a, b) {
+                // Who and how long come first; the flavour follows.
+                var rank = { who: 0, time: 1, late: 1 };
+                return (rank[a.key] === undefined ? 2 : rank[a.key]) -
+                    (rank[b.key] === undefined ? 2 : rank[b.key]);
+            });
+    }
+
+    function pickWording(question, seed) {
+        var rnd = tvRandom(tvHash('pick:ask:' + question.key + ':' + seed));
+        return question.asks[Math.floor(rnd() * question.asks.length)];
+    }
+
+    /* Everything the quiz could answer with, before any of it is scored: films,
+     * or one episode of each series when there is half an hour to fill. A series
+     * contributes one episode rather than four hundred, so no single show can
+     * take over the shortlist. */
+    function pickCandidates(library, effects, seed) {
+        var wanted = 'any';
+        effects.forEach(function (effect) {
+            if (effect.time) wanted = effect.time;
+        });
+        var bounds = PICK_TIME[wanted] || PICK_TIME.any;
 
         if (bounds.episodes) {
             var rnd = tvRandom(tvHash('pick:ep:' + seed));
@@ -7193,66 +7374,72 @@
 
     /* The scoring, which is the whole opinion of the thing.
      *
-     * Every answer is worth something and none of them is worth everything: a
-     * comedy that has been seen twice can still beat a thriller nobody has
-     * watched if the rest of the evening points that way. The jitter at the end
-     * is what makes "un'altra" a real second opinion rather than the same list
-     * read further down. */
-    function pickScore(candidate, answers, jolly, rnd) {
-        var genres = candidate.genres;
+     * Every answer is worth something and none of them is worth everything - a
+     * comedy already seen twice can still beat a thriller nobody has watched if
+     * the rest of the evening points that way - and only `banned` is absolute,
+     * because a horror at a family evening is not a matter of degree. */
+    function pickScore(candidate, effects, rnd) {
         var score = 0;
         var why = [];
+        var ratingWeight = 0.34;
 
-        var mood = PICK_MOOD[answers.mood] || [];
-        var moodHits = pickHas(genres, mood);
-        if (moodHits) {
-            score += 3.2 + Math.min(moodHits - 1, 2) * 0.4;
-            why.push('mood');
-        } else {
-            score -= 2.4;
-        }
+        for (var i = 0; i < effects.length; i++) {
+            var effect = effects[i];
 
-        if (answers.head === 'off' || answers.head === 'on') {
-            var headHits = pickHas(genres, PICK_HEAD[answers.head]);
-            if (headHits) {
-                score += 1.5;
-                why.push('head');
-            } else {
-                score -= 0.6;
+            if (effect.banned && pickHas(candidate.genres, effect.banned)) return null;
+
+            if (effect.love) {
+                var loved = pickHas(candidate.genres, effect.love);
+                if (loved) {
+                    score += 3.2 + Math.min(loved - 1, 2) * 0.4;
+                    if (effect.why) why.push(effect.why);
+                } else {
+                    score -= 2.4;
+                }
             }
-        }
 
-        if (answers.who === 'family') {
-            if (pickHas(genres, PICK_NOT_KIDS)) return null;
-            if (pickHas(genres, PICK_KIDS)) {
-                score += 2.6;
-                why.push('kids');
-            } else {
-                score -= 1.2;
+            if (effect.want) {
+                if (pickHas(candidate.genres, effect.want)) {
+                    score += 2.2;
+                    if (effect.why) why.push(effect.why);
+                } else {
+                    score -= 1;
+                }
             }
-        }
 
-        // Two people have to agree on it, so the crowd's opinion counts double.
-        if (answers.who === 'due') score += (candidate.rating || 0) * 0.22;
-        if (answers.who === 'amici' && pickHas(genres, PICK_MOOD.laugh)) score += 0.8;
+            if (effect.years) {
+                // An episode has no year of its own here; it is not punished for it.
+                if (candidate.year) {
+                    if (candidate.year >= effect.years[0] && candidate.year <= effect.years[1]) {
+                        score += 2.1;
+                        if (effect.why) why.push(effect.why);
+                    } else {
+                        score -= 1.6;
+                    }
+                }
+            }
 
-        if (candidate.kind === 'film') {
-            if (answers.known === 'new') {
+            if (effect.seen === 'new' && candidate.kind === 'film') {
                 if (candidate.seen) score -= 3.4;
-                else { score += 1.4; why.push('new'); }
-            } else if (answers.known === 'safe') {
-                if (candidate.seen) { score += 3; why.push('safe'); }
-                else score -= 1.8;
+                else {
+                    score += 1.4;
+                    if (effect.why) why.push(effect.why);
+                }
             }
+
+            if (effect.seen === 'safe' && candidate.kind === 'film') {
+                if (candidate.seen) {
+                    score += 3;
+                    if (effect.why) why.push(effect.why);
+                } else {
+                    score -= 1.8;
+                }
+            }
+
+            if (effect.ratingWeight !== undefined) ratingWeight = effect.ratingWeight;
         }
 
-        score += Math.min(candidate.rating || 0, 9) * 0.34;
-
-        var jollyHits = pickHas(genres, jolly);
-        if (jollyHits) {
-            score += 1.3 * Math.min(jollyHits, 2);
-            why.push('eye');
-        }
+        score += Math.min(candidate.rating || 0, 9) * ratingWeight;
 
         // Enough to shuffle the near-equals, never enough to promote a bad fit.
         score += rnd() * 1.15;
@@ -7261,13 +7448,13 @@
         return score;
     }
 
-    function pickRank(library, answers, jolly, roll) {
-        var seed = tvHash('pick:' + JSON.stringify(answers) + ':' + roll);
-        var rnd = tvRandom(seed);
+    function pickRank(library, effects, roll, seed) {
+        var run = tvHash('pick:rank:' + seed + ':' + roll);
+        var rnd = tvRandom(run);
         var out = [];
 
-        pickCandidates(library, answers, seed).forEach(function (candidate) {
-            var score = pickScore(candidate, answers, jolly || [], rnd);
+        pickCandidates(library, effects, run).forEach(function (candidate) {
+            var score = pickScore(candidate, effects, rnd);
             if (score === null) return;
             candidate.score = score;
             out.push(candidate);
@@ -7275,23 +7462,42 @@
 
         out.sort(function (a, b) { return b.score - a.score; });
 
-        /* "Un'altra" has to mean another.
-         *
-         * Sorting alone does not give it: the jitter is deliberately too small
-         * to promote a bad fit, so the same handful of well-rated films won
-         * every roll - eight presses, two answers. What varies instead is which
-         * of the near-equals comes first. Everything within a point and a half
-         * of the leader is a genuinely good answer to the same questions, so
-         * they are dealt again on every roll and the rest of the list is left
-         * exactly where the scoring put it. */
+        /* Everything within a point and a half of the leader is a genuinely good
+         * answer to the same questions, so which of them comes first is dealt
+         * again on every roll: without this the same two well-rated films won
+         * every time, and asking for another was a lie. */
         if (out.length > 1) {
             var band = out[0].score - 1.6;
             var top = 0;
             while (top < out.length && top < 14 && out[top].score >= band) top++;
             if (top > 1) {
-                out = tvShuffle(out.slice(0, top), tvHash('pick:roll:' + roll + ':' + seed))
+                out = tvShuffle(out.slice(0, top), tvHash('pick:roll:' + roll + ':' + run))
                     .concat(out.slice(top));
             }
+        }
+
+        return out;
+    }
+
+    /* The finalists.
+     *
+     * Three that are not the same film twice over: a duel between two comedies
+     * from the same year is not a choice, it is a coin toss with extra steps. */
+    function pickFinalists(ranked) {
+        var out = [];
+        var used = {};
+
+        for (var i = 0; i < ranked.length && out.length < 3; i++) {
+            var candidate = ranked[i];
+            var key = (candidate.genres[0] || '?') + ':' + (candidate.show || '');
+            if (used[key]) continue;
+            used[key] = true;
+            out.push(candidate);
+        }
+
+        // A thin library may not have three flavours in it; take what there is.
+        for (var j = 0; j < ranked.length && out.length < 3; j++) {
+            if (out.indexOf(ranked[j]) < 0) out.push(ranked[j]);
         }
 
         return out;
@@ -7303,6 +7509,24 @@
         return /[?&]nfpick=1/.test(window.location.hash);
     }
 
+    function pickRun() {
+        var seed = Date.now();
+        return {
+            seed: seed,
+            at: seed,
+            asks: pickAskSet(seed),
+            answers: {},
+            effects: [],
+            step: -1,
+            roll: 0,
+            ranked: null,
+            finalists: null,
+            duel: 0,
+            standing: null,
+            beaten: []
+        };
+    }
+
     function pickOpen() {
         document.body.classList.add('nf-pick');
         if (document.querySelector('.nf-pick-page')) return;
@@ -7310,7 +7534,7 @@
         var page = el('div', 'nf-pick-page');
         document.body.appendChild(page);
 
-        pickState = { step: -1, answers: {}, jolly: [], roll: 0, ranked: null, at: Date.now() };
+        pickState = pickRun();
         pickPaint(page);
     }
 
@@ -7329,9 +7553,8 @@
         page.scrollTop = 0;
 
         if (pickState.step < 0) return pickPaintIntro(page);
-        if (pickState.step < PICK_QUESTIONS.length) return pickPaintQuestion(page);
-        if (pickState.step === PICK_QUESTIONS.length) return pickPaintEye(page);
-        return pickPaintReel(page);
+        if (pickState.step < pickState.asks.length) return pickPaintQuestion(page);
+        return pickPaintThinking(page);
     }
 
     function pickShell(page, cls) {
@@ -7346,193 +7569,7 @@
         return wrap;
     }
 
-    function pickPaintIntro(page) {
-        var shell = pickShell(page, 'is-intro');
-
-        shell.appendChild(pickMark());
-        shell.appendChild(el('h1', null, 'Che guardo?'));
-        shell.appendChild(
-            el('p', 'nf-pick-lead',
-                'Sei domande, un minuto scarso, e sai cosa mettere su. ' +
-                'Perché il tempo perso a scegliere è tempo che potevi passare a guardare.')
-        );
-
-        var start = el('button', 'nf-btn nf-btn-primary nf-pick-start');
-        start.type = 'button';
-        start.appendChild(svgIcon('play'));
-        start.appendChild(el('span', null, 'Comincia'));
-        start.addEventListener('click', function () {
-            pickState.step = 0;
-            pickPaint(page);
-        });
-
-        var blind = el('button', 'nf-btn nf-btn-secondary');
-        blind.type = 'button';
-        blind.appendChild(el('span', null, 'Scegli tu e basta'));
-        blind.addEventListener('click', function () {
-            // No questions at all: a good film, of ordinary length, unseen.
-            pickState.answers = { who: 'solo', time: 'film', head: 'any', mood: 'any', known: 'new' };
-            pickState.step = PICK_QUESTIONS.length + 1;
-            pickPaint(page);
-        });
-
-        var row = el('div', 'nf-pick-actions');
-        row.appendChild(start);
-        row.appendChild(blind);
-        shell.appendChild(row);
-
-        var note = el('p', 'nf-pick-note',
-            'Niente di quello che rispondi viene salvato da nessuna parte.');
-        shell.appendChild(note);
-    }
-
-    function pickProgress(shell) {
-        var bar = el('div', 'nf-pick-progress');
-        var total = PICK_QUESTIONS.length + 1;
-        for (var i = 0; i < total; i++) {
-            var dot = el('span', i < pickState.step ? 'is-done' : i === pickState.step ? 'is-here' : null);
-            bar.appendChild(dot);
-        }
-        shell.appendChild(bar);
-    }
-
-    function pickBack(shell, page) {
-        if (pickState.step <= 0) return;
-        var back = el('button', 'nf-pick-back');
-        back.type = 'button';
-        back.appendChild(svgIcon('back'));
-        back.appendChild(el('span', null, 'Indietro'));
-        back.addEventListener('click', function () {
-            pickState.step--;
-            pickPaint(page);
-        });
-        shell.appendChild(back);
-    }
-
-    function pickAnswer(page, key, id) {
-        pickState.answers[key] = id;
-        pickState.step++;
-        pickPaint(page);
-    }
-
-    function pickPaintQuestion(page) {
-        var question = PICK_QUESTIONS[pickState.step];
-        var shell = pickShell(page, 'is-question');
-
-        pickProgress(shell);
-        shell.appendChild(el('div', 'nf-pick-step', 'Domanda ' + (pickState.step + 1) + ' di ' + (PICK_QUESTIONS.length + 1)));
-        shell.appendChild(el('h2', null, question.ask));
-        if (question.hint) shell.appendChild(el('p', 'nf-pick-hint', question.hint));
-
-        var grid = el('div', 'nf-pick-options' + (question.options.length > 4 ? ' is-six' : ''));
-        question.options.forEach(function (option, i) {
-            var card = el('button', 'nf-pick-opt');
-            card.type = 'button';
-            card.appendChild(el('span', 'nf-pick-opt-mark', option.mark));
-            var copy = el('span', 'nf-pick-opt-copy');
-            copy.appendChild(el('strong', null, option.label));
-            if (option.sub) copy.appendChild(el('em', null, option.sub));
-            card.appendChild(copy);
-            card.appendChild(el('span', 'nf-pick-key', String(i + 1)));
-            card.addEventListener('click', function () {
-                pickAnswer(page, question.key, option.id);
-            });
-            grid.appendChild(card);
-        });
-        shell.appendChild(grid);
-        pickBack(shell, page);
-
-        pickKeys(page, question.options.map(function (option) {
-            return function () { pickAnswer(page, question.key, option.id); };
-        }));
-    }
-
-    /* The sixth question, which is not a question: four posters, pick the one
-     * your eye goes to. People are far better at pointing than at describing,
-     * and what they point at is worth as much as anything they said before. */
-    function pickPaintEye(page) {
-        var shell = pickShell(page, 'is-eye');
-        pickProgress(shell);
-        shell.appendChild(el('div', 'nf-pick-step', 'Ultima, e non si ragiona'));
-        shell.appendChild(el('h2', null, 'Quale ti attira di più?'));
-        shell.appendChild(el('p', 'nf-pick-hint', 'Di pancia, senza pensarci'));
-
-        var grid = el('div', 'nf-pick-eye');
-        shell.appendChild(grid);
-        pickBack(shell, page);
-
-        Promise.all([tvLibraryLoad(), pickLoadSeen()]).then(function (parts) {
-            var library = parts[0];
-            var client = api();
-            if (!library || !client || !grid.isConnected) return;
-
-            /* Four films, each from a different corner of the library, so the
-             * choice says something: four thrillers would say nothing at all. */
-            var pool = (library.films || []).filter(function (film) {
-                return (film.rating || 0) >= 6.4 && (film.genres || []).length;
-            });
-            var families = ['laugh', 'rush', 'fear', 'cry', 'wonder', 'mystery'];
-            var order = tvShuffle(families, tvHash('pick:eye:' + pickState.at));
-            var chosen = [];
-            var used = {};
-
-            order.forEach(function (family) {
-                if (chosen.length >= 4) return;
-                var wanted = PICK_MOOD[family];
-                var fits = pool.filter(function (film) {
-                    return !used[film.id] && pickHas(film.genres, wanted);
-                });
-                if (!fits.length) return;
-                var rnd = tvRandom(tvHash('pick:eye:' + family + ':' + pickState.at));
-                var film = fits[Math.floor(rnd() * fits.length)];
-                used[film.id] = true;
-                chosen.push({ film: film, family: family });
-            });
-
-            if (chosen.length < 4) {
-                // A thin library: fill up with whatever is left worth showing.
-                tvShuffle(pool, tvHash('pick:eye:fill:' + pickState.at)).forEach(function (film) {
-                    if (chosen.length >= 4 || used[film.id]) return;
-                    used[film.id] = true;
-                    chosen.push({ film: film, family: null });
-                });
-            }
-
-            grid.textContent = '';
-            chosen.forEach(function (choice) {
-                var card = el('button', 'nf-pick-poster');
-                card.type = 'button';
-                card.style.backgroundImage = 'url("' + tvArt(choice.film, client, 'poster') + '")';
-                card.setAttribute('aria-label', choice.film.name);
-                card.addEventListener('click', function () {
-                    pickState.jolly = (choice.film.genres || []).slice(0, 4);
-                    pickState.step++;
-                    pickPaint(page);
-                });
-                grid.appendChild(card);
-            });
-
-            var skip = el('button', 'nf-pick-skip');
-            skip.type = 'button';
-            skip.textContent = 'Nessuna delle quattro';
-            skip.addEventListener('click', function () {
-                pickState.jolly = [];
-                pickState.step++;
-                pickPaint(page);
-            });
-            shell.insertBefore(skip, shell.querySelector('.nf-pick-back'));
-
-            pickKeys(page, chosen.map(function (choice) {
-                return function () {
-                    pickState.jolly = (choice.film.genres || []).slice(0, 4);
-                    pickState.step++;
-                    pickPaint(page);
-                };
-            }));
-        });
-    }
-
-    /* Number keys, because six taps is quick and six keystrokes is quicker. The
+    /* Number keys, because taps are quick and keystrokes are quicker. The
      * handler belongs to the step that installed it and dies with it. */
     function pickKeys(page, actions) {
         if (page.pickKeys) document.removeEventListener('keydown', page.pickKeys);
@@ -7549,12 +7586,119 @@
         document.addEventListener('keydown', page.pickKeys);
     }
 
-    /* The reel. A machine that thought for two seconds is trusted more than one
-     * that answered instantly - and watching the posters go past is the fun part
-     * of asking a machine what to watch. */
-    function pickPaintReel(page) {
+    function pickPaintIntro(page) {
+        var shell = pickShell(page, 'is-intro');
+        var rnd = tvRandom(tvHash('pick:open:' + pickState.seed));
+
+        shell.appendChild(pickMark());
+        shell.appendChild(el('h1', null, 'Che guardo?'));
+        shell.appendChild(
+            el('p', 'nf-pick-lead', PICK_OPENERS[Math.floor(rnd() * PICK_OPENERS.length)]));
+
+        var start = el('button', 'nf-btn nf-btn-primary nf-pick-start');
+        start.type = 'button';
+        start.appendChild(svgIcon('play'));
+        start.appendChild(el('span', null, 'Comincia'));
+        start.addEventListener('click', function () {
+            pickState.step = 0;
+            pickPaint(page);
+        });
+
+        var blind = el('button', 'nf-btn nf-btn-secondary');
+        blind.type = 'button';
+        blind.appendChild(el('span', null, 'Scegli tu e basta'));
+        blind.addEventListener('click', function () {
+            // No questions and no duel: one title, taken on trust.
+            pickState.effects = [{ ratingWeight: 0.62, seen: 'new', why: 'Non l’hai mai visto' }];
+            pickState.asks = [];
+            pickState.step = 0;
+            pickState.straight = true;
+            pickPaint(page);
+        });
+
+        var row = el('div', 'nf-pick-actions');
+        row.appendChild(start);
+        row.appendChild(blind);
+        shell.appendChild(row);
+
+        shell.appendChild(
+            el('p', 'nf-pick-note', 'Niente di quello che rispondi viene salvato da nessuna parte.'));
+
+        pickKeys(page, [function () {
+            pickState.step = 0;
+            pickPaint(page);
+        }]);
+    }
+
+    function pickProgress(shell) {
+        var bar = el('div', 'nf-pick-progress');
+        // The two duels are steps of the same run and are drawn as such.
+        var total = pickState.asks.length + 2;
+        var here = pickState.step;
+        for (var i = 0; i < total; i++) {
+            bar.appendChild(el('span', i < here ? 'is-done' : i === here ? 'is-here' : null));
+        }
+        shell.appendChild(bar);
+    }
+
+    function pickBack(shell, page) {
+        if (pickState.step <= 0) return;
+        var back = el('button', 'nf-pick-back');
+        back.type = 'button';
+        back.appendChild(svgIcon('back'));
+        back.appendChild(el('span', null, 'Indietro'));
+        back.addEventListener('click', function () {
+            pickState.step--;
+            pickState.effects = pickState.effects.slice(0, pickState.step);
+            pickPaint(page);
+        });
+        shell.appendChild(back);
+    }
+
+    function pickPaintQuestion(page) {
+        var question = pickState.asks[pickState.step];
+        var shell = pickShell(page, 'is-question');
+
+        pickProgress(shell);
+        shell.appendChild(
+            el('div', 'nf-pick-step',
+                'Domanda ' + (pickState.step + 1) + ' di ' + pickState.asks.length));
+        shell.appendChild(el('h2', null, pickWording(question, pickState.seed)));
+        if (question.hint) shell.appendChild(el('p', 'nf-pick-hint', question.hint));
+
+        var answer = function (option) {
+            pickState.answers[question.key] = option.id;
+            pickState.effects[pickState.step] = option.effect || {};
+            pickState.step++;
+            pickPaint(page);
+        };
+
+        var grid = el('div', 'nf-pick-options' + (question.options.length > 4 ? ' is-six' : ''));
+        question.options.forEach(function (option, i) {
+            var card = el('button', 'nf-pick-opt');
+            card.type = 'button';
+            card.appendChild(el('span', 'nf-pick-opt-mark', option.mark));
+            var copy = el('span', 'nf-pick-opt-copy');
+            copy.appendChild(el('strong', null, option.label));
+            if (option.sub) copy.appendChild(el('em', null, option.sub));
+            card.appendChild(copy);
+            card.appendChild(el('span', 'nf-pick-key', String(i + 1)));
+            card.addEventListener('click', function () { answer(option); });
+            grid.appendChild(card);
+        });
+        shell.appendChild(grid);
+        pickBack(shell, page);
+
+        pickKeys(page, question.options.map(function (option) {
+            return function () { answer(option); };
+        }));
+    }
+
+    /* The moment of thinking. A machine that answers instantly is not believed,
+     * and watching the posters go past is the part of this that is a game. */
+    function pickPaintThinking(page) {
         var shell = pickShell(page, 'is-reel');
-        shell.appendChild(el('div', 'nf-pick-step', 'Sto scegliendo'));
+        shell.appendChild(el('div', 'nf-pick-step', 'Sto guardando cos’hai'));
         shell.appendChild(el('h2', null, 'Vediamo un po’…'));
 
         var window_ = el('div', 'nf-pick-reel-window');
@@ -7567,17 +7711,30 @@
             var client = api();
             if (!library || !client || !shell.isConnected) return;
 
-            var ranked = pickRank(library, pickState.answers, pickState.jolly, pickState.roll);
+            var ranked = pickRank(library, pickState.effects, pickState.roll, pickState.seed);
             pickState.ranked = ranked;
 
-            if (!ranked.length) {
-                pickPaintEmpty(page);
-                return;
+            if (!ranked.length) return pickPaintEmpty(page);
+
+            if (pickState.straight) {
+                pickState.standing = ranked[0];
+                pickState.beaten = [];
+                setTimeout(function () {
+                    if (shell.isConnected) pickPaintResult(page);
+                }, 1500);
+            } else {
+                pickState.finalists = pickFinalists(ranked);
+                pickState.duel = 0;
+                pickState.standing = null;
+                pickState.beaten = [];
+                setTimeout(function () {
+                    if (shell.isConnected) pickPaintDuel(page);
+                }, 1500);
             }
 
-            var winner = ranked[0];
-            var reel = tvShuffle(ranked.slice(0, 40), tvHash('reel:' + pickState.roll)).slice(0, 11);
-            reel.push(winner);
+            var reel = tvShuffle(ranked.slice(0, 40), tvHash('reel:' + pickState.roll + ':' + pickState.seed))
+                .slice(0, 10)
+                .concat(pickState.finalists || [ranked[0]]);
 
             reel.forEach(function (candidate) {
                 var tile = el('div', 'nf-pick-reel-tile');
@@ -7585,41 +7742,20 @@
                 strip.appendChild(tile);
             });
 
-            // Measured off the tile itself so the stop lands on the winner at
-            // any width rather than at one width.
+            // Measured off the tile itself so the stop lands right at any width.
             requestAnimationFrame(function () {
                 var tile = strip.firstChild;
                 if (!tile) return;
                 var step = tile.getBoundingClientRect().width + 14;
                 strip.style.transform = 'translateX(' + (-step * (reel.length - 1)) + 'px)';
             });
-
-            setTimeout(function () {
-                if (shell.isConnected) pickPaintResult(page);
-            }, 2100);
         });
     }
 
-    function pickPaintEmpty(page) {
-        // Reached from inside the reel's own callback rather than through
-        // pickPaint, so it clears the page itself or it lands under the reel.
-        page.textContent = '';
-        var shell = pickShell(page, 'is-empty');
-        shell.appendChild(pickMark());
-        shell.appendChild(el('h2', null, 'Qui non ci arrivo'));
-        shell.appendChild(
-            el('p', 'nf-pick-lead',
-                'Con queste risposte non trovo niente che regga. ' +
-                'Prova ad allargare il tempo a disposizione o a cambiare umore.')
-        );
-        var again = el('button', 'nf-btn nf-btn-primary');
-        again.type = 'button';
-        again.appendChild(el('span', null, 'Rifai il quiz'));
-        again.addEventListener('click', function () {
-            pickState = { step: 0, answers: {}, jolly: [], roll: 0, ranked: null, at: Date.now() };
-            pickPaint(page);
-        });
-        shell.appendChild(again);
+    function pickName(candidate) {
+        return candidate.kind === 'episode' && candidate.show
+            ? candidate.show + ' - ' + candidate.entry.name
+            : candidate.entry.name;
     }
 
     function pickMinutes(ms) {
@@ -7628,33 +7764,137 @@
         return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
     }
 
-    function pickWhy(candidate, answers) {
-        var bits = [];
-        var moodLabel = {
-            laugh: 'Ti fa ridere', rush: 'Ti tiene sveglio', fear: 'Fa paura',
-            cry: 'Ti prende dentro', wonder: 'Roba che stupisce', mystery: 'Da capire chi è stato'
-        };
-        if (candidate.why.indexOf('mood') > -1 && moodLabel[answers.mood]) bits.push(moodLabel[answers.mood]);
-        if (candidate.why.indexOf('kids') > -1) bits.push('Va bene per tutti');
-        if (candidate.why.indexOf('new') > -1) bits.push('Non l’hai mai visto');
-        if (candidate.why.indexOf('safe') > -1) bits.push('Lo conosci già');
-        if (candidate.why.indexOf('head') > -1) {
-            bits.push(answers.head === 'off' ? 'Non chiede niente' : 'Ha qualcosa da dire');
-        }
-        if (candidate.why.indexOf('eye') > -1) bits.push('Come quella che hai scelto');
+    function pickWhy(candidate) {
+        var bits = candidate.why ? candidate.why.slice(0, 4) : [];
         bits.push(pickMinutes(candidate.entry.ms));
         if (candidate.rating >= 7.2) bits.push('★ ' + candidate.rating.toFixed(1));
         return bits;
     }
 
-    function pickPaintResult(page) {
-        // Same again: the reel calls this when it stops, and choosing one of the
-        // runners-up calls it a second time.
+    /* The duel.
+     *
+     * The questions narrow the library; they do not choose. Two titles at a time,
+     * with enough of each to decide on - the artwork, what it is, why it is here
+     * - and the one still standing after the second round is the answer. Pointing
+     * at something and being handed something else is what the last version did,
+     * and it was the worst thing about it. */
+    function pickPaintDuel(page) {
         page.textContent = '';
         page.scrollTop = 0;
 
-        var ranked = pickState.ranked || [];
-        var winner = ranked[0];
+        var finalists = pickState.finalists || [];
+        var left = pickState.standing || finalists[0];
+        var right = pickState.standing ? finalists[2] : finalists[1];
+
+        // Fewer than three to choose between: whoever is left has won.
+        if (!left) return pickPaintEmpty(page);
+        if (!right) {
+            pickState.standing = left;
+            return pickPaintResult(page);
+        }
+
+        var shell = pickShell(page, 'is-duel');
+        pickState.step = pickState.asks.length + pickState.duel;
+        pickProgress(shell);
+        shell.appendChild(
+            el('div', 'nf-pick-step', pickState.duel === 0 ? 'Sfida uno' : 'Ultima sfida'));
+        shell.appendChild(el('h2', null, pickState.duel === 0 ? 'Quale dei due?' : 'E adesso? Uno solo.'));
+        shell.appendChild(
+            el('p', 'nf-pick-hint',
+                pickState.duel === 0
+                    ? 'Quello che scegli passa il turno'
+                    : 'Quello che scegli è quello che guardi'));
+
+        var client = api();
+        var duel = el('div', 'nf-pick-duel');
+
+        var fighter = function (candidate) {
+            var card = el('button', 'nf-pick-fighter');
+            card.type = 'button';
+
+            var shot = el('div', 'nf-pick-fighter-shot');
+            if (client) shot.style.backgroundImage = 'url("' + tvArt(candidate.entry, client, 'poster') + '")';
+            card.appendChild(shot);
+
+            var copy = el('div', 'nf-pick-fighter-copy');
+            copy.appendChild(el('strong', null, pickName(candidate)));
+            copy.appendChild(
+                el('em', null,
+                    [candidate.year, (candidate.genres || []).slice(0, 2).join(', ')]
+                        .filter(Boolean).join('  ·  ')));
+
+            var chips = el('div', 'nf-pick-chips');
+            pickWhy(candidate).slice(0, 3).forEach(function (bit) {
+                chips.appendChild(el('span', null, bit));
+            });
+            copy.appendChild(chips);
+            card.appendChild(copy);
+
+            card.addEventListener('click', function () {
+                var loser = candidate === left ? right : left;
+                pickState.beaten.push(loser);
+                pickState.standing = candidate;
+
+                if (pickState.duel === 0 && finalists[2]) {
+                    pickState.duel = 1;
+                    pickPaintDuel(page);
+                } else {
+                    pickPaintResult(page);
+                }
+            });
+
+            return card;
+        };
+
+        duel.appendChild(fighter(left));
+        duel.appendChild(el('div', 'nf-pick-vs', 'vs'));
+        duel.appendChild(fighter(right));
+        shell.appendChild(duel);
+
+        /* Neither, please. It is a real answer - both of these are wrong - and
+         * the next two come off the same shortlist. */
+        var neither = el('button', 'nf-pick-skip');
+        neither.type = 'button';
+        neither.textContent = 'Nessuno dei due, dammene altri';
+        neither.addEventListener('click', function () {
+            pickState.roll++;
+            pickState.step = pickState.asks.length;
+            pickPaint(page);
+        });
+        shell.appendChild(neither);
+
+        pickKeys(page, [
+            function () { duel.querySelectorAll('.nf-pick-fighter')[0].click(); },
+            function () { duel.querySelectorAll('.nf-pick-fighter')[1].click(); }
+        ]);
+    }
+
+    function pickPaintEmpty(page) {
+        page.textContent = '';
+        var shell = pickShell(page, 'is-empty');
+        shell.appendChild(pickMark());
+        shell.appendChild(el('h2', null, 'Qui non ci arrivo'));
+        shell.appendChild(
+            el('p', 'nf-pick-lead',
+                'Con queste risposte non trovo niente che regga. ' +
+                'Prova ad allargare il tempo a disposizione, o a cambiare umore.'));
+
+        var again = el('button', 'nf-btn nf-btn-primary');
+        again.type = 'button';
+        again.appendChild(el('span', null, 'Rifai il quiz'));
+        again.addEventListener('click', function () {
+            pickState = pickRun();
+            pickState.step = 0;
+            pickPaint(page);
+        });
+        shell.appendChild(again);
+    }
+
+    function pickPaintResult(page) {
+        page.textContent = '';
+        page.scrollTop = 0;
+
+        var winner = pickState.standing;
         if (!winner) return pickPaintEmpty(page);
 
         var client = api();
@@ -7667,16 +7907,16 @@
         var copy = el('div', 'nf-pick-result-copy');
         shell.appendChild(copy);
 
-        copy.appendChild(el('div', 'nf-pick-verdict', 'Stasera guardi questo'));
+        copy.appendChild(
+            el('div', 'nf-pick-verdict',
+                pickState.beaten.length ? 'L’hai scelto tu' : 'Stasera guardi questo'));
 
-        var name = winner.kind === 'episode' && winner.show
-            ? winner.show + ' - ' + winner.entry.name
-            : winner.entry.name;
+        var name = pickName(winner);
         var title = el('h2', 'nf-pick-title', name);
         copy.appendChild(title);
 
         var chips = el('div', 'nf-pick-chips');
-        pickWhy(winner, pickState.answers).forEach(function (bit) {
+        pickWhy(winner).forEach(function (bit) {
             chips.appendChild(el('span', null, bit));
         });
         copy.appendChild(chips);
@@ -7724,42 +7964,40 @@
         var again = el('button', 'nf-btn nf-btn-secondary');
         again.type = 'button';
         again.appendChild(svgIcon('restart'));
-        again.appendChild(el('span', null, 'Un’altra'));
+        again.appendChild(el('span', null, 'Altre due sfide'));
         again.addEventListener('click', function () {
             pickState.roll++;
-            pickState.step = PICK_QUESTIONS.length + 1;
+            pickState.standing = null;
+            pickState.beaten = [];
+            pickState.step = pickState.asks.length;
             pickPaint(page);
         });
         actions.appendChild(again);
 
         copy.appendChild(actions);
 
-        /* The runners-up. Two is the right number: it is a second opinion, not
-         * the list the whole thing exists to save you from. */
-        var alts = ranked.slice(1, 3).filter(Boolean);
-        if (alts.length) {
+        /* What it beat, which is the difference between a suggestion and a
+         * decision: these were on the table and you took them off it. */
+        if (pickState.beaten.length) {
             var more = el('div', 'nf-pick-alts');
-            more.appendChild(el('h3', null, 'Oppure, se non ti convince'));
+            more.appendChild(el('h3', null, 'Ci hai rinunciato'));
             var row = el('div', 'nf-pick-alt-row');
-            alts.forEach(function (candidate) {
+            pickState.beaten.forEach(function (candidate) {
                 var card = el('button', 'nf-pick-alt');
                 card.type = 'button';
                 var shot = el('div', 'nf-pick-alt-shot');
                 if (client) shot.style.backgroundImage = 'url("' + tvArt(candidate.entry, client, 'wide') + '")';
                 card.appendChild(shot);
                 var body = el('div', 'nf-pick-alt-copy');
-                body.appendChild(el('strong', null,
-                    candidate.kind === 'episode' && candidate.show
-                        ? candidate.show + ' - ' + candidate.entry.name
-                        : candidate.entry.name));
-                body.appendChild(el('em', null, pickWhy(candidate, pickState.answers).slice(0, 2).join('  ·  ')));
+                body.appendChild(el('strong', null, pickName(candidate)));
+                body.appendChild(el('em', null, pickWhy(candidate).slice(0, 2).join('  ·  ')));
                 card.appendChild(body);
                 card.addEventListener('click', function () {
-                    // Promote it and show it properly, rather than playing
-                    // something the viewer has only seen the name of.
-                    pickState.ranked = [candidate].concat(ranked.filter(function (other) {
+                    // Second thoughts are allowed.
+                    pickState.beaten = pickState.beaten.filter(function (other) {
                         return other !== candidate;
-                    }));
+                    }).concat(winner);
+                    pickState.standing = candidate;
                     pickPaintResult(page);
                 });
                 row.appendChild(card);
@@ -7772,7 +8010,8 @@
         restart.type = 'button';
         restart.textContent = 'Rifai il quiz da capo';
         restart.addEventListener('click', function () {
-            pickState = { step: 0, answers: {}, jolly: [], roll: 0, ranked: null, at: Date.now() };
+            pickState = pickRun();
+            pickState.step = 0;
             pickPaint(page);
         });
         shell.appendChild(restart);
