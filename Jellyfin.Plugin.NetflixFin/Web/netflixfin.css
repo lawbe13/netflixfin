@@ -3702,6 +3702,56 @@ body.nf-tv {
     background: rgba(255, 255, 255, 0.2);
 }
 
+/* Nothing until the hero has gone, then it takes the strapline's place rather
+   than being added beside it - the bar keeps its height and its rhythm. */
+.nf-tv-ticker {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.34s var(--nf-ease), opacity 0.24s var(--nf-ease);
+}
+
+.nf-tv-ticker span {
+    color: color-mix(in srgb, var(--nf-tv-tone, #fff) 70%, #fff);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.nf-tv-ticker strong {
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nf-tv-page.is-channel.is-tight .nf-tv-ticker {
+    max-width: 44vw;
+    opacity: 1;
+}
+
+.nf-tv-page.is-channel.is-tight .nf-tv-station-blurb {
+    max-width: 0;
+    padding-left: 0;
+    opacity: 0;
+}
+
+.nf-tv-station-blurb {
+    transition: max-width 0.3s var(--nf-ease), opacity 0.2s var(--nf-ease), padding 0.3s var(--nf-ease);
+    max-width: 34vw;
+}
+
+.nf-tv-page.is-channel.is-tight .nf-tv-station-blurb::before {
+    opacity: 0;
+}
+
 .nf-tv-studio-side {
     display: flex;
     align-items: center;
@@ -3769,24 +3819,45 @@ body.nf-tv {
     to { transform: scale(1.09) translate3d(-1.2%, -0.8%, 0); }
 }
 
-/* The grade. Two scrims for the words to hold against, then the channel's own
-   two colours: the bright stop as a light thrown from the top right, the deep
-   one as the field the copy sits in. */
+/* The grade.
+ 
+   Two scrims for the words to hold against, then the channel's own two colours -
+   but at the edges only. A wash across the whole frame is not a grade, it is a
+   colour cast: Sitcom's yellow and green turned an entire photograph swamp
+   green and read as a fault. The bright stop is a light thrown in from the top
+   right corner, the deep one is the field the copy sits in at the bottom left,
+   and the middle of the picture is left alone. */
 .nf-tv-hero::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: -1;
     background:
-        linear-gradient(84deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.5) 40%, rgba(0, 0, 0, 0) 70%),
+        linear-gradient(84deg, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.46) 38%, rgba(0, 0, 0, 0) 66%),
         linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0.9) 14%, rgba(20, 20, 20, 0.3) 36%, rgba(20, 20, 20, 0) 60%),
-        radial-gradient(90% 78% at 86% 6%,
-            color-mix(in srgb, var(--nf-tv-tone, #444) 34%, transparent) 0%,
-            transparent 62%),
-        linear-gradient(118deg,
-            color-mix(in srgb, var(--nf-tv-deep, #222) 58%, transparent) 0%,
-            color-mix(in srgb, var(--nf-tv-deep, #222) 10%, transparent) 42%,
-            transparent 64%);
+        radial-gradient(58% 52% at 96% 2%,
+            color-mix(in srgb, var(--nf-tv-tone, #444) 30%, transparent) 0%,
+            transparent 68%),
+        radial-gradient(66% 62% at 0% 104%,
+            color-mix(in srgb, var(--nf-tv-deep, #222) 44%, transparent) 0%,
+            transparent 66%);
+}
+
+/* The join into the page below is the station's own line, the way a channel
+   signs the bottom of its screen. */
+.nf-tv-hero::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        var(--nf-tv-tone, #fff) 0%,
+        var(--nf-tv-deep, #666) 40%,
+        rgba(255, 255, 255, 0.06) 88%,
+        transparent 100%);
 }
 
 /* A screen being looked at, not a page: fine horizontal lines and a vignette,
@@ -3933,6 +4004,8 @@ body.nf-tv {
     flex: 0 0 236px;
     scroll-snap-align: start;
     display: block;
+    min-width: 0;
+    overflow: hidden;
     padding: 0;
     border: 0;
     background: none;
@@ -3988,6 +4061,7 @@ body.nf-tv {
 .nf-tv-next-copy {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     gap: 3px;
     padding: 11px 2px 0;
 }
@@ -4116,7 +4190,7 @@ body.nf-tv {
     bottom: 0;
     z-index: 0;
     background: var(--nf-tv-tone, rgba(255, 255, 255, 0.1));
-    opacity: 0.2;
+    opacity: 0.15;
 }
 
 .nf-tv-row-time,

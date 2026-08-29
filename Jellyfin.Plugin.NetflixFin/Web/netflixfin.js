@@ -6131,6 +6131,21 @@
 
         var clock = el('div', 'nf-tv-clock', tvTimeLabel(tvClock()));
 
+        /* Once the hero has scrolled away the bar is the only thing left saying
+         * what is on, so it says it: the strapline steps aside and the title of
+         * the programme takes its place. */
+        var ticker = el('div', 'nf-tv-ticker');
+        ticker.appendChild(el('span', null, 'Ora'));
+        var tickerName = el('strong', null, '');
+        ticker.appendChild(tickerName);
+        studio.appendChild(ticker);
+
+        if (panel.tvScroll) panel.removeEventListener('scroll', panel.tvScroll);
+        panel.tvScroll = function () {
+            panel.classList.toggle('is-tight', panel.scrollTop > 240);
+        };
+        panel.addEventListener('scroll', panel.tvScroll, { passive: true });
+
         var side = el('div', 'nf-tv-studio-side');
         side.appendChild(lamp);
         side.appendChild(clock);
@@ -6172,6 +6187,8 @@
                 panel.classList.add('is-off');
                 return;
             }
+
+            tickerName.textContent = on.slot.item.name;
 
             var kicker = el('div', 'nf-tv-kicker');
             if (!on.inIdent) kicker.appendChild(el('span', 'nf-tv-dot'));
@@ -6354,6 +6371,7 @@
                 }
 
                 clock.textContent = tvTimeLabel(tvClock());
+                tickerName.textContent = now.slot.item.name;
 
                 var span = now.slot.end - now.slot.start;
                 var width = Math.min(100, Math.round((now.offset / span) * 100)) + '%';
