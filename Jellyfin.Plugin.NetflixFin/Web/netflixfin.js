@@ -7840,6 +7840,12 @@
                 return theirs.indexOf(bit) < 0;
             });
 
+            // With nothing of its own to say it says what it is, rather than
+            // standing there with one chip against the other one's three.
+            if (!mine.length && (candidate.genres || []).length) {
+                mine = [candidate.genres[0]];
+            }
+
             var chips = el('div', 'nf-pick-chips');
             mine.slice(0, 2).forEach(function (bit) {
                 chips.appendChild(el('span', null, bit));
