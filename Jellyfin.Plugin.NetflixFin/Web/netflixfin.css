@@ -3668,6 +3668,7 @@ body.nf-tv {
     display: flex;
     align-items: center;
     gap: 18px;
+    flex: 0 1 auto;
     min-width: 0;
 }
 
@@ -3732,7 +3733,10 @@ body.nf-tv {
     text-overflow: ellipsis;
 }
 
+/* Room has to be taken, not asked for: a max-width alone left the title
+   squeezed to nothing on a narrow bar, showing the label and no programme. */
 .nf-tv-page.is-channel.is-tight .nf-tv-ticker {
+    flex: 1 1 auto;
     max-width: 44vw;
     opacity: 1;
 }
@@ -5090,10 +5094,32 @@ body.nf-tv-on .nf-p-restart-btn {
         --nf-logo-h: 22px;
     }
 
+    /* No room for two words and a title: the lamp goes back to being a lamp
+       and the title keeps the space. */
     .nf-tv-lamp {
-        padding: 5px 10px 5px 9px;
-        font-size: 10px;
-        letter-spacing: 0.14em;
+        padding: 7px;
+    }
+
+    .nf-tv-lamp span {
+        display: none;
+    }
+
+    .nf-tv-ticker span {
+        display: none;
+    }
+
+    .nf-tv-page.is-channel.is-tight .nf-tv-ticker {
+        max-width: 56vw;
+    }
+
+    .nf-tv-row-time {
+        width: 64px;
+        padding-left: 20px;
+        font-size: 13px;
+    }
+
+    .nf-tv-row::before {
+        left: 18px;
     }
 
     .nf-tv-clock {
