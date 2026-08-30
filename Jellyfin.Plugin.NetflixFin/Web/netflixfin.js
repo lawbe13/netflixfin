@@ -7031,7 +7031,11 @@
 
     var PICK_G = {
         laugh: ['Commedia', 'Comedy'],
-        rush: ['Azione', 'Action', 'Avventura', 'Adventure', 'Guerra', 'War', 'Action & Adventure'],
+        /* War is not adrenaline. It sat in this list because a war film is often
+         * an action film, and the price was that Grave of the Fireflies came
+         * back as an answer to "voglio stare sul bordo del divano". A war film
+         * that is also an action film still gets here on its own tag. */
+        rush: ['Azione', 'Action', 'Avventura', 'Adventure', 'Action & Adventure'],
         fear: ['Horror', 'Thriller'],
         cry: ['Dramma', 'Drama', 'Romance', 'Romantico', 'Sentimentale'],
         wonder: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Animazione', 'Animation', 'Sci-Fi & Fantasy'],

@@ -161,6 +161,32 @@ const thin = {
 check('a library with nothing that fits still answers',
     pick.pickRank(thin, [E.any, E.laugh], 0, 42).length === 2);
 
+/* ---- a war film is not an action film by itself --------------------------- */
+const wartime = {
+    films: [
+        { id: 'sniper', name: 'Guerra e azione', type: 'Movie', ms: 120 * MIN,
+          genres: ['Azione', 'Guerra', 'Dramma'], year: 2014, rating: 7.3 },
+        { id: 'ashes', name: 'Solo guerra', type: 'Movie', ms: 89 * MIN,
+          genres: ['Animazione', 'Dramma', 'Guerra'], year: 1988, rating: 8.5 },
+        { id: 'chase', name: 'Solo azione', type: 'Movie', ms: 104 * MIN,
+          genres: ['Azione', 'Avventura'], year: 2015, rating: 7 }
+    ].concat(
+        /* Enough of them that the gate is allowed to close: with three films in
+         * the library it stays open on purpose, because a shortlist of nothing
+         * helps nobody. */
+        Array.from({ length: 9 }, (_, i) => ({
+            id: 'act' + i, name: 'Azione ' + i, type: 'Movie', ms: (95 + i) * MIN,
+            genres: ['Azione'], year: 2000 + i, rating: 6 + i / 10
+        }))),
+    shows: [], sets: []
+};
+const rush = mood('rush');
+const adrenaline = pick.pickRank(wartime, [E.any, rush], 0, 44).map((c) => c.entry.id);
+check('a war drama does not answer "adrenalina"', adrenaline.indexOf('ashes') < 0,
+    adrenaline.join(','));
+check('a war film that is also an action film still does',
+    adrenaline.indexOf('sniper') > -1, adrenaline.join(','));
+
 /* ---- what a tag says depends on where it sits and what it sits with ------- */
 const shades = {
     films: [
