@@ -144,8 +144,9 @@ check('a porto sicuro is something already watched', kept.length && kept[0].seen
 /* ---- the duels get three different sorts of evening ---------------------- */
 for (let seed = 1; seed <= 6; seed++) {
     const ranked = pick.pickRank(library, [E.any, E.laugh], 0, seed);
-    const three = pick.pickFinalists(ranked);
-    check('seed ' + seed + ' puts up three contenders', three.length === 3, three.length + ' of them');
+    const three = pick.pickFinalists(ranked, 5).slice(0, 3);
+    check('seed ' + seed + ' puts up five to choose from',
+        pick.pickFinalists(ranked, 5).length === 5, pick.pickFinalists(ranked, 5).length + ' of them');
     check('seed ' + seed + ' does not put up the same film twice',
         new Set(three.map((c) => c.entry.id)).size === three.length);
     check('seed ' + seed + ' contenders are all real answers',
@@ -162,7 +163,7 @@ for (let seed = 1; seed <= 6; seed++) {
 const seenSets = [];
 for (let roll = 0; roll < 8; roll++) {
     const ranked = pick.pickRank(library, [E.any, E.laugh], roll, 8);
-    seenSets.push(pick.pickFinalists(ranked).map((c) => c.entry.id).join('|'));
+    seenSets.push(pick.pickFinalists(ranked, 5).map((c) => c.entry.id).join('|'));
 }
 check('eight rolls do not all put up the same three', new Set(seenSets).size >= 5,
     'only ' + new Set(seenSets).size + ' different line-ups in eight');
@@ -182,6 +183,24 @@ for (let seed = 1; seed <= 40; seed++) {
 check('forty runs are not forty copies of one quiz', new Set(sets).size >= 8,
     'only ' + new Set(sets).size + ' different sets in forty');
 
+/* ---- and a run is not five of the same shape ----------------------------- */
+let sameShapeRuns = 0;
+const shapes = new Set();
+for (let seed = 1; seed <= 40; seed++) {
+    const asked = pick.pickAskSet(seed * 7919);
+    asked.forEach((q) => shapes.add(q.format));
+    let run = 1;
+    for (let i = 1; i < asked.length; i++) {
+        if (asked[i].format === asked[i - 1].format) run++;
+        else run = 1;
+        if (run >= 3) sameShapeRuns++;
+    }
+}
+check('never three questions of the same shape in a row', sameShapeRuns === 0,
+    sameShapeRuns + ' runs of three');
+check('forty runs use more than one shape of question', shapes.size >= 3,
+    [...shapes].join(','));
+
 /* ---- and they are not worded the same way either ------------------------- */
 const words = new Set();
 for (let seed = 1; seed <= 40; seed++) {
@@ -195,6 +214,24 @@ check('the same question is not always asked in the same words', words.size >= 2
 pick.PICK_BANK.forEach((question) => {
     check('question ' + question.key + ' has at least two ways of being asked',
         question.asks.length >= 2);
+    check('question ' + question.key + ' says what shape it is',
+        ['cards', 'duo', 'quote', 'swatch', 'scene'].indexOf(question.format) > -1,
+        String(question.format));
+    if (question.format === 'scene') {
+        question.options.forEach((option) => {
+            check('scene ' + option.id + ' knows what to look for',
+                Array.isArray(option.find) && option.find.length > 0);
+        });
+    }
+    if (question.format === 'swatch') {
+        question.options.forEach((option) => {
+            check('swatch ' + option.id + ' has a colour', /^#[0-9a-f]{6}$/i.test(option.tint || ''));
+        });
+    }
+    if (question.format === 'duo') {
+        check('a duo is exactly two panels', question.options.length === 2,
+            question.options.length + ' of them');
+    }
     question.options.forEach((option) => {
         check('option ' + question.key + '/' + option.id + ' carries an effect',
             !!option.effect && typeof option.effect === 'object');
@@ -209,7 +246,7 @@ pick.PICK_BANK.forEach((question) => {
 const empty = pick.pickRank({ films: [], shows: [], sets: [] }, [E.any], 0, 9);
 check('an empty library answers with nothing rather than throwing', empty.length === 0);
 check('and putting nothing up for a duel is allowed',
-    pick.pickFinalists(empty).length === 0);
+    pick.pickFinalists(empty, 5).length === 0);
 
 console.log(JSON.stringify({
     failed: failures.length,

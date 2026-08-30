@@ -6116,11 +6116,11 @@ body.nf-tv-on .nf-p-restart-btn {
 /* ==========================================================================
    Che guardo?
 
-   A quiz has to feel like a game or nobody finishes it, and it has to feel like
-   part of this skin or it reads as a plug-in bolted on. So: the page's own
-   black, one warm light behind everything, cards big enough to hit with a thumb
-   without aiming, and a reel of posters at the end because a machine that
-   thinks for two seconds is trusted more than one that answers instantly.
+   The quiz has to look like the rest of the place or it reads as a plug-in
+   bolted on: black, one still from the library blurred down to weather behind
+   everything, type big enough to answer without leaning in, a thin red line for
+   how far along you are, and an answer presented the way the home page presents
+   the thing it wants you to watch - full bleed, copy on the artwork.
    ========================================================================== */
 
 .nf-pick-page {
@@ -6129,10 +6129,7 @@ body.nf-tv-on .nf-p-restart-btn {
     z-index: 40;
     overflow-y: auto;
     padding: 0 0 90px;
-    background:
-        radial-gradient(90% 60% at 50% -10%, rgba(229, 9, 20, 0.18) 0%, transparent 62%),
-        radial-gradient(70% 50% at 90% 100%, rgba(120, 60, 180, 0.12) 0%, transparent 70%),
-        var(--nf-bg);
+    background: var(--nf-bg);
     font-family: var(--nf-font);
 }
 
@@ -6150,95 +6147,133 @@ body.nf-pick .docspinner {
     display: none !important;
 }
 
+/* --- the wall ------------------------------------------------------------- */
+
+.nf-pick-wall {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: #0b0b0b;
+    background-size: cover;
+    background-position: center 30%;
+    filter: blur(34px) saturate(1.15);
+    transform: scale(1.12);
+    opacity: 0;
+    transition: opacity 1.1s var(--nf-ease);
+}
+
+.nf-pick-wall.is-on {
+    opacity: 0.34;
+}
+
+/* Two scrims over it: one from the black at the bottom so type always has
+   somewhere to sit, one flat so the artwork never competes with the question. */
+.nf-pick-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(80% 60% at 50% 0%, rgba(229, 9, 20, 0.16) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(8, 8, 8, 0.72) 0%, rgba(8, 8, 8, 0.9) 55%, var(--nf-bg) 100%);
+}
+
+.nf-pick-page.is-showing::before {
+    display: none;
+}
+
+/* --- how far along ---------------------------------------------------------- */
+
+.nf-pick-rail {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.nf-pick-rail span {
+    display: block;
+    height: 100%;
+    background: var(--nf-accent);
+    box-shadow: 0 0 18px -2px rgba(229, 9, 20, 0.9);
+    transition: width 0.45s var(--nf-ease);
+}
+
+/* --- the page's own measure ------------------------------------------------- */
+
 .nf-pick-shell {
-    /* Width plus padding, on a box that measures width without it, is thirteen
-       pixels of horizontal scroll on a phone - and a page that slides sideways
-       under the thumb reads as broken however good the rest of it is. */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 18px;
-    width: min(1020px, 100%);
+    gap: 16px;
+    width: min(1120px, 100%);
     margin: 0 auto;
-    padding: clamp(28px, 5vh, 64px) var(--nf-gutter) 40px;
-    animation: nf-pick-in 0.34s var(--nf-ease);
+    padding: clamp(26px, 5vh, 58px) var(--nf-gutter) 40px;
+    animation: nf-pick-in 0.4s var(--nf-ease);
 }
 
 @keyframes nf-pick-in {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: none; }
 }
 
 .nf-pick-shell.is-intro,
-.nf-pick-shell.is-empty,
-.nf-pick-shell.is-reel {
+.nf-pick-shell.is-empty {
     align-items: center;
     text-align: center;
-    min-height: 68vh;
     justify-content: center;
+    min-height: 66vh;
 }
 
-/* A question with a screen and a half of black under it reads as an unfinished
-   page. It sits in the middle, and no wider than it needs to be read. */
 .nf-pick-shell.is-question,
-.nf-pick-shell.is-eye {
+.nf-pick-shell.is-five {
     justify-content: center;
-    min-height: 70vh;
+    min-height: 72vh;
 }
 
-.nf-pick-shell.is-question {
-    width: min(860px, 100%);
-}
-
-.nf-pick-shell.is-duel {
-    width: min(920px, 100%);
-    justify-content: center;
-    min-height: 74vh;
-}
-
-/* The mark: the same board that sits in the menu, held up at the size of a
-   title card and lit from behind so the page has somewhere to begin. */
 .nf-pick-mark {
     display: grid;
     place-items: center;
-    width: 96px;
-    height: 96px;
-    border-radius: 28px;
-    background: linear-gradient(150deg, rgba(229, 9, 20, 0.9), rgba(120, 20, 30, 0.75));
+    width: 92px;
+    height: 92px;
+    border-radius: 26px;
+    background: linear-gradient(150deg, rgba(229, 9, 20, 0.95), rgba(120, 12, 22, 0.8));
     box-shadow:
-        0 22px 50px -22px rgba(229, 9, 20, 0.9),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        0 24px 54px -24px rgba(229, 9, 20, 0.95),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .nf-pick-mark svg {
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
     stroke-width: 1.7;
     color: #fff;
 }
 
 .nf-pick-shell h1 {
-    margin: 6px 0 0;
-    font-size: clamp(38px, 6vw, 68px);
+    margin: 8px 0 0;
+    font-size: clamp(40px, 6.4vw, 74px);
     font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.02;
+    letter-spacing: -0.04em;
+    line-height: 1;
 }
 
 .nf-pick-shell h2 {
-    margin: 0;
-    font-size: clamp(26px, 3.4vw, 40px);
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.1;
+    margin: 2px 0 0;
+    font-size: clamp(28px, 4.4vw, 54px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.04;
     text-wrap: balance;
 }
 
 .nf-pick-lead {
     margin: 0;
-    max-width: 56ch;
-    color: rgba(255, 255, 255, 0.8);
+    max-width: 54ch;
+    color: rgba(255, 255, 255, 0.82);
     font-size: clamp(15px, 1.4vw, 18px);
     line-height: 1.55;
 }
@@ -6246,20 +6281,29 @@ body.nf-pick .docspinner {
 .nf-pick-hint {
     margin: 0;
     color: var(--nf-text-dim);
-    font-size: 14px;
+    font-size: 14.5px;
 }
 
 .nf-pick-note {
     margin: 10px 0 0;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.38);
     font-size: 12.5px;
+}
+
+/* The kicker over every question, in the one red this skin owns. */
+.nf-pick-step {
+    color: var(--nf-accent);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
 }
 
 .nf-pick-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .nf-pick-actions .nf-btn {
@@ -6268,127 +6312,12 @@ body.nf-pick .docspinner {
     font-size: 16px;
 }
 
-/* --- where you are in it -------------------------------------------------- */
-
-.nf-pick-progress {
-    display: flex;
-    gap: 7px;
-}
-
-.nf-pick-progress span {
-    width: 26px;
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.16);
-    transition: background 0.3s var(--nf-ease), width 0.3s var(--nf-ease);
-}
-
-.nf-pick-progress span.is-done {
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.nf-pick-progress span.is-here {
-    width: 40px;
-    background: var(--nf-accent);
-}
-
-.nf-pick-step {
-    color: var(--nf-text-dim);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-}
-
-/* --- the answers ----------------------------------------------------------- */
-
-.nf-pick-options {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    width: 100%;
-    margin-top: 10px;
-}
-
-.nf-pick-options.is-six {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-/* Big enough to hit without aiming, and it says what it means before you have
-   read it: the mark carries the answer as much as the words do. */
-.nf-pick-opt {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    min-height: 92px;
-    padding: 18px 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
-    color: var(--nf-text);
-    font-family: var(--nf-font);
-    text-align: left;
-    cursor: pointer;
-    transition: transform 0.18s var(--nf-ease), border-color 0.18s var(--nf-ease),
-        background 0.18s var(--nf-ease), box-shadow 0.18s var(--nf-ease);
-}
-
-.nf-pick-opt:hover,
-.nf-pick-opt:focus-visible {
-    transform: translateY(-3px);
-    border-color: rgba(255, 255, 255, 0.34);
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05));
-    box-shadow: 0 18px 34px -22px rgba(0, 0, 0, 0.95);
-}
-
-.nf-pick-opt:active {
-    transform: translateY(-1px) scale(0.995);
-}
-
-.nf-pick-opt-mark {
-    flex: 0 0 auto;
-    font-size: 30px;
-    line-height: 1;
-}
-
-.nf-pick-opt-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-}
-
-.nf-pick-opt-copy strong {
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-}
-
-.nf-pick-opt-copy em {
-    color: var(--nf-text-dim);
-    font-size: 13px;
-    font-style: normal;
-}
-
-/* The number that answers it from the keyboard. Present, never in the way. */
-.nf-pick-key {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    color: rgba(255, 255, 255, 0.22);
-    font-size: 11px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-}
-
 .nf-pick-back,
-.nf-pick-skip,
 .nf-pick-restart {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    margin-top: 6px;
+    margin-top: 10px;
     padding: 8px 4px;
     border: 0;
     background: none;
@@ -6401,7 +6330,6 @@ body.nf-pick .docspinner {
 }
 
 .nf-pick-back:hover,
-.nf-pick-skip:hover,
 .nf-pick-restart:hover {
     color: var(--nf-text);
 }
@@ -6412,205 +6340,540 @@ body.nf-pick .docspinner {
     fill: currentColor;
 }
 
-/* --- the duel ---------------------------------------------------------------
+.nf-pick-restart {
+    align-self: center;
+    margin-top: 30px;
+}
 
-   Two titles with enough of each to decide on. They are the same size and the
-   same weight: a duel in which one of them is drawn larger has already been
-   decided by whoever drew it. */
+/* --- answers: a grid of cards ----------------------------------------------- */
 
-.nf-pick-duel {
+.nf-pick-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.nf-pick-options.is-six {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.nf-pick-opt {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 96px;
+    padding: 18px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 12px;
+    background: rgba(22, 22, 24, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--nf-text);
+    font-family: var(--nf-font);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.18s var(--nf-ease), border-color 0.18s var(--nf-ease),
+        background 0.18s var(--nf-ease), box-shadow 0.18s var(--nf-ease);
+}
+
+.nf-pick-opt:hover,
+.nf-pick-opt:focus-visible {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(32, 32, 35, 0.86);
+    box-shadow: 0 22px 40px -26px #000;
+}
+
+.nf-pick-opt:active {
+    transform: translateY(-1px) scale(0.995);
+}
+
+.nf-pick-opt-mark {
+    flex: 0 0 auto;
+    font-size: 32px;
+    line-height: 1;
+}
+
+.nf-pick-opt-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.nf-pick-opt-copy strong {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+}
+
+.nf-pick-opt-copy em {
+    color: var(--nf-text-dim);
+    font-size: 13.5px;
+    font-style: normal;
+}
+
+.nf-pick-key {
+    position: absolute;
+    top: 10px;
+    right: 13px;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- answers: two panels, no third way -------------------------------------- */
+
+.nf-pick-duo {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: stretch;
-    gap: 18px;
+    gap: 16px;
     width: 100%;
     margin-top: 14px;
 }
 
-.nf-pick-fighter {
+.nf-pick-panel {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    justify-content: flex-end;
+    gap: 8px;
+    min-height: 210px;
+    padding: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 16px;
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+    background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 60%),
+        rgba(18, 18, 20, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: var(--nf-text);
     font-family: var(--nf-font);
     text-align: left;
     cursor: pointer;
     transition: transform 0.2s var(--nf-ease), border-color 0.2s var(--nf-ease),
-        background 0.2s var(--nf-ease), box-shadow 0.2s var(--nf-ease);
+        box-shadow 0.2s var(--nf-ease);
 }
 
-.nf-pick-fighter:hover,
-.nf-pick-fighter:focus-visible {
-    transform: translateY(-5px);
-    border-color: rgba(255, 255, 255, 0.34);
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05));
-    box-shadow: 0 26px 50px -30px #000, 0 0 40px -20px rgba(229, 9, 20, 0.7);
+.nf-pick-panel:hover,
+.nf-pick-panel:focus-visible {
+    transform: translateY(-6px);
+    border-color: rgba(229, 9, 20, 0.7);
+    box-shadow: 0 30px 60px -34px #000, 0 0 50px -22px rgba(229, 9, 20, 0.8);
 }
 
-.nf-pick-fighter-shot {
-    width: 100%;
-    aspect-ratio: 2 / 3;
-    border-radius: 10px;
-    background-color: #161616;
-    background-size: cover;
-    background-position: center;
-    box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.95);
+.nf-pick-panel-mark {
+    font-size: 40px;
+    line-height: 1;
 }
 
-.nf-pick-fighter-copy {
+.nf-pick-panel strong {
+    font-size: clamp(22px, 2.4vw, 30px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+.nf-pick-panel em {
+    color: var(--nf-text-dim);
+    font-size: 14px;
+    font-style: normal;
+}
+
+.nf-pick-or {
+    align-self: center;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+/* --- answers: lines you might actually say ---------------------------------- */
+
+.nf-pick-quotes {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    padding: 0 2px 2px;
+    gap: 12px;
+    width: 100%;
+    margin-top: 14px;
 }
 
-.nf-pick-fighter-copy strong {
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.25;
+.nf-pick-quote {
+    position: relative;
+    display: block;
+    padding: 22px 56px 22px 26px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 3px solid rgba(229, 9, 20, 0.5);
+    border-radius: 10px;
+    background: rgba(20, 20, 22, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255, 255, 255, 0.92);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(17px, 1.8vw, 23px);
+    font-style: italic;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.18s var(--nf-ease), border-color 0.18s var(--nf-ease),
+        color 0.18s var(--nf-ease), background 0.18s var(--nf-ease);
 }
 
-.nf-pick-fighter-copy em {
+.nf-pick-quote:hover,
+.nf-pick-quote:focus-visible {
+    transform: translateX(6px);
+    border-left-color: var(--nf-accent);
+    border-color: rgba(255, 255, 255, 0.26);
+    border-left-color: var(--nf-accent);
+    background: rgba(30, 30, 33, 0.86);
+    color: #fff;
+}
+
+/* --- answers: a colour, no explanation -------------------------------------- */
+
+.nf-pick-swatches {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+    width: 100%;
+    margin-top: 14px;
+}
+
+.nf-pick-swatch {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--nf-text);
+    font-family: var(--nf-font);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s var(--nf-ease);
+}
+
+.nf-pick-swatch:hover,
+.nf-pick-swatch:focus-visible {
+    transform: translateY(-6px);
+}
+
+.nf-pick-swatch-ink {
+    display: block;
+    height: 132px;
+    border-radius: 12px;
+    background: linear-gradient(160deg,
+        color-mix(in srgb, var(--nf-swatch) 88%, #fff) 0%,
+        var(--nf-swatch) 55%,
+        color-mix(in srgb, var(--nf-swatch) 70%, #000) 100%);
+    box-shadow: 0 18px 36px -22px #000, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transition: box-shadow 0.2s var(--nf-ease);
+}
+
+.nf-pick-swatch:hover .nf-pick-swatch-ink {
+    box-shadow:
+        0 26px 44px -22px #000,
+        0 0 44px -14px var(--nf-swatch),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.nf-pick-swatch-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 2px;
+}
+
+.nf-pick-swatch-copy strong {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.nf-pick-swatch-copy em {
     color: var(--nf-text-dim);
     font-size: 12.5px;
     font-style: normal;
 }
 
-.nf-pick-fighter .nf-pick-chips {
-    margin-top: 2px;
-    gap: 6px;
-}
+/* --- answers: stills, no titles --------------------------------------------- */
 
-.nf-pick-fighter .nf-pick-chips span {
-    padding: 4px 9px;
-    font-size: 11.5px;
-}
-
-.nf-pick-vs {
-    align-self: center;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-}
-
-/* --- thinking about it ------------------------------------------------------ */
-
-.nf-pick-reel-window {
-    position: relative;
-    width: min(760px, 100%);
-    margin-top: 12px;
-    overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-}
-
-/* The stop is one long ease-out: fast enough at the start to be a blur, slow
-   enough at the end to be a decision. */
-.nf-pick-reel-strip {
-    display: flex;
+.nf-pick-scenes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
-    padding-left: calc(50% - 74px);
-    transform: translateX(0);
-    transition: transform 1.9s cubic-bezier(0.12, 0.72, 0.12, 1);
+    width: 100%;
+    margin-top: 14px;
 }
 
-.nf-pick-reel-tile {
-    flex: 0 0 148px;
-    aspect-ratio: 2 / 3;
-    border-radius: 8px;
-    background-color: #161616;
+.nf-pick-scene {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--nf-text);
+    font-family: var(--nf-font);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s var(--nf-ease);
+}
+
+.nf-pick-scene:hover,
+.nf-pick-scene:focus-visible {
+    transform: translateY(-6px);
+}
+
+.nf-pick-scene-art {
+    display: block;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    background-color: #17171a;
     background-size: cover;
     background-position: center;
+    box-shadow: 0 18px 36px -22px #000;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    filter: saturate(1.05) contrast(1.05);
+    transition: outline-color 0.2s var(--nf-ease), box-shadow 0.2s var(--nf-ease);
 }
 
-/* The gate the reel stops in. Explicitly above the strip: the strip is
-   transformed, which makes a stacking context of it, and a frame the tiles slide
-   under is the whole point of drawing one. */
-.nf-pick-reel-window::after {
-    content: "";
+.nf-pick-scene:hover .nf-pick-scene-art,
+.nf-pick-scene:focus-visible .nf-pick-scene-art {
+    outline-color: var(--nf-accent);
+    box-shadow: 0 26px 46px -22px #000, 0 0 44px -18px rgba(229, 9, 20, 0.9);
+}
+
+.nf-pick-scene-label {
+    padding: 0 2px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* --- the five ---------------------------------------------------------------- */
+
+.nf-pick-five {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
+    margin-top: 18px;
+}
+
+.nf-pick-five-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    animation: nf-pick-up 0.42s var(--nf-ease) backwards;
+    animation-delay: var(--nf-delay, 0ms);
+}
+
+@keyframes nf-pick-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: none; }
+}
+
+.nf-pick-five-take {
+    position: relative;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transition: transform 0.22s var(--nf-ease);
+}
+
+.nf-pick-five-shot {
+    display: block;
+    aspect-ratio: 2 / 3;
+    border-radius: 10px;
+    background-color: #17171a;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 20px 40px -24px #000;
+    outline: 2px solid transparent;
+    outline-offset: 3px;
+    transition: outline-color 0.22s var(--nf-ease), box-shadow 0.22s var(--nf-ease);
+}
+
+.nf-pick-five-take:hover,
+.nf-pick-five-take:focus-visible {
+    transform: translateY(-8px);
+}
+
+.nf-pick-five-take:hover .nf-pick-five-shot,
+.nf-pick-five-take:focus-visible .nf-pick-five-shot {
+    outline-color: #fff;
+    box-shadow: 0 30px 54px -24px #000;
+}
+
+/* The white disc Netflix puts on a card you are about to open. */
+.nf-pick-five-play {
     position: absolute;
     left: 50%;
-    top: -6px;
-    bottom: -6px;
-    z-index: 2;
-    width: 156px;
-    margin-left: -78px;
-    border: 2px solid rgba(255, 255, 255, 0.65);
-    border-radius: 12px;
-    box-shadow: 0 0 26px -6px rgba(229, 9, 20, 0.75);
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin: -27px 0 0 -27px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 10px 26px -10px #000;
+    opacity: 0;
+    transform: scale(0.75);
+    transition: opacity 0.2s var(--nf-ease), transform 0.2s var(--nf-ease);
     pointer-events: none;
+}
+
+.nf-pick-five-play svg {
+    width: 22px;
+    height: 22px;
+    margin-left: 3px;
+    fill: #0b0b0b;
+}
+
+.nf-pick-five-take:hover .nf-pick-five-play,
+.nf-pick-five-take:focus-visible .nf-pick-five-play {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.nf-pick-five-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 0 2px;
+}
+
+.nf-pick-five-copy strong {
+    font-size: 14.5px;
+    font-weight: 600;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nf-pick-five-copy em {
+    color: var(--nf-text-dim);
+    font-size: 12px;
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Saying no to one is an answer; it sits on the card rather than under it. */
+.nf-pick-five-drop {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.18s var(--nf-ease), transform 0.18s var(--nf-ease),
+        background 0.18s var(--nf-ease);
+}
+
+.nf-pick-five-drop svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+}
+
+.nf-pick-five-card:hover .nf-pick-five-drop,
+.nf-pick-five-drop:focus-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.nf-pick-five-drop:hover {
+    background: var(--nf-accent);
 }
 
 /* --- the answer -------------------------------------------------------------- */
 
-.nf-pick-shell.is-result {
-    gap: 0;
-}
-
-.nf-pick-art {
+.nf-pick-bill {
     position: relative;
-    width: 100%;
-    aspect-ratio: 21 / 9;
-    border-radius: 14px;
-    background-color: #131313;
-    background-size: cover;
-    background-position: center 22%;
-    box-shadow:
-        0 40px 80px -50px #000,
-        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: flex-end;
+    min-height: min(74vh, 760px);
+    padding: 0 var(--nf-gutter) 64px;
+    overflow: hidden;
+    isolation: isolate;
 }
 
-/* The copy climbs over the bottom of the picture, so the bottom of the picture
-   has to be dark enough to carry it - on a bright frame the verdict and the
-   title were both sitting on daylight. */
-.nf-pick-art::after {
-    content: "";
+.nf-pick-bill-art {
     position: absolute;
-    inset: auto 0 0 0;
-    height: 62%;
-    border-radius: 0 0 14px 14px;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 58%, rgba(0, 0, 0, 0.88) 100%);
+    inset: 0;
+    z-index: -2;
+    background-color: #101010;
+    background-size: cover;
+    background-position: center 20%;
+    animation: nf-pick-drift 40s ease-in-out infinite alternate;
 }
 
-/* The copy climbs over the bottom of the picture rather than starting under it:
-   one object, not a photograph with a caption. */
-.nf-pick-result-copy {
-    box-sizing: border-box;
-    position: relative;
-    z-index: 1;
-    width: min(760px, 100%);
-    margin-top: -58px;
-    padding: 0 4px;
+@keyframes nf-pick-drift {
+    from { transform: scale(1.02); }
+    to { transform: scale(1.09); }
+}
+
+.nf-pick-bill-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(85deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.5) 42%, rgba(0, 0, 0, 0) 72%),
+        linear-gradient(0deg, var(--nf-bg) 0%, rgba(20, 20, 20, 0.9) 16%, rgba(20, 20, 20, 0) 62%);
+}
+
+.nf-pick-bill-copy {
+    width: min(660px, 52vw);
+}
+
+.nf-pick-bill-copy > * + * {
+    margin-top: 16px;
 }
 
 .nf-pick-verdict {
     color: var(--nf-accent);
     font-size: 12px;
     font-weight: 800;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
 }
 
 .nf-pick-title {
-    margin: 14px 0 0;
-    font-size: clamp(28px, 3.8vw, 46px);
+    margin: 0;
+    font-size: clamp(32px, 4.6vw, 62px);
     font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.05;
-    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+    text-shadow: 0 2px 22px rgba(0, 0, 0, 0.6);
 }
 
 .nf-pick-title.has-logo {
-    width: min(340px, 70%);
-    height: clamp(64px, 8vw, 96px);
+    width: min(400px, 72%);
+    height: clamp(74px, 9vw, 118px);
     color: transparent;
     overflow: hidden;
     background-repeat: no-repeat;
@@ -6619,132 +6882,153 @@ body.nf-pick .docspinner {
 }
 
 .nf-pick-sub {
-    margin-top: 8px;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 18px;
+    color: rgba(255, 255, 255, 0.94);
+    font-size: 19px;
     font-weight: 600;
 }
 
-/* Why this one and not another. The reasons are the answers handed back, which
-   is the whole difference between a suggestion and a shrug. */
-.nf-pick-chips {
+.nf-pick-meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 16px;
+    align-items: center;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 14.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
-.nf-pick-chips span {
-    padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12.5px;
-    font-weight: 600;
-    white-space: nowrap;
+.nf-pick-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
 }
 
 .nf-pick-blurb {
-    margin: 16px 0 0;
-    max-width: 66ch;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 15px;
+    margin: 0;
+    max-width: 60ch;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 15.5px;
     line-height: 1.55;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
     display: -webkit-box;
     -webkit-line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.nf-pick-result-copy .nf-pick-actions {
-    margin-top: 24px;
-}
-
-.nf-pick-alts {
-    width: 100%;
-    margin-top: 40px;
-}
-
-.nf-pick-alts h3 {
-    margin: 0 0 14px;
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-
-.nf-pick-alt-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-}
-
-.nf-pick-alt {
+/* Why this one and not another: the answers handed back, which is the whole
+   difference between a suggestion and a shrug. */
+.nf-pick-chips {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.nf-pick-chips span {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.nf-pick-five-copy .nf-pick-chips span {
+    padding: 4px 9px;
+    font-size: 11px;
+}
+
+/* --- the other four, as a row ------------------------------------------------ */
+
+.nf-pick-row {
+    padding: 6px var(--nf-gutter) 0;
+}
+
+.nf-pick-row h3 {
+    margin: 0 0 14px;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+}
+
+.nf-pick-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
-    padding: 10px 14px 10px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.04);
+}
+
+.nf-pick-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: none;
     color: inherit;
     font-family: var(--nf-font);
     text-align: left;
     cursor: pointer;
-    transition: transform 0.18s var(--nf-ease), background 0.18s var(--nf-ease),
-        border-color 0.18s var(--nf-ease);
+    transition: transform 0.2s var(--nf-ease);
 }
 
-.nf-pick-alt:hover,
-.nf-pick-alt:focus-visible {
-    transform: translateY(-3px);
-    border-color: rgba(255, 255, 255, 0.24);
-    background: rgba(255, 255, 255, 0.09);
+.nf-pick-tile:hover,
+.nf-pick-tile:focus-visible {
+    transform: translateY(-5px);
 }
 
-.nf-pick-alt-shot {
-    flex: 0 0 auto;
-    width: 132px;
+.nf-pick-tile-shot {
+    display: block;
     aspect-ratio: 16 / 9;
-    border-radius: 8px;
-    background-color: #161616;
+    border-radius: var(--nf-radius, 6px);
+    background-color: #17171a;
     background-size: cover;
     background-position: center;
+    box-shadow: 0 16px 32px -22px #000;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    transition: outline-color 0.2s var(--nf-ease);
 }
 
-.nf-pick-alt-copy {
+.nf-pick-tile:hover .nf-pick-tile-shot,
+.nf-pick-tile:focus-visible .nf-pick-tile-shot {
+    outline-color: rgba(255, 255, 255, 0.85);
+}
+
+.nf-pick-tile-copy {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
+    padding: 0 2px;
 }
 
-.nf-pick-alt-copy strong {
-    font-size: 14.5px;
+.nf-pick-tile-copy strong {
+    font-size: 14px;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.nf-pick-alt-copy em {
+.nf-pick-tile-copy em {
     color: var(--nf-text-dim);
-    font-size: 12.5px;
+    font-size: 12px;
     font-style: normal;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.nf-pick-restart {
-    align-self: center;
-    margin-top: 34px;
-}
+/* --- the board in the header ------------------------------------------------- */
 
-/* The board in the header, among the tools on the right rather than in the row
-   of words on the left. No box: every other button up there is a glyph and
-   nothing else, and a frame around one of them read as a badge that had failed
-   to load its label. */
+/* Among the tools on the right rather than in the row of words on the left. No
+   box: every other button up there is a glyph and nothing else, and a frame
+   around one of them read as a badge that had failed to load its label. */
 .nf-pick-btn {
     display: inline-flex;
     align-items: center;
@@ -6772,28 +7056,31 @@ body.nf-pick .docspinner {
     opacity: 1;
 }
 
-/* --- tablet and phone -------------------------------------------------------- */
+/* --- tablet and phone --------------------------------------------------------- */
 
-@media (max-width: 899px) {
-    .nf-pick-options.is-six {
+@media (max-width: 1099px) {
+    .nf-pick-five {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .nf-pick-swatches {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .nf-pick-scenes {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .nf-pick-alt-row {
-        grid-template-columns: 1fr;
+    .nf-pick-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .nf-pick-result-copy {
-        margin-top: -46px;
+    .nf-pick-bill-copy {
+        width: min(620px, 72vw);
     }
 }
 
-@media (max-width: 560px) {
-    .nf-pick-shell {
-        gap: 14px;
-        padding-top: 22px;
-    }
-
+@media (max-width: 720px) {
     .nf-pick-options,
     .nf-pick-options.is-six {
         grid-template-columns: 1fr;
@@ -6801,46 +7088,66 @@ body.nf-pick .docspinner {
     }
 
     .nf-pick-opt {
-        min-height: 74px;
+        min-height: 76px;
         padding: 14px 16px;
         gap: 13px;
     }
 
     .nf-pick-opt-mark {
-        font-size: 26px;
+        font-size: 27px;
     }
 
     .nf-pick-opt-copy strong {
-        font-size: 15.5px;
+        font-size: 16px;
     }
 
     .nf-pick-key {
         display: none;
     }
 
-    .nf-pick-duel {
+    .nf-pick-duo {
         grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .nf-pick-panel {
+        min-height: 0;
+        padding: 18px;
+    }
+
+    .nf-pick-panel-mark {
+        font-size: 30px;
+    }
+
+    .nf-pick-or {
+        justify-self: center;
+    }
+
+    .nf-pick-quote {
+        padding: 16px 18px;
+    }
+
+    .nf-pick-five {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
     }
 
-    /* Side by side there is no room for two posters; one above the other there
-       is no room for two tall ones. On a phone a contender is a still with its
-       name beside it. */
-    .nf-pick-fighter {
-        flex-direction: row;
-        align-items: center;
-        gap: 14px;
-        padding: 12px;
+    .nf-pick-five-drop {
+        opacity: 1;
+        transform: none;
     }
 
-    .nf-pick-fighter-shot {
-        flex: 0 0 auto;
-        width: 92px;
+    .nf-pick-swatches {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
 
-    .nf-pick-vs {
-        justify-self: center;
-        font-size: 13px;
+    .nf-pick-swatch-ink {
+        height: 92px;
+    }
+
+    .nf-pick-scenes {
+        gap: 10px;
     }
 
     .nf-pick-mark {
@@ -6854,39 +7161,63 @@ body.nf-pick .docspinner {
         height: 42px;
     }
 
-    .nf-pick-art {
-        aspect-ratio: 16 / 10;
-        border-radius: 10px;
+    /* The billboard becomes a picture with its caption underneath, the way the
+       TV page's does at this width. */
+    .nf-pick-bill {
+        display: block;
+        min-height: 0;
+        padding: 58vw var(--nf-gutter) 24px;
     }
 
-    .nf-pick-result-copy {
-        margin-top: -30px;
+    .nf-pick-bill-art {
+        inset: 0 0 auto 0;
+        height: 64vw;
     }
 
-    .nf-pick-reel-tile {
-        flex-basis: 104px;
+    .nf-pick-bill-scrim {
+        inset: 0 0 auto 0;
+        height: 72vw;
+        background: linear-gradient(180deg,
+            rgba(0, 0, 0, 0.45) 0%,
+            rgba(0, 0, 0, 0) 30%,
+            rgba(20, 20, 20, 0.55) 72%,
+            var(--nf-bg) 98%);
     }
 
-    .nf-pick-reel-strip {
-        padding-left: calc(50% - 52px);
+    .nf-pick-bill-copy {
+        width: 100%;
     }
 
-    .nf-pick-reel-window::after {
-        width: 108px;
-        margin-left: -54px;
+    .nf-pick-bill-copy > * + * {
+        margin-top: 12px;
+    }
+
+    .nf-pick-title.has-logo {
+        width: min(250px, 66vw);
+        height: clamp(52px, 16vw, 80px);
+    }
+
+    .nf-pick-strip {
+        grid-template-columns: 1fr;
     }
 
     .nf-pick-actions .nf-btn {
         flex: 1 1 100%;
     }
+
+    .headerRight .nf-pick-btn svg {
+        width: 22px;
+        height: 22px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .nf-pick-shell {
+    .nf-pick-shell,
+    .nf-pick-five-card {
         animation: none;
     }
 
-    .nf-pick-reel-strip {
-        transition-duration: 0.4s;
+    .nf-pick-bill-art {
+        animation: none;
     }
 }
