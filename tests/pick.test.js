@@ -86,14 +86,21 @@ function check(name, ok, detail) {
 
 /* Effects are what an answer leaves behind, so the tests are written in them
  * rather than in the labels above them. */
+const mood = (id) =>
+    pick.PICK_BANK.filter((q) => q.key === 'mood')[0].options
+        .filter((o) => o.id === id)[0].effect;
+
 const E = {
     family: { want: pick.PICK_G.kids, banned: pick.PICK_G.grown, why: 'Va bene per tutti' },
     short: { time: 'short' },
     film: { time: 'film' },
     any: { time: 'any' },
-    laugh: { love: pick.PICK_G.laugh, why: 'Ti fa ridere' },
-    fear: { love: pick.PICK_G.fear, why: 'Fa paura' },
-    cry: { love: pick.PICK_G.cry, why: 'Ti prende dentro' },
+    /* Taken from the bank rather than written out again: an effect copied by
+     * hand is a test of the copy, not of what ships - which is how the clash
+     * lists went untested the first time round. */
+    laugh: mood('laugh'),
+    fear: mood('fear'),
+    cry: mood('cry'),
     old: { years: [0, 1989], why: 'Un classico' },
     fresh: { seen: 'new', why: 'Non l’hai mai visto' },
     safe: { seen: 'safe', why: 'Lo conosci già' }
@@ -127,6 +134,54 @@ check('a normal film is between seventy minutes and two hours',
     const hits = top.filter((c) => c.genres.some((g) => effect.love.indexOf(g) > -1)).length;
     check('mood ' + name + ' leads the shortlist', hits >= 4, hits + ' of the top five matched');
 });
+
+/* ---- a mood is a gate, not a preference ---------------------------------- */
+
+/* "Porco Rosso fa paura" and "Truman Show ti fa ridere" were the same fault:
+ * missing the mood cost less than a good rating was worth. */
+['laugh', 'fear', 'cry'].forEach((name) => {
+    const effect = E[name];
+    const ranked = pick.pickRank(library, [E.any, effect], 0, 41);
+    const strays = ranked.filter((c) => !c.genres.some((g) => effect.love.indexOf(g) > -1));
+    check('nothing that misses the mood ' + name + ' survives at all', strays.length === 0,
+        strays.length + ' of ' + ranked.length + ' answered none of it');
+});
+
+/* And when the library cannot answer it, it is allowed to say what it has
+ * rather than nothing at all. */
+const thin = {
+    films: [
+        { id: 'x1', name: 'Solo un documentario', type: 'Movie', ms: 95 * MIN,
+          genres: ['Documentario'], year: 2001, rating: 7 },
+        { id: 'x2', name: 'E un altro', type: 'Movie', ms: 92 * MIN,
+          genres: ['Documentario'], year: 2004, rating: 6.5 }
+    ],
+    shows: [], sets: []
+};
+check('a library with nothing that fits still answers',
+    pick.pickRank(thin, [E.any, E.laugh], 0, 42).length === 2);
+
+/* ---- what a tag says depends on where it sits and what it sits with ------- */
+const shades = {
+    films: [
+        { id: 'pure', name: 'Commedia e basta', type: 'Movie', ms: 95 * MIN,
+          genres: ['Commedia'], year: 2004, rating: 7 },
+        { id: 'late', name: 'Commedia in fondo', type: 'Movie', ms: 95 * MIN,
+          genres: ['Azione', 'Avventura', 'Commedia'], year: 2004, rating: 7 },
+        { id: 'grim', name: 'Commedia di guerra', type: 'Movie', ms: 95 * MIN,
+          genres: ['Commedia', 'Guerra', 'Dramma'], year: 2004, rating: 7 }
+    ],
+    shows: [], sets: []
+};
+let pureFirst = 0;
+let grimLast = 0;
+for (let roll = 0; roll < 12; roll++) {
+    const order = pick.pickRank(shades, [E.any, E.laugh], roll, 43).map((c) => c.entry.id);
+    if (order[0] === 'pure') pureFirst++;
+    if (order[order.length - 1] === 'grim') grimLast++;
+}
+check('a comedy that is a comedy first usually wins', pureFirst >= 8, pureFirst + '/12');
+check('a comedy that is also a war drama usually loses', grimLast >= 8, grimLast + '/12');
 
 /* ---- the year is a real answer ------------------------------------------- */
 const oldies = pick.pickRank(library, [E.any, E.old], 0, 5).slice(0, 6);

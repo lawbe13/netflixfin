@@ -7110,12 +7110,12 @@
             asks: ['Che cosa vuoi sentire?', 'Come vuoi uscirne?', 'Che effetto ti serve?'],
             hint: 'Una sola: quella vera',
             options: [
-                { id: 'laugh', mark: '😂', label: 'Ridere', effect: { love: PICK_G.laugh, why: 'Ti fa ridere' } },
-                { id: 'rush', mark: '💥', label: 'Adrenalina', effect: { love: PICK_G.rush, why: 'Ti tiene sveglio' } },
-                { id: 'fear', mark: '😱', label: 'Paura', effect: { love: PICK_G.fear, why: 'Fa paura' } },
-                { id: 'cry', mark: '💔', label: 'Commuovermi', effect: { love: PICK_G.cry, why: 'Ti prende dentro' } },
-                { id: 'wonder', mark: '✨', label: 'Meraviglia', effect: { love: PICK_G.wonder, why: 'Roba che stupisce' } },
-                { id: 'mystery', mark: '🕵️', label: 'Mistero', effect: { love: PICK_G.mystery, why: 'Da capire chi è stato' } }
+                { id: 'laugh', mark: '😂', label: 'Ridere', effect: { love: PICK_G.laugh, clash: PICK_G.heavy.concat(PICK_G.fear), why: 'Ti fa ridere' } },
+                { id: 'rush', mark: '💥', label: 'Adrenalina', effect: { love: PICK_G.rush, clash: ['Documentario', 'Documentary', 'Romance', 'Romantico'], why: 'Ti tiene sveglio' } },
+                { id: 'fear', mark: '😱', label: 'Paura', effect: { love: PICK_G.fear, clash: PICK_G.kids.concat(PICK_G.laugh), why: 'Fa paura' } },
+                { id: 'cry', mark: '💔', label: 'Commuovermi', effect: { love: PICK_G.cry, clash: ['Horror', 'Azione', 'Action'], why: 'Ti prende dentro' } },
+                { id: 'wonder', mark: '✨', label: 'Meraviglia', effect: { love: PICK_G.wonder, clash: PICK_G.real.concat(['Crime']), why: 'Roba che stupisce' } },
+                { id: 'mystery', mark: '🕵️', label: 'Mistero', effect: { love: PICK_G.mystery, clash: PICK_G.kids.concat(PICK_G.laugh), why: 'Da capire chi è stato' } }
             ]
         },
 
@@ -7131,11 +7131,11 @@
             hint: 'Quella che ti esce di bocca',
             options: [
                 { id: 'laugh', label: '«Fammi solo ridere, non ho voglia di pensare.»',
-                  effect: { love: PICK_G.laugh, want: PICK_G.easy, why: 'Ti fa ridere' } },
+                  effect: { love: PICK_G.laugh, clash: PICK_G.heavy, want: PICK_G.easy, why: 'Ti fa ridere' } },
                 { id: 'grip', label: '«Voglio stare sul bordo del divano.»',
                   effect: { love: PICK_G.rush.concat(PICK_G.fear), why: 'Non ti molla' } },
                 { id: 'cry', label: '«Ho voglia di commuovermi, ma bene.»',
-                  effect: { love: PICK_G.cry, why: 'Ti prende dentro' } },
+                  effect: { love: PICK_G.cry, clash: ['Horror', 'Azione', 'Action'], why: 'Ti prende dentro' } },
                 { id: 'think', label: '«Voglio restare zitto dieci minuti dopo i titoli di coda.»',
                   effect: { love: PICK_G.heavy, ratingWeight: 0.6, why: 'Ha qualcosa da dire' } }
             ]
@@ -7163,9 +7163,9 @@
             asks: ['Scegli:', 'Di cosa hai voglia?'],
             options: [
                 { id: 'boom', mark: '💥', label: 'Esplosioni', sub: 'Rumore, corse, guai',
-                  effect: { love: PICK_G.rush, why: 'Roba grossa' } },
+                  effect: { love: PICK_G.rush, clash: PICK_G.real, why: 'Roba grossa' } },
                 { id: 'jokes', mark: '😂', label: 'Battute', sub: 'Gente che parla veloce',
-                  effect: { love: PICK_G.laugh, why: 'Ti fa ridere' } }
+                  effect: { love: PICK_G.laugh, clash: PICK_G.heavy.concat(PICK_G.fear), why: 'Ti fa ridere' } }
             ]
         },
         {
@@ -7239,9 +7239,9 @@
             hint: 'Dimmi cosa mangi e ti dico cosa guardi',
             options: [
                 { id: 'corn', mark: '🍿', label: 'Pop-corn', sub: 'Roba grossa',
-                  effect: { love: PICK_G.rush, why: 'Da pop-corn' } },
+                  effect: { love: PICK_G.rush, clash: PICK_G.real, why: 'Da pop-corn' } },
                 { id: 'wine', mark: '🍷', label: 'Un bicchiere di rosso', sub: 'Con calma',
-                  effect: { love: PICK_G.cry, why: 'Da bicchiere di rosso' } },
+                  effect: { love: PICK_G.cry, clash: ['Horror', 'Azione', 'Action'], why: 'Da bicchiere di rosso' } },
                 { id: 'ice', mark: '🍦', label: 'Gelato dal barattolo', sub: 'Coccola',
                   effect: { love: PICK_G.laugh.concat(PICK_G.kids), why: 'Da gelato e coperta' } },
                 { id: 'tea', mark: '🍵', label: 'Niente, sto per crollare', sub: 'Poco impegno',
@@ -7536,18 +7536,41 @@
         var why = [];
         var ratingWeight = 0.34;
 
+        candidate.missed = false;
+
         for (var i = 0; i < effects.length; i++) {
             var effect = effects[i];
 
             if (effect.banned && pickHas(candidate.genres, effect.banned)) return null;
 
+            /* A mood is not a preference to be outweighed.
+             *
+             * "Porco Rosso fa paura" and "The Truman Show ti fa ridere" both came
+             * out of the same fault: missing the mood cost two and a half points
+             * and a good rating was worth three, so a well-liked film that
+             * answered none of the question could still come first. Missing it
+             * now marks the candidate, and pickRank drops the marked ones as long
+             * as enough are left - it is not a matter of degree.
+             *
+             * Two more things the genre list alone could not say. A tag at the
+             * end of a film's list is not what the film is: a match on the first
+             * one it carries counts for more. And some tags cancel the answer out
+             * - a comedy that is also a war drama is not what "fammi ridere"
+             * meant - so an effect can name what clashes with it. */
             if (effect.love) {
                 var loved = pickHas(candidate.genres, effect.love);
                 if (loved) {
                     score += 3.2 + Math.min(loved - 1, 2) * 0.4;
+                    if (effect.love.indexOf(candidate.genres[0]) > -1) score += 1.6;
                     if (effect.why) why.push(effect.why);
                 } else {
-                    score -= 2.4;
+                    candidate.missed = true;
+                    score -= 6;
+                }
+
+                if (effect.clash) {
+                    var clashed = pickHas(candidate.genres, effect.clash);
+                    if (clashed) score -= 1.8 * Math.min(clashed, 2);
                 }
             }
 
@@ -7594,8 +7617,11 @@
 
         score += Math.min(candidate.rating || 0, 9) * ratingWeight;
 
-        // Enough to shuffle the near-equals, never enough to promote a bad fit.
-        score += rnd() * 1.15;
+        /* Enough to shuffle the near-equals, never enough to promote a bad fit -
+         * and it was too much of both. At a point and a bit it could undo the
+         * difference between a comedy and a comedy that is also a war film, which
+         * is exactly the difference the answer was about. */
+        score += rnd() * 0.8;
 
         candidate.why = why;
         return score;
@@ -7613,6 +7639,12 @@
             out.push(candidate);
         });
 
+        /* Anything that answered none of the moods asked is dropped outright -
+         * unless dropping them leaves too little to choose from, which is the
+         * only reason a thin library is allowed to show a near miss at all. */
+        var answered = out.filter(function (candidate) { return !candidate.missed; });
+        if (answered.length >= 8) out = answered;
+
         out.sort(function (a, b) { return b.score - a.score; });
 
         /* Everything within a point and a half of the leader is a genuinely good
@@ -7620,7 +7652,11 @@
          * again on every roll: without this the same two well-rated films won
          * every time, and asking for another was a lie. */
         if (out.length > 1) {
-            var band = out[0].score - 1.6;
+            /* Narrower than it was. A point and a half covered real differences
+             * as well as ties, so dealing again turned "the best answer" into
+             * "one of the top dozen" - and with five of them shown at once there
+             * is less to gain from shuffling and more to lose. */
+            var band = out[0].score - 1;
             var top = 0;
             while (top < out.length && top < 14 && out[top].score >= band) top++;
             if (top > 1) {
@@ -8031,8 +8067,19 @@
             el('p', 'nf-pick-hint',
                 'Tocca quello che ti va. Se uno non ti convince, scartalo e ne arriva un altro.'));
 
+        /* On a phone the five are a row you swipe, and a row that does not say
+         * so is a row nobody swipes: the hint and the dots are drawn always and
+         * shown only where the row actually moves. */
+        var swipe = el('div', 'nf-pick-swipe');
+        swipe.appendChild(svgIcon('back'));
+        swipe.appendChild(el('span', null, 'Scorri per vederli tutti'));
+        shell.appendChild(swipe);
+
         var row = el('div', 'nf-pick-five');
         shell.appendChild(row);
+
+        var dots = el('div', 'nf-pick-dots');
+        shell.appendChild(dots);
 
         var restart = el('button', 'nf-pick-restart');
         restart.type = 'button';
@@ -8061,6 +8108,24 @@
             pickState.shortlist.forEach(function (candidate, i) {
                 row.appendChild(pickDrawCandidate(page, candidate, client, i));
             });
+
+            dots.textContent = '';
+            pickState.shortlist.forEach(function (candidate, i) {
+                dots.appendChild(el('span', i === 0 ? 'is-here' : null));
+            });
+
+            var mark = function () {
+                var card = row.firstChild;
+                if (!card) return;
+                var step = card.getBoundingClientRect().width + 12;
+                var at = Math.round(row.scrollLeft / step);
+                Array.prototype.forEach.call(dots.children, function (dot, i) {
+                    dot.classList.toggle('is-here', i === at);
+                });
+                // The hint has done its job once the row has been moved.
+                if (row.scrollLeft > 12) swipe.style.opacity = '0';
+            };
+            row.addEventListener('scroll', mark, { passive: true });
         });
     }
 

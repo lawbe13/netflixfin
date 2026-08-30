@@ -1182,6 +1182,28 @@ body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
 }
 
 /* Netflix's action buttons are pills: 48px tall, 18px/500, 8px 20px. */
+/* Safari on iOS draws its own button unless it is told not to: native padding,
+   its own idea of where the label sits inside the box, and a grey flash on tap.
+   Reported from an iPhone as "tasti storti", which is exactly what it looks
+   like when the glyph and the word are centred by two different rules. */
+.nf-btn,
+.nf-pick-opt,
+.nf-pick-panel,
+.nf-pick-quote,
+.nf-pick-swatch,
+.nf-pick-scene,
+.nf-pick-five-take,
+.nf-pick-five-drop,
+.nf-pick-tile,
+.nf-pick-back,
+.nf-pick-restart,
+.nf-pick-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
 .nf-btn {
     display: inline-flex;
     align-items: center;
@@ -6631,6 +6653,7 @@ body.nf-pick .docspinner {
 
 .nf-pick-scene-art {
     display: block;
+    width: 100%;
     aspect-ratio: 4 / 3;
     border-radius: 12px;
     background-color: #17171a;
@@ -6692,6 +6715,7 @@ body.nf-pick .docspinner {
 
 .nf-pick-five-shot {
     display: block;
+    width: 100%;
     aspect-ratio: 2 / 3;
     border-radius: 10px;
     background-color: #17171a;
@@ -6807,6 +6831,53 @@ body.nf-pick .docspinner {
 
 .nf-pick-five-drop:hover {
     background: var(--nf-accent);
+}
+
+/* Five posters that need swiping have to say so. The cards are narrow enough
+   that the third is cut by the edge of the screen - a card sliced in half is the
+   oldest way of saying "there is more this way" - and under them a run of dots
+   that fills as you go. */
+.nf-pick-dots {
+    display: none;
+    gap: 7px;
+    align-self: center;
+    margin-top: 14px;
+}
+
+.nf-pick-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.24);
+    transition: background 0.2s var(--nf-ease), transform 0.2s var(--nf-ease);
+}
+
+.nf-pick-dots span.is-here {
+    background: var(--nf-accent);
+    transform: scale(1.25);
+}
+
+.nf-pick-swipe {
+    display: none;
+    align-items: center;
+    transition: opacity 0.3s var(--nf-ease);
+    gap: 8px;
+    color: var(--nf-text-dim);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.nf-pick-swipe svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+    transform: rotate(180deg);
+    animation: nf-pick-nudge 1.8s ease-in-out infinite;
+}
+
+@keyframes nf-pick-nudge {
+    0%, 100% { transform: rotate(180deg) translateX(0); }
+    50% { transform: rotate(180deg) translateX(-4px); }
 }
 
 /* --- the answer -------------------------------------------------------------- */
@@ -6983,6 +7054,7 @@ body.nf-pick .docspinner {
 
 .nf-pick-tile-shot {
     display: block;
+    width: 100%;
     aspect-ratio: 16 / 9;
     border-radius: var(--nf-radius, 6px);
     background-color: #17171a;
@@ -7211,7 +7283,9 @@ body.nf-pick .docspinner {
         margin: 14px calc(var(--nf-gutter) * -1) 0;
         padding: 2px var(--nf-gutter) 6px;
         overflow-x: auto;
-        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        scroll-padding-left: var(--nf-gutter);
         scrollbar-width: none;
     }
 
@@ -7220,9 +7294,20 @@ body.nf-pick .docspinner {
     }
 
     .nf-pick-five-card {
-        flex: 0 0 46vw;
-        max-width: 220px;
-        scroll-snap-align: center;
+        flex: 0 0 42vw;
+        max-width: 200px;
+        scroll-snap-align: start;
+    }
+
+    .nf-pick-dots,
+    .nf-pick-swipe {
+        display: flex;
+    }
+
+    /* A four-by-three window on a sixteen-by-nine still throws away a third of
+       the frame, which on a phone is where the whole picture was. */
+    .nf-pick-scene-art {
+        aspect-ratio: 16 / 9;
     }
 
     .nf-pick-five-copy strong {
@@ -7317,7 +7402,9 @@ body.nf-pick .docspinner {
         margin: 0 calc(var(--nf-gutter) * -1);
         padding: 2px var(--nf-gutter) 6px;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         scroll-snap-type: x proximity;
+        scroll-padding-left: var(--nf-gutter);
         scrollbar-width: none;
     }
 
