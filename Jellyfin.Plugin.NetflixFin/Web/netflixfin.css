@@ -7442,6 +7442,21 @@ body.nf-pick .docspinner {
     }
 }
 
+/* Below four hundred points there is not enough width for two labels beside
+   each other at fourteen and a half; they lose a little of both. */
+@media (max-width: 399px) {
+    .nf-pick-actions .nf-btn {
+        padding: 0 10px;
+        font-size: 13.5px;
+        letter-spacing: -0.01em;
+    }
+
+    .nf-pick-actions .nf-btn svg {
+        width: 1em;
+        height: 1em;
+    }
+}
+
 /* --- phone, on its side --------------------------------------------------------
    A short viewport: nothing may claim three quarters of it. */
 
