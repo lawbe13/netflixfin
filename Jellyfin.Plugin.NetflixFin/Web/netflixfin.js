@@ -5719,9 +5719,11 @@
             quality: shape === 'hero' ? 92 : 90
         };
 
-        /* An episode has no wide art of its own - the backdrop belongs to the
-         * series - so the two channels made of episodes showed empty cards. */
-        if (shape !== 'poster' && entry.type === 'Episode' && entry.seriesId) {
+        /* An episode has neither backdrop nor poster of its own - both belong to
+         * the series - so both come from there. Its Primary image is a still off
+         * the episode itself, sixteen by nine: asked for as a poster it was
+         * letterboxed into a two-by-three box and looked like a mistake. */
+        if (entry.type === 'Episode' && entry.seriesId) {
             return client.getImageUrl(entry.seriesId, options);
         }
 
@@ -7712,10 +7714,16 @@
      * down to weather, is part of the same place as everything else here. */
     function pickWall(page) {
         var wall = page.querySelector('.nf-pick-wall');
-        if (!wall) return;
+        if (!wall || wall.classList.contains('is-on') || wall.dataset.busy) return;
+        wall.dataset.busy = '1';
 
         tvLibraryLoad().then(function (library) {
             var client = api();
+            delete wall.dataset.busy;
+
+            /* The first pass can land before ApiClient holds a user, and a wall
+             * that gave up then stayed black for the rest of the run. Every paint
+             * asks again until there is something behind the glass. */
             if (!library || !client || !wall.isConnected) return;
 
             var pool = (library.films || []).filter(function (film) {
@@ -7743,6 +7751,8 @@
     }
 
     function pickPaint(page) {
+        pickWall(page);
+
         // The wall stays; everything else is drawn again.
         var wall = page.querySelector('.nf-pick-wall');
         page.textContent = '';
@@ -7823,7 +7833,11 @@
         var fill = el('span');
         fill.style.width = Math.round(done * 100) + '%';
         rail.appendChild(fill);
-        page.appendChild(rail);
+
+        /* First thing in the page, after the wall: appended at the end it drew a
+         * red line under the question instead of over it. */
+        var wall = page.querySelector('.nf-pick-wall');
+        page.insertBefore(rail, wall ? wall.nextSibling : page.firstChild);
     }
 
     function pickBack(shell, page) {
