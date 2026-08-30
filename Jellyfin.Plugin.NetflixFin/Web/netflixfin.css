@@ -7056,15 +7056,40 @@ body.nf-pick .docspinner {
     opacity: 1;
 }
 
-/* --- tablet and phone --------------------------------------------------------- */
+/* --- tablet ------------------------------------------------------------------
+
+   Everything still fits across; there is simply less of it. The five stay in one
+   row - they are a shortlist, and a shortlist that wraps onto a second line
+   stops reading as five and starts reading as a grid. */
 
 @media (max-width: 1099px) {
+    .nf-pick-shell {
+        padding-top: clamp(20px, 3.5vh, 40px);
+    }
+
+    .nf-pick-shell.is-question,
+    .nf-pick-shell.is-five {
+        min-height: 64vh;
+    }
+
     .nf-pick-five {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .nf-pick-five-copy strong {
+        font-size: 13.5px;
+    }
+
+    .nf-pick-five-copy em {
+        font-size: 11.5px;
     }
 
     .nf-pick-swatches {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .nf-pick-swatch-ink {
+        height: 108px;
     }
 
     .nf-pick-scenes {
@@ -7075,12 +7100,50 @@ body.nf-pick .docspinner {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .nf-pick-bill {
+        min-height: min(62vh, 620px);
+        padding-bottom: 46px;
+    }
+
     .nf-pick-bill-copy {
         width: min(620px, 72vw);
     }
+
+    .nf-pick-title.has-logo {
+        width: min(330px, 56vw);
+        height: clamp(64px, 10vw, 96px);
+    }
+
+    /* A finger is not a mouse: what appears only on hover never appears at all. */
+    .nf-pick-five-drop {
+        opacity: 1;
+        transform: none;
+    }
 }
 
-@media (max-width: 720px) {
+/* --- phone --------------------------------------------------------------------
+
+   Two changes of kind rather than of size. The five become a row you swipe
+   instead of a grid you scroll past - five posters stacked two by two is half a
+   screen of scrolling before you have seen the field, which is the one thing
+   this page exists to show you. And the billboard becomes a picture with its
+   caption underneath, because there is no width to lay copy over. */
+
+@media (max-width: 719px) {
+    .nf-pick-page {
+        padding-bottom: 120px;
+    }
+
+    .nf-pick-shell {
+        gap: 13px;
+        padding-top: 20px;
+    }
+
+    .nf-pick-shell.is-question,
+    .nf-pick-shell.is-five {
+        min-height: 0;
+    }
+
     .nf-pick-options,
     .nf-pick-options.is-six {
         grid-template-columns: 1fr;
@@ -7088,13 +7151,13 @@ body.nf-pick .docspinner {
     }
 
     .nf-pick-opt {
-        min-height: 76px;
+        min-height: 74px;
         padding: 14px 16px;
         gap: 13px;
     }
 
     .nf-pick-opt-mark {
-        font-size: 27px;
+        font-size: 26px;
     }
 
     .nf-pick-opt-copy strong {
@@ -7111,62 +7174,102 @@ body.nf-pick .docspinner {
     }
 
     .nf-pick-panel {
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
         min-height: 0;
-        padding: 18px;
+        padding: 16px 18px;
     }
 
     .nf-pick-panel-mark {
         font-size: 30px;
     }
 
+    .nf-pick-panel strong {
+        font-size: 20px;
+    }
+
+    .nf-pick-panel em {
+        display: none;
+    }
+
     .nf-pick-or {
         justify-self: center;
+        font-size: 12px;
     }
 
     .nf-pick-quote {
-        padding: 16px 18px;
+        padding: 15px 18px;
+        font-size: 17px;
     }
 
+    /* Five posters, swiped. The row runs to both edges of the screen and stops
+       on each card. */
     .nf-pick-five {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        display: flex;
         gap: 12px;
+        margin: 14px calc(var(--nf-gutter) * -1) 0;
+        padding: 2px var(--nf-gutter) 6px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
     }
 
-    .nf-pick-five-drop {
-        opacity: 1;
-        transform: none;
+    .nf-pick-five::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nf-pick-five-card {
+        flex: 0 0 46vw;
+        max-width: 220px;
+        scroll-snap-align: center;
+    }
+
+    .nf-pick-five-copy strong {
+        font-size: 13.5px;
     }
 
     .nf-pick-swatches {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
     }
 
     .nf-pick-swatch-ink {
-        height: 92px;
+        height: 84px;
+    }
+
+    .nf-pick-swatch-copy strong {
+        font-size: 12px;
+    }
+
+    /* No room for an aside under a colour; the colour and its name are enough. */
+    .nf-pick-swatch-copy em {
+        display: none;
     }
 
     .nf-pick-scenes {
         gap: 10px;
     }
 
+    .nf-pick-scene-label {
+        font-size: 13.5px;
+    }
+
     .nf-pick-mark {
-        width: 76px;
-        height: 76px;
+        width: 74px;
+        height: 74px;
         border-radius: 22px;
     }
 
     .nf-pick-mark svg {
-        width: 42px;
-        height: 42px;
+        width: 40px;
+        height: 40px;
     }
 
-    /* The billboard becomes a picture with its caption underneath, the way the
-       TV page's does at this width. */
     .nf-pick-bill {
         display: block;
         min-height: 0;
-        padding: 58vw var(--nf-gutter) 24px;
+        padding: 58vw var(--nf-gutter) 22px;
     }
 
     .nf-pick-bill-art {
@@ -7192,16 +7295,57 @@ body.nf-pick .docspinner {
         margin-top: 12px;
     }
 
-    .nf-pick-title.has-logo {
-        width: min(250px, 66vw);
-        height: clamp(52px, 16vw, 80px);
+    .nf-pick-title {
+        font-size: clamp(26px, 8vw, 34px);
     }
 
+    .nf-pick-title.has-logo {
+        width: min(240px, 64vw);
+        height: clamp(50px, 15vw, 76px);
+    }
+
+    .nf-pick-blurb {
+        font-size: 14.5px;
+        -webkit-line-clamp: 3;
+    }
+
+    /* The other four are a row here too: a column of four wide stills is a page
+       of scrolling under an answer you have already been given. */
     .nf-pick-strip {
-        grid-template-columns: 1fr;
+        display: flex;
+        gap: 12px;
+        margin: 0 calc(var(--nf-gutter) * -1);
+        padding: 2px var(--nf-gutter) 6px;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+    }
+
+    .nf-pick-strip::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nf-pick-tile {
+        flex: 0 0 62vw;
+        max-width: 300px;
+        scroll-snap-align: start;
+    }
+
+    /* Three buttons will not sit on one line: the one that starts it takes the
+       width and the other two share the next. */
+    .nf-pick-actions {
+        width: 100%;
+        gap: 10px;
     }
 
     .nf-pick-actions .nf-btn {
+        flex: 1 1 0;
+        min-height: 46px;
+        padding: 0 14px;
+        font-size: 14.5px;
+    }
+
+    .nf-pick-actions .nf-btn-primary {
         flex: 1 1 100%;
     }
 
@@ -7211,6 +7355,33 @@ body.nf-pick .docspinner {
     }
 }
 
+/* --- phone, on its side --------------------------------------------------------
+   A short viewport: nothing may claim three quarters of it. */
+
+@media (max-height: 520px) and (orientation: landscape) {
+    .nf-pick-shell,
+    .nf-pick-shell.is-question,
+    .nf-pick-shell.is-five,
+    .nf-pick-shell.is-intro {
+        min-height: 0;
+        padding-top: 16px;
+    }
+
+    .nf-pick-bill {
+        min-height: 86vh;
+        padding-bottom: 22px;
+    }
+
+    .nf-pick-mark {
+        width: 64px;
+        height: 64px;
+    }
+
+    .nf-pick-mark svg {
+        width: 34px;
+        height: 34px;
+    }
+}
 @media (prefers-reduced-motion: reduce) {
     .nf-pick-shell,
     .nf-pick-five-card {
