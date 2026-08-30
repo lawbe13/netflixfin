@@ -282,6 +282,43 @@ check('never three questions of the same shape in a row', sameShapeRuns === 0,
 check('forty runs use more than one shape of question', shapes.size >= 3,
     [...shapes].join(','));
 
+/* ---- twenty evenings in a row --------------------------------------------
+   The complaint this answers: "se facessi il quiz 20 volte vorrei che fosse
+   sempre diverso". Random alone does not do that - it circles the heavier
+   weights - so the last runs' questions step aside while they can. */
+const tally = {};
+const wordings = new Set();
+const asked20 = [];
+for (let run = 0; run < 20; run++) {
+    // Each run gets its own seed, the way a real evening does.
+    const set = pick.pickAskSet(1000000 + run * 977);
+    asked20.push(set.map((q) => q.key).join(','));
+    set.forEach((q) => {
+        tally[q.key] = (tally[q.key] || 0) + 1;
+        wordings.add(pick.pickWording(q, 1000000 + run * 977));
+    });
+}
+const drawable = pick.PICK_BANK.filter((q) => !q.fixed && (!q.when || q.when()));
+const missed = drawable.filter((q) => !tally[q.key]);
+check('twenty runs reach every question in the bank', missed.length === 0,
+    'never asked: ' + missed.map((q) => q.key).join(','));
+const hog = Object.keys(tally).filter((k) => k !== 'who' && k !== 'time' && tally[k] > 6);
+check('and none of them is asked more than six times in twenty',
+    hog.length === 0, hog.map((k) => k + '×' + tally[k]).join(', '));
+check('twenty runs are twenty different sets', new Set(asked20).size >= 18,
+    new Set(asked20).size + ' distinct');
+check('and they are not asked in the same words each time', wordings.size >= 30,
+    wordings.size + ' distinct wordings');
+
+/* ---- every option can be said more than one way -------------------------- */
+let variants = 0;
+pick.PICK_BANK.forEach((question) => {
+    question.options.forEach((option) => {
+        if (Array.isArray(option.label) && option.label.length > 1) variants++;
+    });
+});
+check('most answers have more than one wording too', variants >= 40, variants + ' of them');
+
 /* ---- and they are not worded the same way either ------------------------- */
 const words = new Set();
 for (let seed = 1; seed <= 40; seed++) {

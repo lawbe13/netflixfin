@@ -1205,9 +1205,17 @@ body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
 }
 
 .nf-btn {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    /* An inline SVG sits on the text's baseline, which leaves the room for a
+       descender underneath it and lifts the glyph a few pixels above the word
+       beside it. On a tall desktop button nobody sees it; on a phone button it
+       is the whole difference between centred and not. The icon is taken out of
+       the inline flow, and the button's own line box is normalised so the label
+       is measured by its own line-height and not the button's. */
+    line-height: 1;
     gap: 0.5rem;
     min-height: 48px;
     padding: 8px 20px;
@@ -1220,11 +1228,16 @@ body.nf-hover-preview .mainAnimatedPages .cardOverlayContainer {
     transition: background-color 0.15s var(--nf-ease);
 }
 
+.nf-btn > span {
+    line-height: 1.15;
+}
+
 /* Measured on a phone: 197 pixels square. An inline SVG with no width of its
    own takes whatever the box will give it, and a button stretched to the width
    of the screen gives it everything - so the play glyph on "Guarda" filled the
    billboard. It is sized off the text it sits beside. */
 .nf-btn svg {
+    display: block;
     flex: 0 0 auto;
     width: 1.1em;
     height: 1.1em;
@@ -6356,7 +6369,9 @@ body.nf-pick .docspinner {
     color: var(--nf-text);
 }
 
-.nf-pick-back svg {
+.nf-pick-back svg,
+.nf-pick-swipe svg {
+    display: block;
     width: 16px;
     height: 16px;
     fill: currentColor;
