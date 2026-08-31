@@ -56,6 +56,10 @@ function run(scene) {
         tvPaintIdent: () => calls.push('ident'),
         tvPaintOsd: () => calls.push('osd'),
         tvHandOver: () => calls.push('handover'),
+        // With a queue the player moves itself; the tick only watches it.
+        tvQueueTick: () => calls.push('queue'),
+        // Telling the player to take the next item, rather than fetching it.
+        tvNudgeQueue: () => { calls.push('nudge'); return true; },
         tvPressPlay: () => calls.push('press'),
         tvStop: () => calls.push('stop'),
         seekTo: (v, s) => calls.push('seek:' + Math.round(s))
@@ -94,6 +98,24 @@ const cases = [
         what: 'the line-up has moved on',
         scene: { on: slot('b', 40 * MIN), video: null },
         want: (r) => r.calls.includes('handover') && !r.calls.includes('stop')
+    },
+    {
+        what: 'the line-up moved on while the player holds a queue',
+        scene: {
+            on: slot('b', 40 * MIN),
+            video: { readyState: 4, currentTime: 3600 },
+            state: { queueId: 'q1', pending: null }
+        },
+        /* The player is holding the next programme already: it is told to take
+         * it, not sent to fetch it from its own page - which is the whole
+         * difference between one second and twenty. */
+        want: (r) => !r.calls.includes('handover') && !r.calls.includes('stop') &&
+            r.calls.includes('queue') && r.calls.includes('nudge')
+    },
+    {
+        what: 'the queue is on and the player is simply gone',
+        scene: { on: slot('b', 40 * MIN), video: null, state: { queueId: 'q1' } },
+        want: (r) => r.calls.includes('stop') && !r.calls.includes('handover')
     },
     {
         what: 'no line-up at all',

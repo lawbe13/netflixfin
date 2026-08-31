@@ -6462,6 +6462,162 @@
         });
     }
 
+    /* A channel is a queue, not a series of separate films.
+     *
+     * Every hand-over used to be a fresh start: go to the next title's own page,
+     * wait for its play button to exist, press it, and wait again while the
+     * server began a transcode nobody had asked for yet. Measured on this
+     * server: pressing play on a title is ten to twenty seconds to a picture,
+     * and if any step of it missed, the channel gave up and put the viewer back
+     * on the TV page - which is exactly what was being reported. Moving to the
+     * next item of a queue the player already holds is one second, because the
+     * player prepared it while the last one was still running.
+     *
+     * So the channel hands over the whole evening at once. The line-up becomes a
+     * playlist of the next eight programmes, the player walks it by itself, and
+     * the ident covers the join. The playlist is made when you tune in and
+     * deleted when you leave. */
+    var TV_QUEUE_AHEAD = 8;
+    var TV_QUEUE_NAME = 'TV — Filmettino';
+
+    function tvRunAhead(channel, pool, when) {
+        return (tvGuide(channel, pool, when) || [])
+            .slice(0, TV_QUEUE_AHEAD)
+            .map(function (slot) { return slot; });
+    }
+
+    function tvDropQueue() {
+        var client = api();
+        var id = tvState.queueId;
+        tvState.queueId = null;
+        tvState.queuedTo = 0;
+        if (!client || !id) return Promise.resolve();
+        return client
+            .ajax({ type: 'DELETE', url: client.getUrl('Items/' + id) })
+            .catch(function () {
+                // A playlist that will not go is untidy, not broken.
+            });
+    }
+
+    function tvMakeQueue(slots) {
+        var client = api();
+        if (!client || !slots.length) return Promise.resolve(null);
+
+        return tvDropQueue()
+            .then(function () {
+                return client.ajax({
+                    type: 'POST',
+                    url: client.getUrl('Playlists', {
+                        Name: TV_QUEUE_NAME,
+                        Ids: slots.map(function (slot) { return slot.item.id; }).join(','),
+                        UserId: client.getCurrentUserId(),
+                        MediaType: 'Video'
+                    }),
+                    dataType: 'json'
+                });
+            })
+            .then(function (made) {
+                tvState.queueId = made && made.Id;
+                tvState.queuedTo = slots[slots.length - 1].start;
+                return tvState.queueId;
+            })
+            .catch(function (err) {
+                log('tv: could not lay out the queue; one at a time then', err);
+                return null;
+            });
+    }
+
+    /* Eight programmes is most of an evening, so this rarely runs - but a
+     * channel left on all night would otherwise reach the end of its own
+     * line-up and stop being a channel. */
+    function tvTopUpQueue() {
+        var client = api();
+        var channel = tvChannel(tvState.channel);
+        if (!client || !channel || !tvState.queueId || tvState.toppingUp) return;
+
+        var pool = tvPools[channel.id];
+        if (!pool) return;
+
+        var more = (tvGuide(channel, pool, tvState.queuedTo + 1000) || []).slice(0, 4);
+        if (!more.length) return;
+
+        tvState.toppingUp = true;
+        client
+            .ajax({
+                type: 'POST',
+                url: client.getUrl('Playlists/' + tvState.queueId + '/Items', {
+                    Ids: more.map(function (slot) { return slot.item.id; }).join(','),
+                    UserId: client.getCurrentUserId()
+                })
+            })
+            .then(function () {
+                tvState.queuedTo = more[more.length - 1].start;
+                tvState.queueLeft += more.length;
+                tvState.toppingUp = false;
+            })
+            .catch(function () {
+                tvState.toppingUp = false;
+            });
+    }
+
+    /* What the player does between one programme and the next, watched from
+     * outside: the source under the <video> changes when it takes the next item
+     * off the queue. */
+    function tvQueueTick(on, video) {
+        if (!tvState.queueId || !on || !video) return;
+
+        var playing = on.inIdent && on.next ? on.next : on.slot;
+
+        if (video.currentSrc && video.currentSrc !== tvState.srcMark) {
+            tvState.srcMark = video.currentSrc;
+            tvState.queueLeft = Math.max(0, (tvState.queueLeft || 0) - 1);
+
+            if (playing.item.id !== tvState.slotId) {
+                tvState.slotId = playing.item.id;
+                tvBorrow(playing.item.id);
+                /* Its own seek, in case the join drifted: the existing repair
+                 * only acts if the picture is more than fifteen seconds from
+                 * where the clock says it should be. */
+                tvState.pending = {
+                    channel: tvChannel(tvState.channel),
+                    slot: playing,
+                    offset: on.inIdent ? 0 : on.offset
+                };
+                log('tv: the queue moved on to ' + tvName(playing));
+            }
+
+            if (tvState.queueLeft <= 3) tvTopUpQueue();
+        }
+
+        /* The ident is the join, and nothing is loading behind it: the next
+         * programme is already open and simply held still until the line-up says
+         * it starts. */
+        var holding = !!(on.inIdent || tvState.ended);
+        if (holding && !video.paused) {
+            video.pause();
+            tvState.heldForIdent = true;
+        } else if (!holding && tvState.heldForIdent) {
+            tvState.heldForIdent = false;
+            var resumed = video.play();
+            if (resumed && resumed.catch) resumed.catch(function () {});
+        }
+    }
+
+    /* A file does not always run to the length its metadata claims. When it runs
+     * long the line-up moves on while the player is still showing the last one,
+     * and with a queue the answer is not to go and fetch the next programme -
+     * the player is already holding it - but to tell the player to take it. */
+    function tvNudgeQueue() {
+        var next = document.querySelector('.btnNextTrack');
+        if (!next || next.classList.contains('hide')) return false;
+        if (Date.now() - (tvState.nudgedAt || 0) < 8000) return true;
+
+        tvState.nudgedAt = Date.now();
+        log('tv: the file outlasted its slot; taking the next one');
+        next.click();
+        return true;
+    }
+
     function tvTune(id, mode) {
         var channel = tvChannel(id);
         if (!channel) return;
@@ -6495,8 +6651,25 @@
              * on, so leaving the player brings it back. */
             tvClose();
 
-            tvPlay(on.slot.item, tvState.pending.offset);
-            tvWatchPlayer();
+            tvState.srcMark = null;
+            tvState.heldForIdent = false;
+
+            /* Ambient and restart are both a single programme by nature - one is
+             * a corner of the screen, the other is the same film from its
+             * beginning - so they keep the old road. Live gets the queue. */
+            if (mode === 'restart' || mode === 'ambient') {
+                tvPlay(on.slot.item, tvState.pending.offset);
+                tvWatchPlayer();
+                return;
+            }
+
+            var run = tvRunAhead(channel, pool, tvClock());
+            tvMakeQueue(run).then(function (queueId) {
+                if (!tvState.channel) return;
+                tvState.queueLeft = queueId ? run.length : 0;
+                tvPlay(on.slot.item, tvState.pending.offset, queueId);
+                tvWatchPlayer();
+            });
         });
     }
 
@@ -6505,9 +6678,12 @@
      * details page's own play button is a real, bound control, so a channel goes
      * through there. It costs a page behind the player, which is why leaving a
      * channel puts the hash back where it was. */
-    function tvPlay(item, offset) {
+    function tvPlay(item, offset, queueId) {
         var client = api();
-        var route = '#/details?id=' + item.id;
+        /* The queue has a page of its own, and its play button starts the whole
+         * line-up rather than one film. Everything else about getting there is
+         * the same, including having to press twice. */
+        var route = '#/details?id=' + (queueId || item.id);
 
         /* The route is also how the channel knows it is still being watched.
          * Jellyfin leaves a <video> behind after you exit - 427x194, connected,
@@ -6652,6 +6828,10 @@
             tvReturn();
         }, 15000);
 
+        tvState.heldForIdent = false;
+        tvState.srcMark = null;
+        tvDropQueue();
+
         document.body.classList.remove('nf-tv-on');
         tvCover(false);
         var skin = document.querySelector('.nf-tv-skin');
@@ -6703,6 +6883,19 @@
         clip.muted = false;
         clip.playsInline = true;
         clip.preload = 'auto';
+
+        /* Fetched when the channel starts, not when the join arrives. It used to
+         * be given its source at the moment the card went up, so the jingle
+         * began with a download - which on a channel is the one thing that must
+         * never happen: by the time it is wanted, it has to be in the browser
+         * already. */
+        var onNow = tvChannel(tvState.channel);
+        if (onNow) {
+            clip.setAttribute('data-nf-ident', onNow.id);
+            clip.src = '/NetflixFin/tv/ident/' + onNow.id;
+            clip.load();
+        }
+
         card.appendChild(clip);
 
         var copy = el('div', 'nf-tv-ident-copy');
@@ -6824,7 +7017,10 @@
                 return;
             }
             if (on && on.inIdent) return;
-            if (on && tvState.slotId && on.slot.item.id !== tvState.slotId) {
+            /* With a queue there is nothing to hand over: the player takes the
+             * next programme itself, and this branch only runs when there is no
+             * player at all - which for a queue means it really has gone. */
+            if (on && !tvState.queueId && tvState.slotId && on.slot.item.id !== tvState.slotId) {
                 tvHandOver(on);
                 return;
             }
@@ -6875,6 +7071,8 @@
          * until the video sits within fifteen seconds of where the channel is,
          * and the target is recomputed each time so a slow start lands on the
          * clock rather than in the past. */
+        tvQueueTick(on, video);
+
         var pending = tvState.pending;
         if (pending && video.readyState >= 1) {
             var wanted = on && on.slot.item.id === pending.slot.item.id ? on.offset : pending.offset;
@@ -6899,6 +7097,7 @@
 
         // The line-up has moved on while the last programme was still on screen.
         if (tvState.slotId && on.slot.item.id !== tvState.slotId) {
+            if (tvState.queueId && tvNudgeQueue()) return;
             tvHandOver(on);
         }
     }
