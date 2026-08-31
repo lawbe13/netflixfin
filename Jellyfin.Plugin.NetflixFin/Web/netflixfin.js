@@ -6566,6 +6566,12 @@
     function tvQueueTick(on, video) {
         if (!tvState.queueId || !on || !video) return;
 
+        /* The card goes up when the file runs out, not when the timetable says
+         * it should have. A file is rarely exactly as long as its metadata
+         * claims, and the difference was nine seconds of frozen last frame
+         * before the ident appeared. */
+        if (video.ended && !tvState.ended) tvState.ended = true;
+
         var playing = on.inIdent && on.next ? on.next : on.slot;
 
         if (video.currentSrc && video.currentSrc !== tvState.srcMark) {
@@ -6574,6 +6580,7 @@
 
             if (playing.item.id !== tvState.slotId) {
                 tvState.slotId = playing.item.id;
+                tvState.ended = false;
                 tvBorrow(playing.item.id);
                 /* Its own seek, in case the join drifted: the existing repair
                  * only acts if the picture is more than fifteen seconds from
@@ -6589,10 +6596,18 @@
             if (tvState.queueLeft <= 3) tvTopUpQueue();
         }
 
-        /* The ident is the join, and nothing is loading behind it: the next
-         * programme is already open and simply held still until the line-up says
-         * it starts. */
-        var holding = !!(on.inIdent || tvState.ended);
+        /* Held still behind the card - but only once the player has actually
+         * taken the next programme.
+         *
+         * Pausing the one that is ending stops it ever ending, and a player
+         * whose file never ends never reaches for the next one: measured on a
+         * real join, that turned what should have been a second into thirty,
+         * and the card came down two seconds before the picture arrived. Now
+         * the outgoing programme is left alone to finish, the incoming one is
+         * held, and the ident covers the whole of it. */
+        var advanced = !on.inIdent || !on.next || tvState.slotId === on.next.item.id;
+        var holding = (on.inIdent || tvState.ended) && advanced;
+
         if (holding && !video.paused) {
             video.pause();
             tvState.heldForIdent = true;
