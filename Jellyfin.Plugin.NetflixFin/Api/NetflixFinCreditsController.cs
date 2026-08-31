@@ -136,14 +136,50 @@ public class NetflixFinCreditsController : ControllerBase
                 IsVirtualItem = false
             });
 
+            /* This library holds the same file twice.
+             *
+             * 676 films under one root and 160 under another, of which 159 are
+             * the same file again - 677 titles in 836 rows. Only one of the two
+             * copies has usually been analysed, and which copy a channel picks
+             * is decided by the shuffle, so the same film was cut one evening
+             * and sat through the next. Copies share what either of them knows.
+             *
+             * Same file name and same size, not the same title: two different
+             * cuts of a film are two different files and must not swap credits.
+             * Where both copies have been analysed and disagree, the later start
+             * wins - the one that cuts least. */
+            var known = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            var found = new List<(BaseItem Item, string Twin, long Start)>(items.Count);
+
             foreach (var item in items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var cut = await CreditsStartAsync(item).ConfigureAwait(false);
-                if (cut > 0)
+                var start = await SegmentStartAsync(item).ConfigureAwait(false);
+                var twin = TwinOf(item);
+
+                found.Add((item, twin, start));
+
+                if (start > 0 && twin is not null
+                    && (!known.TryGetValue(twin, out var seen) || start > seen))
                 {
-                    map[item.Id.ToString("N", CultureInfo.InvariantCulture)] = cut / (Second / 1000);
+                    known[twin] = start;
+                }
+            }
+
+            foreach (var (item, twin, own) in found)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var start = own;
+                if (start <= 0 && twin is not null)
+                {
+                    known.TryGetValue(twin, out start);
+                }
+
+                if (start > 0 && Allowed(item, start))
+                {
+                    map[item.Id.ToString("N", CultureInfo.InvariantCulture)] = start / (Second / 1000);
                 }
             }
 
@@ -160,8 +196,34 @@ public class NetflixFinCreditsController : ControllerBase
     }
 
     /// <summary>
-    /// Where this title's credits begin, in ticks, or zero when cutting them is not
-    /// provably safe.
+    /// What makes two rows the same file: its name and how long it runs. Null when
+    /// either is missing, which means the row shares with nobody.
+    /// </summary>
+    /// <remarks>
+    /// Strict on purpose. Two cuts of the same film are two files with the same name
+    /// and different lengths, and they must not swap credits. On this library the pair
+    /// picks out exactly the same 1306 groups as the file name and byte size do.
+    /// </remarks>
+    private static string? TwinOf(BaseItem item)
+    {
+        var path = item.Path;
+        var runtime = item.RunTimeTicks ?? 0;
+        if (string.IsNullOrEmpty(path) || runtime <= 0)
+        {
+            return null;
+        }
+
+        var name = System.IO.Path.GetFileName(path);
+        return string.IsNullOrEmpty(name)
+            ? null
+            : name + "|" + runtime.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Where this title's credits begin according to its own segment, in ticks, or
+    /// zero when the file does not say. The rest of the rule is in
+    /// <see cref="Allowed(BaseItem, long)"/>, because a copy that inherits the time
+    /// from its twin has to pass it too.
     /// </summary>
     /// <remarks>
     /// Everything here refuses rather than guesses, because ending a film in the wrong
@@ -173,15 +235,13 @@ public class NetflixFinCreditsController : ControllerBase
     /// scene in the credits - which for an episode it never is, so an episode is held to
     /// the shape of the segment alone and to a much later start.
     /// </remarks>
-    private async Task<long> CreditsStartAsync(BaseItem item)
+    private async Task<long> SegmentStartAsync(BaseItem item)
     {
         var runtime = item.RunTimeTicks ?? 0;
         if (runtime <= 0)
         {
             return 0;
         }
-
-        var film = item is MediaBrowser.Controller.Entities.Movies.Movie;
 
         IEnumerable<MediaBrowser.Model.MediaSegments.MediaSegmentDto> found;
         try
@@ -211,19 +271,35 @@ public class NetflixFinCreditsController : ControllerBase
             return 0;
         }
 
-        var start = outro.StartTicks;
+        return outro.StartTicks;
+    }
+
+    /// <summary>
+    /// Whether this title may be cut at <paramref name="start"/> - everything the
+    /// decision needs that is not the segment itself, so it holds for a copy that
+    /// inherited the time from its twin as well as for the one that was analysed.
+    /// </summary>
+    private bool Allowed(BaseItem item, long start)
+    {
+        var runtime = item.RunTimeTicks ?? 0;
+        if (runtime <= 0 || start <= 0)
+        {
+            return false;
+        }
+
+        var film = item is MediaBrowser.Controller.Entities.Movies.Movie;
         var cut = runtime - start;
 
         if (film)
         {
-            if (start < runtime / 2) return 0;
-            if (cut < 45 * Second || cut > 20 * 60 * Second) return 0;
+            if (start < runtime / 2) return false;
+            if (cut < 45 * Second || cut > 20 * 60 * Second) return false;
 
             /* An episode carries no keywords at all, so for a film - and only for a film -
                their absence is evidence rather than a gap in the record. */
             var tags = item.Tags ?? Array.Empty<string>();
-            if (tags.Length == 0) return 0;
-            if (tags.Any(Stingers.Contains)) return 0;
+            if (tags.Length == 0) return false;
+            if (tags.Any(Stingers.Contains)) return false;
 
             /* Asked for by name. It costs a handful of films that keep credits they did
                not need, and it is the one arm that still works on a title TMDb has not
@@ -231,24 +307,24 @@ public class NetflixFinCreditsController : ControllerBase
             var studios = item.Studios ?? Array.Empty<string>();
             if (studios.Any(s => s.Contains("marvel", StringComparison.OrdinalIgnoreCase)))
             {
-                return 0;
+                return false;
             }
         }
         else
         {
             /* Twenty minutes of a forty-minute episode has been marked as its credits in
                this library, so an episode has to start much later to be believed. */
-            if (start < (long)(runtime * 0.85)) return 0;
-            if (cut < 20 * Second || cut > 5 * 60 * Second) return 0;
+            if (start < (long)(runtime * 0.85)) return false;
+            if (cut < 20 * Second || cut > 5 * 60 * Second) return false;
         }
 
         // Somebody marked something after the credits began: whatever it is, keep it.
         var marked = _chapters.GetChapters(item.Id);
         if (marked is not null && marked.Any(c => c.StartPositionTicks > start + (30 * Second)))
         {
-            return 0;
+            return false;
         }
 
-        return start;
+        return true;
     }
 }
