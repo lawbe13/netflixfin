@@ -5059,19 +5059,12 @@
      * is thrown away whenever the library changes underneath it. */
     var tvDayCache = {};
 
-    /* ------------------------------------------------------------- the pool */
-
-    var tvPools = {};
-    var tvPoolRequests = {};
-
-    function tvRuntime(item) {
-        return Math.round((item.RunTimeTicks || 0) / 10000);
-    }
-
-    function tvKeep(item) {
-        var ms = tvRuntime(item);
-        return ms >= TV_MIN_MS;
-    }
+    /* ------------------------------------------------------------- the pool
+     *
+     * tvPools, tvRuntime and tvKeep used to be declared twice in this file, a
+     * few hundred lines apart. Declarations hoist and the later one wins, so
+     * the pair up here was dead - and editing it would have been a silent
+     * no-op. The live ones are below, with the library. */
 
     function tvMatches(channel, item) {
         if (channel.test && !channel.test(item)) return false;
@@ -5108,10 +5101,23 @@
     /* One item per programme, carrying only what the schedule needs. Sorted by
      * Id, because the shuffle has to start from the same order everywhere. */
     function tvEntry(item) {
+        var full = tvRuntime(item);
+        /* Where the closing credits start, when the server has said so - and it
+         * only says so where cutting them is provably safe, which is the whole
+         * of the rule (see NetflixFinCreditsController). A title it says nothing
+         * about keeps the length of its file and behaves as it always has,
+         * which is most of the library. */
+        var credits = tvCredits[tvKey(item.Id)] || 0;
+        var cut = credits >= TV_MIN_MS && credits < full;
+
         return {
             id: item.Id,
             name: item.Name,
-            ms: tvRuntime(item),
+            ms: cut ? credits : full,
+            /* The file is still its full length. A slot that ends before its
+             * file does is the one thing the player cannot work out on its own,
+             * so it is said here and the hand-over reads it. */
+            cut: cut || undefined,
             type: item.Type,
             series: item.SeriesName || null,
             seriesId: item.SeriesId || null,
@@ -5143,7 +5149,7 @@
      */
 
     var TV_LIBRARY_KEY = 'nf-tv-library';
-    var TV_LIBRARY_VERSION = 2;
+    var TV_LIBRARY_VERSION = 3;
     /* How long what is kept stays good for. A library gains a title now and
      * then; nobody is waiting on the schedule to notice within the hour. */
     var TV_LIBRARY_MS = 12 * 3600000;
@@ -5206,11 +5212,68 @@
         return client.getItems(user, full).then(function (result) { return result.Items || []; });
     }
 
+    /* ------------------------------------------------------------ the credits
+     *
+     * A channel is not a cinema: ten minutes of a credit roll between one
+     * programme and the next is dead air. A film's slot ends where its credits
+     * begin instead, and the next one starts there.
+     *
+     * Which films, and where, is decided by the server in one pass - it has the
+     * segments, the keywords and the chapter marks, and the client has none of
+     * them. It answers with a map and nothing else: a title in the map is one
+     * where every test passed. On this library that is two hundred and nineteen
+     * films and three thousand episodes, eighteen hours of credits and
+     * thirty-four of closing titles that nobody has to sit through.
+     *
+     * It has to be in hand before a single slot is laid out. A day is packed
+     * cumulatively from these lengths and then kept for twelve hours, and the
+     * queue is a real playlist written at tune-in - so a length that arrived
+     * halfway through an evening would move every programme after it and leave
+     * the player on a different one from the timetable. */
+    var tvCredits = {};
+    var tvCreditsFailed = false;
+
+    /* The map is keyed without dashes; an id from the API may carry them. */
+    function tvKey(id) {
+        return String(id || '').replace(/-/g, '').toLowerCase();
+    }
+
+    function tvCreditsLoad() {
+        var client = api();
+        if (!client) return Promise.resolve(null);
+
+        return client
+            .ajax({ type: 'GET', url: client.getUrl('NetflixFin/tv/credits'), dataType: 'json' })
+            .then(function (map) {
+                var keyed = {};
+                Object.keys(map || {}).forEach(function (id) {
+                    keyed[tvKey(id)] = map[id];
+                });
+                return keyed;
+            })
+            .catch(function (err) {
+                log('tv: the credits map is not available; nothing will be cut', err);
+                return null;
+            });
+    }
+
     function tvFetchLibrary() {
         var client = api();
         if (!client) return Promise.resolve(null);
         var user = client.getCurrentUserId();
 
+        /* Every branch below builds entries - the sagas do too - so the map is
+         * resolved before any of them starts. Reading it inside one branch made
+         * the other two depend on network timing, and the answer is then written
+         * down for twelve hours. */
+        return tvCreditsLoad().then(function (map) {
+            tvCreditsFailed = !map;
+            tvCredits = map || {};
+            return tvFetchLibraryParts(client, user);
+        });
+    }
+
+    function tvFetchLibraryParts(client, user) {
         var films = tvAsk(client, user, {
             IncludeItemTypes: 'Movie',
             Fields: 'Genres,RunTimeTicks,ProductionYear,CommunityRating',
@@ -5290,7 +5353,10 @@
                  * refused, Saghe lost its hundred sagas, and the answer was then
                  * kept for twelve hours. A partial answer is used but never
                  * written down. */
-                partial: !parts[0].length || !parts[1].length || parts[2].failed > 0 ||
+                /* A library laid out from full lengths is a valid evening, but
+                 * not the one another client with the map would lay out. */
+                partial: tvCreditsFailed ||
+                    !parts[0].length || !parts[1].length || parts[2].failed > 0 ||
                     /* A hundred and twenty-three collections that all report
                      * nothing inside them is a library being scanned, not a
                      * hundred and twenty-three empty collections. */
@@ -6961,7 +7027,8 @@
          * it is put back on the clock - through the same repair that lands the
          * first seek, and no more than twice a minute so a player that refuses
          * to move is not fought with. */
-        if (!tvState.pending && !tvState.heldForIdent && !on.inIdent && video.readyState >= 1) {
+        if (!tvState.pending && !tvState.heldForIdent && !on.inIdent && video.readyState >= 1 &&
+            tvState.slotId === on.slot.item.id) {
             var drift = Math.abs(video.currentTime * 1000 - on.offset);
             if (drift > 60000 && Date.now() - (tvState.reseekAt || 0) > 30000) {
                 tvState.reseekAt = Date.now();
@@ -6984,6 +7051,19 @@
          * the outgoing programme is left alone to finish, the incoming one is
          * held, and the ident covers the whole of it. */
         var advanced = !on.inIdent || !on.next || tvState.slotId === on.next.item.id;
+
+        /* A programme whose slot ends before its file does has to be told.
+         *
+         * Everywhere else the file simply runs out and the player reaches for
+         * the next item by itself. A film cut at its credits does not run out:
+         * left alone it plays the roll under the ident and only moves on when
+         * the timetable starts the next programme, twenty seconds late and with
+         * the credits audible behind the card. So at the join it is pressed on,
+         * and what arrives is held behind the card like any other hand-over. */
+        if (on.inIdent && !advanced && on.slot && on.slot.item && on.slot.item.cut) {
+            tvNudgeQueue();
+        }
+
         var holding = (on.inIdent || tvState.ended) && advanced;
 
         if (holding && !video.paused) {

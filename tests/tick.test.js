@@ -238,6 +238,9 @@ function runQueue(scene) {
         tvBorrow: (id) => calls.push('borrow:' + id),
         // What the channel hands back the moment the queue has passed it.
         tvGiveBackLater: (id) => calls.push('giveback:' + id),
+        // What a film cut at its credits needs and a film that ends by itself
+        // does not: somebody to press on.
+        tvNudgeQueue: () => { calls.push('nudge'); return true; },
         tvTopUpQueue: () => calls.push('topup')
     };
 
@@ -256,7 +259,68 @@ const player = (over) => Object.assign(
     { currentSrc: 'src-a', paused: false, readyState: 4, currentTime: 3600, ended: false,
       pause() { this.paused = true; }, play() { this.paused = false; return null; } }, over);
 
+/* --- a film cut at its credits ------------------------------------------- */
+
+const cutJoin = (over) => Object.assign({
+    on: {
+        slot: { item: { id: 'a', cut: true }, start: now - 90 * MIN, end: now - 1000 },
+        next: { item: { id: 'b' } },
+        offset: 90 * MIN,
+        inIdent: true
+    },
+    video: { currentSrc: 'src-a', paused: false, readyState: 4, currentTime: 5400,
+        ended: false, pause() { this.paused = true; },
+        play() { this.paused = false; return null; } },
+    state: { slotId: 'a', srcMark: 'src-a' }
+}, over);
+
 const queueCases = [
+    {
+        what: 'the credits are not sat through: at the join the queue is pressed on',
+        scene: cutJoin({}),
+        want: (r) => r.calls.includes('nudge')
+    },
+    {
+        what: 'a film that ends by itself is not pressed - the player has it',
+        scene: cutJoin({
+            on: {
+                slot: { item: { id: 'a' }, start: now - 90 * MIN, end: now - 1000 },
+                next: { item: { id: 'b' } },
+                offset: 90 * MIN,
+                inIdent: true
+            }
+        }),
+        want: (r) => !r.calls.includes('nudge')
+    },
+    {
+        what: 'and once the next one has arrived nobody is pressed again',
+        scene: cutJoin({
+            video: { currentSrc: 'src-b', paused: false, readyState: 4, currentTime: 2,
+                ended: false, pause() { this.paused = true; },
+                play() { this.paused = false; return null; } },
+            state: { slotId: 'b', srcMark: 'src-b' }
+        }),
+        want: (r) => !r.calls.includes('nudge')
+    },
+    {
+        /* The guard measures the picture against the timetable. Between the press
+         * and the new source arriving the two describe different programmes, and
+         * a film cut at its credits makes that window real rather than theoretical. */
+        what: 'the clock is not compared against a programme the player is not on',
+        scene: {
+            on: {
+                slot: { item: { id: 'b' }, start: now - 1000, end: now + 40 * MIN },
+                next: { item: { id: 'c' } },
+                offset: 1000,
+                inIdent: false
+            },
+            video: { currentSrc: 'src-a', paused: false, readyState: 4, currentTime: 5400,
+                ended: false, pause() { this.paused = true; },
+                play() { this.paused = false; return null; } },
+            state: { slotId: 'a', srcMark: 'src-a' }
+        },
+        want: (r) => !r.calls.some((c) => c.indexOf('off the clock') > -1)
+    },
     {
         what: 'the programme the queue has left behind is handed back',
         scene: {
