@@ -8813,7 +8813,7 @@
          * kicker, title, an explanation, and a line telling you to swipe - ate
          * the fold on a phone, and everything they said the row says by itself
          * once you can see it. */
-        shell.appendChild(el('div', 'nf-pick-step', 'Ecco la rosa'));
+        shell.appendChild(el('div', 'nf-pick-step', 'La selezione'));
         shell.appendChild(el('h2', null, pickPhrase(PICK_ROSE_TITLES, 'rose')));
 
         var row = el('div', 'nf-pick-five');
