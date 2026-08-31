@@ -155,6 +155,33 @@ def decide(items, groups, chapters):
     return cuts, why, source
 
 
+def salute(items, chapters):
+    """Le rilevazioni sono credibili, non solo numerose.
+
+    Un segmento di titoli di coda che non arriva a fine file, o che comincia
+    dove il film e' ancora in corso, non e' una rilevazione debole: e' una
+    rilevazione sbagliata. NetflixFin le rifiuta tutte, ma restano nel database
+    di Jellyfin e fanno comparire un tasto "salta" a meta' puntata su ogni altro
+    client. Questa e' la voce da guardare dopo una rianalisi.
+    """
+    print()
+    print("salute delle rilevazioni:")
+    for kind, label, floor in ((MOVIE, "film   ", 0.5), (EPISODE, "episodi", 0.85)):
+        seen = [it for it in items.values() if it["kind"] == kind and it["start"]]
+        if not seen:
+            continue
+        impossible = [it for it in seen if it["end"] < it["runtime"] / 2]
+        short = [it for it in seen if it["end"] < it["runtime"] - 2 * S]
+        early = [it for it in seen if it["start"] < it["runtime"] * floor]
+        print("   %s  rilevati %4d   non arrivano a fine file %3d   "
+              "cominciano prima del %d%% %3d   impossibili %d"
+              % (label, len(seen), len(short), floor * 100, len(early), len(impossible)))
+        for it in sorted(impossible, key=lambda x: x["name"] or "")[:5]:
+            print("      impossibile: %-40s %.1f -> %.1f di %.1f min"
+                  % (str(it["name"])[:40], it["start"] / S / 60,
+                     it["end"] / S / 60, it["runtime"] / S / 60))
+
+
 def main():
     items, groups, chapters, segments = load()
     cuts, why, source = decide(items, groups, chapters)
@@ -188,6 +215,8 @@ def main():
     print("\nperche' gli altri no:")
     for k, v in sorted(refused.items(), key=lambda x: -len(x[1])):
         print("   %-58s %d" % (k, len(v)))
+
+    salute(items, chapters)
 
     if "--elenco" in sys.argv:
         print("\nfilm tagliati:")
