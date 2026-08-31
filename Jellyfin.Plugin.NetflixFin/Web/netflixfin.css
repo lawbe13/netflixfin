@@ -7143,6 +7143,73 @@ body.nf-pick .docspinner {
     opacity: 1;
 }
 
+/* --- nothing hovers on a finger ----------------------------------------------
+
+   A tap leaves :hover behind on iOS: whatever you last touched stays lifted,
+   ringed and glowing until you touch something else, so the card you have
+   already answered goes on shouting from the screen behind the next question.
+   Every hover state in the quiz is undone where there is no pointer to hover
+   with; the focus ring, which keyboards need, is left alone. */
+
+@media (hover: none) {
+    .nf-pick-opt:hover {
+        transform: none;
+        border-color: rgba(255, 255, 255, 0.11);
+        background: rgba(22, 22, 24, 0.72);
+        box-shadow: none;
+    }
+
+    .nf-pick-panel:hover {
+        transform: none;
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: none;
+    }
+
+    .nf-pick-quote:hover {
+        transform: none;
+        border-color: rgba(255, 255, 255, 0.1);
+        border-left-color: rgba(229, 9, 20, 0.5);
+        background: rgba(20, 20, 22, 0.7);
+        color: rgba(255, 255, 255, 0.92);
+    }
+
+    .nf-pick-swatch:hover,
+    .nf-pick-scene:hover,
+    .nf-pick-five-take:hover,
+    .nf-pick-tile:hover {
+        transform: none;
+    }
+
+    .nf-pick-swatch:hover .nf-pick-swatch-ink {
+        box-shadow: 0 18px 36px -22px #000, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+
+    .nf-pick-scene:hover .nf-pick-scene-art,
+    .nf-pick-five-take:hover .nf-pick-five-shot,
+    .nf-pick-tile:hover .nf-pick-tile-shot {
+        outline-color: transparent;
+        box-shadow: 0 18px 36px -22px #000;
+    }
+
+    /* The white disc is a hover affordance; a finger does not need telling that
+       a poster can be tapped. */
+    .nf-pick-five-play,
+    .nf-pick-five-take:hover .nf-pick-five-play {
+        opacity: 0;
+    }
+
+    .nf-pick-five-drop:hover {
+        background: rgba(10, 10, 10, 0.72);
+    }
+
+    .nf-pick-btn:hover,
+    .nf-pick-back:hover,
+    .nf-pick-restart:hover {
+        transform: none;
+        color: inherit;
+    }
+}
+
 /* --- tablet ------------------------------------------------------------------
 
    Everything still fits across; there is simply less of it. The five stay in one
@@ -7260,9 +7327,13 @@ body.nf-pick .docspinner {
         gap: 10px;
     }
 
+    /* Standing up, a panel pushes its words to the bottom of a tall box, which
+       is what justify-content: flex-end is for. Lying down it pushed them to
+       the right-hand edge instead, and the whole question looked broken. */
     .nf-pick-panel {
         flex-direction: row;
         align-items: center;
+        justify-content: flex-start;
         gap: 14px;
         min-height: 0;
         padding: 16px 18px;
@@ -7280,9 +7351,23 @@ body.nf-pick .docspinner {
         display: none;
     }
 
+    /* Between two panels stacked one above the other, a lone letter in the
+       middle of the gap reads as a mark left behind by something that failed to
+       load. It becomes a rule with a word in it. */
     .nf-pick-or {
-        justify-self: center;
-        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-self: stretch;
+        font-size: 11px;
+    }
+
+    .nf-pick-or::before,
+    .nf-pick-or::after {
+        content: "";
+        flex: 1 1 auto;
+        height: 1px;
+        background: rgba(255, 255, 255, 0.14);
     }
 
     .nf-pick-quote {

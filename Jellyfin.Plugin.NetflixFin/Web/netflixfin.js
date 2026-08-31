@@ -8366,6 +8366,8 @@
                 if (row.scrollLeft > 12) swipe.style.opacity = '0';
             };
             row.addEventListener('scroll', mark, { passive: true });
+            // Whichever card the row happens to open on is the one the dots say.
+            mark();
         });
     }
 
