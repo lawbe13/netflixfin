@@ -6486,14 +6486,29 @@
             .map(function (slot) { return slot; });
     }
 
+    /* Swept by name rather than by the one identifier this session happens to
+     * remember: a browser closed mid-programme, or a server restarted under it,
+     * leaves the playlist behind, and two evenings later the viewer has a
+     * library full of them. Every playlist the channels have ever made goes at
+     * the start of the next one. */
     function tvDropQueue() {
         var client = api();
-        var id = tvState.queueId;
         tvState.queueId = null;
         tvState.queuedTo = 0;
-        if (!client || !id) return Promise.resolve();
-        return client
-            .ajax({ type: 'DELETE', url: client.getUrl('Items/' + id) })
+        if (!client) return Promise.resolve();
+
+        return tvAsk(client, client.getCurrentUserId(), {
+            IncludeItemTypes: 'Playlist',
+            Limit: 40
+        })
+            .then(function (items) {
+                var ours = items.filter(function (item) { return item.Name === TV_QUEUE_NAME; });
+                return Promise.all(ours.map(function (item) {
+                    return client
+                        .ajax({ type: 'DELETE', url: client.getUrl('Items/' + item.Id) })
+                        .catch(function () {});
+                }));
+            })
             .catch(function () {
                 // A playlist that will not go is untidy, not broken.
             });
