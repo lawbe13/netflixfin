@@ -209,6 +209,42 @@ for (let roll = 0; roll < 12; roll++) {
 check('a comedy that is a comedy first usually wins', pureFirst >= 8, pureFirst + '/12');
 check('a comedy that is also a war drama usually loses', grimLast >= 8, grimLast + '/12');
 
+/* ---- "poca attenzione" has to mean it ------------------------------------
+   Reported from a real run: the quiz was asked for something undemanding and
+   answered Inception. Azione was in the light list, nothing else was weighed,
+   and two and a half hours of nested dreams came back wearing the words "non
+   chiede niente". */
+const attention = pick.PICK_BANK.filter((q) => q.key === 'head')[0].options
+    .filter((o) => o.id === 'off')[0].effect;
+
+const evenings = {
+    films: [
+        { id: 'inception', name: 'Inception', type: 'Movie', ms: 148 * MIN,
+          genres: ['Azione', 'Fantascienza'], year: 2010, rating: 8.4 },
+        { id: 'mib', name: 'Men in Black', type: 'Movie', ms: 98 * MIN,
+          genres: ['Commedia', 'Fantascienza', 'Azione'], year: 1997, rating: 7.3 },
+        { id: 'longcom', name: 'Una commedia lunghissima', type: 'Movie', ms: 150 * MIN,
+          genres: ['Commedia'], year: 2011, rating: 7 },
+        { id: 'buddy', name: 'Commedia normale', type: 'Movie', ms: 96 * MIN,
+          genres: ['Commedia'], year: 2011, rating: 6.9 },
+        { id: 'chase', name: 'Azione e basta', type: 'Movie', ms: 101 * MIN,
+          genres: ['Azione', 'Avventura'], year: 2015, rating: 6.8 },
+        { id: 'noir', name: 'Un giallo', type: 'Movie', ms: 104 * MIN,
+          genres: ['Mistero', 'Thriller'], year: 2019, rating: 7.4 }
+    ],
+    shows: [], sets: []
+};
+
+const light = pick.pickRank(evenings, [E.any, attention], 0, 61).map((c) => c.entry.id);
+check('two and a half hours of nested dreams is not "poca attenzione"',
+    light.indexOf('inception') < 0, light.join(','));
+check('nor is a two-and-a-half-hour comedy', light.indexOf('longcom') < 0, light.join(','));
+check('nor is a mystery', light.indexOf('noir') < 0, light.join(','));
+check('a science-fiction comedy still counts as light',
+    light.indexOf('mib') > -1, light.join(','));
+check('and so do a comedy and a chase', light.indexOf('buddy') > -1 && light.indexOf('chase') > -1,
+    light.join(','));
+
 /* ---- the year is a real answer ------------------------------------------- */
 const oldies = pick.pickRank(library, [E.any, E.old], 0, 5).slice(0, 6);
 check('roba vecchia is old', oldies.every((c) => c.year <= 1989),

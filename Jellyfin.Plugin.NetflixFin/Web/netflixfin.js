@@ -7300,6 +7300,18 @@
         real: ['Documentario', 'Documentary', 'Storia', 'History', 'Biografia'],
         made: ['Fantascienza', 'Science Fiction', 'Fantasy', 'Animazione', 'Animation'],
         easy: ['Commedia', 'Comedy', 'Azione', 'Action', 'Animazione', 'Animation', 'Avventura', 'Adventure', 'Famiglia', 'Family'],
+        /* What has to be followed to be understood. Asked for something that
+         * needs no attention, the quiz answered Inception - two and a half hours
+         * of nested dreams - because Azione was in the light list and nothing
+         * else was weighed at all. A genre alone cannot say how much attention a
+         * film asks for, but these three say when it asks for a lot, and length
+         * says the rest: nothing undemanding runs to two and a half hours. */
+        demanding: ['Fantascienza', 'Science Fiction', 'Mistero', 'Mystery', 'Thriller',
+                    'Dramma', 'Drama', 'Storia', 'History', 'Guerra', 'War',
+                    'Documentario', 'Documentary', 'Crime'],
+        // Unless it is also one of these, in which case it is not asking much:
+        // a science-fiction comedy is still a comedy.
+        forgiven: ['Commedia', 'Comedy', 'Animazione', 'Animation', 'Famiglia', 'Family'],
         heavy: ['Dramma', 'Drama', 'Storia', 'History', 'Mistero', 'Mystery', 'Documentario', 'Documentary', 'Guerra', 'War', 'Fantascienza', 'Science Fiction']
     };
 
@@ -7780,7 +7792,9 @@
                           'Qualcosa di leggero'
                       ],
                   sub: ['Titoli leggeri e familiari'],
-                  effect: { want: PICK_G.easy.concat(PICK_G.kids), ratingWeight: 0.45, why: 'Da coperta sul divano' } },
+                  effect: { want: PICK_G.easy.concat(PICK_G.kids), banned: PICK_G.demanding,
+                            unless: PICK_G.forgiven, maxMs: 125 * 60000,
+                            ratingWeight: 0.45, why: 'Da coperta sul divano' } },
                 { id: 'awake',
                   mark: '🔥',
                   label: [
@@ -8000,7 +8014,9 @@
                           'Qualcosa di caldo'
                       ],
                   sub: ['Titoli che chiedono poco'],
-                  effect: { want: PICK_G.easy, ratingWeight: 0.42, why: 'Non chiede niente' } },
+                  effect: { want: PICK_G.easy, banned: PICK_G.demanding,
+                            unless: PICK_G.forgiven, maxMs: 105 * 60000,
+                            ratingWeight: 0.42, why: 'Non chiede niente' } },
             ]
         },
         {
@@ -8109,7 +8125,9 @@
                           'Visione distratta'
                       ],
                   sub: ['Titoli leggeri'],
-                  effect: { want: PICK_G.easy, why: 'Non chiede niente' } },
+                  effect: { want: PICK_G.easy, banned: PICK_G.demanding,
+                            unless: PICK_G.forgiven, maxMs: 115 * 60000,
+                            why: 'Non chiede niente' } },
                 { id: 'on',
                   mark: '🔍',
                   label: [
@@ -8480,10 +8498,17 @@
      * take over the shortlist. */
     function pickCandidates(library, effects, seed) {
         var wanted = 'any';
+        var cap = 0;
         effects.forEach(function (effect) {
             if (effect.time) wanted = effect.time;
+            /* An answer can shorten the evening as well as the timetable can:
+             * "poca attenzione" is a statement about length as much as about
+             * genre, and it was being read as neither. */
+            if (effect.maxMs) cap = cap ? Math.min(cap, effect.maxMs) : effect.maxMs;
         });
+
         var bounds = PICK_TIME[wanted] || PICK_TIME.any;
+        if (cap) bounds = { min: bounds.min, max: Math.min(bounds.max, cap), episodes: bounds.episodes };
 
         if (bounds.episodes) {
             var rnd = tvRandom(tvHash('pick:ep:' + seed));
@@ -8540,7 +8565,10 @@
         for (var i = 0; i < effects.length; i++) {
             var effect = effects[i];
 
-            if (effect.banned && pickHas(candidate.genres, effect.banned)) return null;
+            if (effect.banned && pickHas(candidate.genres, effect.banned)) {
+                // Unless the film also carries something that lets it off.
+                if (!effect.unless || !pickHas(candidate.genres, effect.unless)) return null;
+            }
 
             /* A mood is not a preference to be outweighed.
              *
