@@ -9441,6 +9441,263 @@
         page.appendChild(restart);
     }
 
+
+    /* ==========================================================================
+       Da dove viene, e cos'è appena arrivato
+
+       Due cose che il proprietario si era scritto da sé e faceva iniettare da un
+       plugin a parte. Sono qui dentro per una ragione precisa: da fuori non
+       funzionavano più. La striscia dei provider costruiva il proprio guscio e
+       poi restava vuota, perché questo tema ridisegna la home sotto di lei -
+       due mani sullo stesso DOM, e vince l'ultima. Da qui l'ordine è noto.
+
+       La striscia: una fila di marchi (Apple TV+, Prime, Netflix, HBO, Disney+,
+       Pixar, Hulu). Se ne tocchi uno si apre sotto la riga dei suoi titoli; se lo
+       ritocchi si chiude. I titoli arrivano dal campo Studios, che il server ha
+       già per quasi tutto: quarantotto Warner, ventuno Pixar, undici Disney.
+       ========================================================================== */
+
+    var NF_STUDIOS = [
+        { name: 'Apple TV+',
+          tags: ['Apple TV', 'Apple Originals', 'Apple Studios LLC', 'Apple TV+'],
+          wash: 'linear-gradient(135deg,#1a1a2e 0%,#0a0a0a 100%)',
+          logo: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/4KAy34EHvRM25Ih8wb82AuGU7zJ.png' },
+        { name: 'Prime Video',
+          tags: ['Amazon Prime Video', 'Amazon MGM Studios', 'AMC'],
+          wash: 'linear-gradient(135deg,#0d1b2a 0%,#010409 100%)',
+          logo: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ifhbNuuVnlwYy5oXA5VIb2YR8AZ.png' },
+        { name: 'Netflix',
+          tags: ['Netflix'],
+          wash: 'linear-gradient(135deg,#1a0a0a 0%,#0d0000 100%)',
+          logo: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
+        { name: 'HBO Max',
+          tags: ['HBO Max', 'Max', 'Warner Bros', 'Warner Bros. Pictures',
+                 'Warner Bros Television', 'Warner Bros Animation', 'DC Studios'],
+          wash: 'linear-gradient(135deg,#1a0a2e 0%,#0d0018 100%)',
+          logo: 'https://image.tmdb.org/t/p/w500_filter(duotone,ffffff,bababa)/nmU0UMDJB3dRRQSTUqawzF2Od1a.png' },
+        { name: 'Disney+',
+          tags: ['Disney Plus', 'Disney+', 'Walt Disney Pictures',
+                 'Walt Disney Animation Studios', 'Marvel Studios', 'Lucasfilm',
+                 '20th Century Studios', '20th Television'],
+          wash: 'linear-gradient(135deg,#0c1b3a 0%,#050d1a 100%)',
+          logo: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1edZOYAfoyZyZ3rklNSiUpXX30Q.png' },
+        { name: 'Pixar',
+          tags: ['Pixar'],
+          wash: 'linear-gradient(135deg,#0a1525 0%,#0d2540 50%,#0a0a12 100%)',
+          logo: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1TjvGVDMYsj6JBxOAkUHpPEwLf7.png' },
+        { name: 'Hulu',
+          tags: ['Hulu', 'Hulu Originals'],
+          wash: 'linear-gradient(135deg,#0f2e1d 0%,#07150d 100%)',
+          logo: 'https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/pqUTCleNUiTLAVlelGxUgWn1ELh.png' }
+    ];
+
+    var nfStudioCache = {};
+    var nfStudioOpen = null;
+
+    function nfStudioItems(studio) {
+        if (nfStudioCache[studio.name]) return Promise.resolve(nfStudioCache[studio.name]);
+
+        var client = api();
+        if (!client) return Promise.resolve([]);
+        var user = client.getCurrentUserId();
+
+        /* One request per tag, because a studio goes by several names and the
+         * server takes one at a time; the answers are merged and de-duplicated
+         * on the identifier. */
+        return Promise.all(studio.tags.map(function (tag) {
+            return client
+                .getItems(user, {
+                    IncludeItemTypes: 'Movie,Series',
+                    Recursive: true,
+                    Studios: tag,
+                    SortBy: 'PremiereDate',
+                    SortOrder: 'Descending',
+                    Limit: 40,
+                    Fields: 'PrimaryImageAspectRatio'
+                })
+                .then(function (result) { return result.Items || []; })
+                .catch(function () { return []; });
+        })).then(function (lots) {
+            var seen = {};
+            var items = [];
+            lots.forEach(function (lot) {
+                lot.forEach(function (item) {
+                    if (seen[item.Id]) return;
+                    seen[item.Id] = true;
+                    items.push(item);
+                });
+            });
+            nfStudioCache[studio.name] = items;
+            return items;
+        });
+    }
+
+    function nfStudioRow(items, client) {
+        var row = el('div', 'nf-prov-row');
+
+        if (!items.length) {
+            row.appendChild(el('div', 'nf-prov-empty', 'Niente di questo studio, per ora'));
+            return row;
+        }
+
+        items.forEach(function (item) {
+            var card = el('button', 'nf-prov-title');
+            card.type = 'button';
+
+            var shot = el('span', 'nf-prov-shot');
+            shot.style.backgroundImage =
+                'url("' + client.getImageUrl(item.Id, { type: 'Primary', maxHeight: 330 }) + '")';
+            card.appendChild(shot);
+
+            card.appendChild(el('span', 'nf-prov-kind', item.Type === 'Series' ? 'Serie' : 'Film'));
+            card.appendChild(el('span', 'nf-prov-name', item.Name));
+
+            card.addEventListener('click', function () {
+                window.location.hash = '#/details?id=' + item.Id +
+                    (item.ServerId ? '&serverId=' + item.ServerId : '');
+            });
+
+            row.appendChild(card);
+        });
+
+        return row;
+    }
+
+    function nfProviders() {
+        var container = document.querySelector('.homeSectionsContainer');
+        if (!container) return;
+
+        var strip = container.querySelector('.nf-prov');
+        if (strip && strip.isConnected) return;
+
+        var client = api();
+        if (!client) return;
+
+        strip = el('div', 'nf-prov');
+        var marks = el('div', 'nf-prov-marks');
+        strip.appendChild(marks);
+
+        NF_STUDIOS.forEach(function (studio) {
+            var mark = el('button', 'nf-prov-mark');
+            mark.type = 'button';
+            mark.style.backgroundImage = studio.wash;
+            mark.title = studio.name;
+            mark.setAttribute('aria-label', studio.name);
+
+            var art = el('img', 'nf-prov-logo');
+            art.src = studio.logo;
+            art.alt = studio.name;
+            art.loading = 'lazy';
+            art.decoding = 'async';
+            mark.appendChild(art);
+
+            mark.addEventListener('click', function () {
+                var open = strip.querySelector('.nf-prov-row');
+                if (open) open.remove();
+                marks.querySelectorAll('.is-open').forEach(function (other) {
+                    other.classList.remove('is-open');
+                });
+
+                if (nfStudioOpen === studio.name) {
+                    nfStudioOpen = null;
+                    return;
+                }
+
+                nfStudioOpen = studio.name;
+                mark.classList.add('is-open');
+
+                var waiting = el('div', 'nf-prov-row');
+                waiting.appendChild(el('div', 'nf-prov-empty', 'Un attimo…'));
+                strip.appendChild(waiting);
+
+                nfStudioItems(studio).then(function (items) {
+                    if (!waiting.isConnected || nfStudioOpen !== studio.name) return;
+                    strip.replaceChild(nfStudioRow(items, client), waiting);
+                });
+            });
+
+            marks.appendChild(mark);
+        });
+
+        /* After the first row of the home, where it reads as part of the page
+         * rather than as something bolted above it. */
+        var first = container.querySelector('.verticalSection');
+        if (first && first.parentElement) {
+            first.parentElement.insertBefore(strip, first.nextSibling);
+        } else {
+            container.appendChild(strip);
+        }
+    }
+
+    /* --------------------------------------------------------- what is new ---
+
+       A badge on the cartoons that arrived in the last week - the other thing
+       the owner wrote. One slim reading of the library holds the two facts it
+       needs, and the cards are marked as they are drawn. */
+
+    var NF_NEW_DAYS = 7;
+    var NF_KIDS_WORDS = ['animation', 'animazione', 'cartoni', 'animated'];
+
+    var nfFresh = null;
+    var nfFreshAsked = false;
+
+    function nfFreshLoad() {
+        if (nfFresh || nfFreshAsked) return;
+        var client = api();
+        if (!client) return;
+
+        nfFreshAsked = true;
+        client
+            .getItems(client.getCurrentUserId(), {
+                IncludeItemTypes: 'Movie,Series',
+                Recursive: true,
+                Fields: 'Genres,DateCreated',
+                EnableImages: false,
+                EnableUserData: false,
+                Limit: 4000
+            })
+            .then(function (result) {
+                var fresh = {};
+                var edge = Date.now() - NF_NEW_DAYS * 86400000;
+
+                (result.Items || []).forEach(function (item) {
+                    if (!item.DateCreated) return;
+                    if (new Date(item.DateCreated).getTime() < edge) return;
+
+                    var kids = (item.Genres || []).some(function (genre) {
+                        var name = String(genre.Name || genre || '').toLowerCase();
+                        return NF_KIDS_WORDS.some(function (word) {
+                            return name.indexOf(word) > -1;
+                        });
+                    });
+                    if (kids) fresh[item.Id] = true;
+                });
+
+                nfFresh = fresh;
+                nfFreshBadges();
+            })
+            .catch(function (err) {
+                log('what is new: could not read the library', err);
+                nfFreshAsked = false;
+            });
+    }
+
+    function nfFreshBadges() {
+        nfFreshLoad();
+        if (!nfFresh) return;
+
+        document.querySelectorAll('.card[data-id]').forEach(function (card) {
+            if (card.dataset.nfFresh) return;
+            card.dataset.nfFresh = '1';
+
+            if (!nfFresh[card.getAttribute('data-id')]) return;
+            var box = card.querySelector('.cardImageContainer, .cardScalable, .cardBox');
+            if (!box) return;
+
+            box.appendChild(el('span', 'nf-new', 'NEW'));
+        });
+    }
+
     function refresh() {
         applyTileCount();
         applyBodyFlags();
@@ -9460,6 +9717,8 @@
         mountHero();
         decorateTop10();
         decorateRows();
+        nfProviders();
+        nfFreshBadges();
         paintSagaRow();
         managePlayer();
         widenCards();

@@ -7626,3 +7626,183 @@ body.nf-pick .docspinner {
         animation: none;
     }
 }
+
+/* ==========================================================================
+   Da dove viene un titolo
+
+   La striscia dei marchi sulla home e la riga che si apre quando ne tocchi uno.
+   Erano uno script iniettato dall'esterno che questo tema, ridisegnando la home,
+   svuotava senza accorgersene; qui l'ordine di disegno e' noto.
+   ========================================================================== */
+
+.nf-prov {
+    margin: 8px 0 26px;
+    padding: 0 var(--nf-gutter);
+}
+
+.nf-prov-marks {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 0 8px;
+    scrollbar-width: none;
+}
+
+.nf-prov-marks::-webkit-scrollbar {
+    display: none;
+}
+
+.nf-prov-mark {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 132px;
+    height: 66px;
+    padding: 0 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background-size: cover;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.2s var(--nf-ease), border-color 0.2s var(--nf-ease),
+        box-shadow 0.2s var(--nf-ease);
+}
+
+.nf-prov-logo {
+    max-width: 100%;
+    max-height: 30px;
+    width: auto;
+    object-fit: contain;
+    opacity: 0.92;
+}
+
+.nf-prov-mark:hover,
+.nf-prov-mark:focus-visible {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.34);
+}
+
+.nf-prov-mark.is-open {
+    border-color: var(--nf-accent);
+    box-shadow: 0 0 34px -14px rgba(229, 9, 20, 0.9);
+}
+
+.nf-prov-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 2px 0 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    animation: nf-prov-open 0.26s var(--nf-ease);
+}
+
+.nf-prov-row::-webkit-scrollbar {
+    display: none;
+}
+
+@keyframes nf-prov-open {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
+}
+
+.nf-prov-title {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 116px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-family: var(--nf-font);
+    text-align: left;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.2s var(--nf-ease);
+}
+
+.nf-prov-title:hover,
+.nf-prov-title:focus-visible {
+    transform: translateY(-4px);
+}
+
+.nf-prov-shot {
+    display: block;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--nf-radius, 6px);
+    background-color: #17171a;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 12px 26px -18px #000;
+}
+
+.nf-prov-kind {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.62);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.nf-prov-name {
+    font-size: 12.5px;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.86);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.nf-prov-empty {
+    padding: 26px 2px;
+    color: var(--nf-text-dim);
+    font-size: 13.5px;
+}
+
+/* Il bollino sui cartoni arrivati nell'ultima settimana. */
+.nf-new {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--nf-accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+}
+
+@media (max-width: 719px) {
+    .nf-prov-mark {
+        width: 108px;
+        height: 56px;
+        padding: 0 12px;
+    }
+
+    .nf-prov-logo {
+        max-height: 24px;
+    }
+
+    .nf-prov-title {
+        width: 96px;
+    }
+}
