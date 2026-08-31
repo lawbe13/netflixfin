@@ -6708,6 +6708,7 @@ body.nf-pick .docspinner {
     position: relative;
     display: flex;
     flex-direction: column;
+    align-self: start;
     gap: 11px;
     animation: nf-pick-up 0.42s var(--nf-ease) backwards;
     animation-delay: var(--nf-delay, 0ms);
@@ -6785,6 +6786,20 @@ body.nf-pick .docspinner {
     transform: scale(1);
 }
 
+/* Every other state of this card lives on :hover, so on a phone a tap did
+   nothing at all until the next screen arrived and it read as a tap that had
+   not registered. */
+.nf-pick-five-take:active .nf-pick-five-shot,
+.nf-pick-tile:active .nf-pick-tile-shot,
+.nf-pick-opt:active,
+.nf-pick-panel:active,
+.nf-pick-quote:active,
+.nf-pick-scene:active .nf-pick-scene-art,
+.nf-pick-swatch:active .nf-pick-swatch-ink {
+    transform: scale(0.975);
+    transition-duration: 0.08s;
+}
+
 .nf-pick-five-copy {
     display: flex;
     flex-direction: column;
@@ -6811,42 +6826,29 @@ body.nf-pick .docspinner {
 }
 
 /* Saying no to one is an answer; it sits on the card rather than under it. */
+/* The way out of a card: a word under it, not a disc on the artwork. It is
+   quiet, it is as wide as the card so a thumb cannot miss it, and it says what
+   it does instead of leaving a cross to be interpreted. */
 .nf-pick-five-drop {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
+    display: block;
+    width: 100%;
+    margin-top: 2px;
+    padding: 8px 0;
     border: 0;
-    border-radius: 50%;
-    background: rgba(10, 10, 10, 0.72);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    color: #fff;
+    background: none;
+    color: rgba(255, 255, 255, 0.42);
+    font-family: var(--nf-font);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
     cursor: pointer;
-    opacity: 0;
-    transform: scale(0.8);
-    transition: opacity 0.18s var(--nf-ease), transform 0.18s var(--nf-ease),
-        background 0.18s var(--nf-ease);
-}
-
-.nf-pick-five-drop svg {
-    width: 15px;
-    height: 15px;
-    fill: currentColor;
-}
-
-.nf-pick-five-card:hover .nf-pick-five-drop,
-.nf-pick-five-drop:focus-visible {
-    opacity: 1;
-    transform: scale(1);
+    transition: color 0.18s var(--nf-ease);
 }
 
 .nf-pick-five-drop:hover {
-    background: var(--nf-accent);
+    color: rgba(255, 255, 255, 0.85);
 }
+
 
 /* Five posters that need swiping have to say so. The cards are narrow enough
    that the third is cut by the edge of the screen - a card sliced in half is the
@@ -6856,7 +6858,7 @@ body.nf-pick .docspinner {
     display: none;
     gap: 7px;
     align-self: center;
-    margin-top: 14px;
+    margin-top: 16px;
 }
 
 .nf-pick-dots span {
@@ -6872,27 +6874,17 @@ body.nf-pick .docspinner {
     transform: scale(1.25);
 }
 
+/* The one line under the row that says what the row is for. It sits below the
+   dots, where it is read after the artwork rather than before it. */
 .nf-pick-swipe {
     display: none;
-    align-items: center;
-    transition: opacity 0.3s var(--nf-ease);
-    gap: 8px;
+    align-self: center;
+    max-width: 42ch;
+    margin-top: 12px;
     color: var(--nf-text-dim);
     font-size: 13px;
-    font-weight: 600;
-}
-
-.nf-pick-swipe svg {
-    width: 15px;
-    height: 15px;
-    fill: currentColor;
-    transform: rotate(180deg);
-    animation: nf-pick-nudge 1.8s ease-in-out infinite;
-}
-
-@keyframes nf-pick-nudge {
-    0%, 100% { transform: rotate(180deg) translateX(0); }
-    50% { transform: rotate(180deg) translateX(-4px); }
+    line-height: 1.4;
+    text-align: center;
 }
 
 /* --- the answer -------------------------------------------------------------- */
@@ -7198,10 +7190,6 @@ body.nf-pick .docspinner {
         opacity: 0;
     }
 
-    .nf-pick-five-drop:hover {
-        background: rgba(10, 10, 10, 0.72);
-    }
-
     .nf-pick-btn:hover,
     .nf-pick-back:hover,
     .nf-pick-restart:hover {
@@ -7230,8 +7218,20 @@ body.nf-pick .docspinner {
         gap: 12px;
     }
 
+    /* Two registers under a poster, not three: a name and a line of facts. The
+       third - the reason - repeats what the quiz has just been told. */
     .nf-pick-five-copy strong {
-        font-size: 13.5px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .nf-pick-five-copy em {
+        font-size: 12px;
+    }
+
+    .nf-pick-five-copy .nf-pick-chips {
+        display: none;
     }
 
     .nf-pick-five-copy em {
@@ -7285,7 +7285,7 @@ body.nf-pick .docspinner {
 
 @media (max-width: 719px) {
     .nf-pick-page {
-        padding-bottom: 120px;
+        padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
     }
 
     .nf-pick-shell {
@@ -7384,7 +7384,10 @@ body.nf-pick .docspinner {
         padding: 2px var(--nf-gutter) 6px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        scroll-snap-type: x proximity;
+        /* Mandatory, not proximity: left to itself the row came to rest with a
+           card sliced down the middle at the left edge and its cross cut in
+           half, which reads as a broken layout rather than as more to come. */
+        scroll-snap-type: x mandatory;
         scroll-padding-left: var(--nf-gutter);
         scrollbar-width: none;
     }
@@ -7393,15 +7396,44 @@ body.nf-pick .docspinner {
         display: none;
     }
 
+    /* Wider. At forty-two per cent you saw two and a bit posters, all of them
+       too small to read - which is the "sparse" of the screenshot. At fifty-six
+       you see one and a half: the artwork carries, and the card sliced by the
+       right edge says there is more without a line of text saying so. */
     .nf-pick-five-card {
-        flex: 0 0 42vw;
-        max-width: 200px;
+        flex: 0 0 56vw;
+        max-width: 240px;
         scroll-snap-align: start;
     }
 
     .nf-pick-dots,
     .nf-pick-swipe {
         display: flex;
+    }
+
+    /* The way back sits under the dots rather than in the middle of the black
+       below them: on a phone the screen ends at the row, and a link floating
+       half a screen further down is a link nobody finds. */
+    /* A grey link centred in a left-aligned column with a hundred and sixty
+       points of black under it is the thing that "galleggia nel vuoto". Full
+       width, bordered, thumb-sized: it closes the screen. */
+    .nf-pick-restart {
+        align-self: stretch;
+        margin-top: 20px;
+        min-height: 44px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 9999px;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 14.5px;
+    }
+
+    .nf-pick-shell.is-five h2 {
+        font-size: clamp(24px, 6.6vw, 30px);
+    }
+
+    .nf-pick-shell.is-five .nf-pick-hint {
+        font-size: 13.5px;
     }
 
     /* A four-by-three window on a sixteen-by-nine still throws away a third of

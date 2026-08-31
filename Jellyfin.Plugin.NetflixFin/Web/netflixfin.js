@@ -7080,35 +7080,60 @@
             fixed: true,
             format: 'cards',
             asks: [
-                'Chi c’è sul divano?',
-                'Chi guarda con te?',
-                'Quante teste da accontentare?',
-                'Chi c’è stasera?',
-                'Per chi stiamo scegliendo?',
-                'Si guarda in quanti?'
+                'Con chi guardi?',
+                'Chi guarda stasera?',
+                'In quanti siete?',
+                'Chi c’è con te?',
+                'Quante persone guardano?',
+                'Per chi è la scelta?'
             ],
             hints: [
-                'Cambia tutto, e lo sai',
-                'La prima cosa che conta',
-                'Da qui dipende il resto'
+                'Una sola risposta',
+                'Cambia tutta la selezione'
             ],
             options: [
-                { id: 'solo', mark: '🛋️',
-                  label: ['Solo io', 'Io e basta', 'Nessun altro', 'Serata mia'],
-                  sub: ['Nessun compromesso', 'Comando io', 'Zero trattative'],
+                { id: 'solo',
+                  mark: '🛋️',
+                  label: [
+                          'Solo io',
+                          'Guardo da solo',
+                          'Io soltanto',
+                          'Nessun altro'
+                      ],
                   effect: {} },
-                { id: 'due', mark: '🍷',
-                  label: ['In due', 'Siamo in due', 'Io e un’altra persona'],
-                  sub: ['Serve l’accordo', 'Deve piacere a entrambi', 'Niente veti'],
+                { id: 'due',
+                  mark: '🍷',
+                  label: [
+                          'In due',
+                          'Siamo in due',
+                          'Due persone',
+                          'Con un’altra persona'
+                      ],
                   effect: { ratingWeight: 0.5, why: 'Mette d’accordo' } },
-                { id: 'family', mark: '🧸',
-                  label: ['Con la famiglia', 'Ci sono i bambini', 'Tutti quanti'],
-                  sub: ['Bambini compresi', 'Nessuno deve coprirsi gli occhi', 'Da vedere insieme'],
+                { id: 'family',
+                  mark: '🧸',
+                  label: [
+                          'Con la famiglia',
+                          'Ci sono bambini',
+                          'Tutta la famiglia',
+                          'Anche i più piccoli'
+                      ],
+                  sub: [
+                        'Esclude horror e thriller',
+                        'Animazione e avventura',
+                        'Adatti ai bambini'
+                    ],
                   effect: { want: PICK_G.kids, banned: PICK_G.grown, why: 'Va bene per tutti' } },
-                { id: 'amici', mark: '🍕',
-                  label: ['Con gli amici', 'C’è gente', 'Siamo in tanti'],
-                  sub: ['Si parla sopra', 'Nessuno starà zitto', 'Rumore di fondo garantito'],
-                  effect: { want: PICK_G.laugh.concat(PICK_G.rush), why: 'Regge le chiacchiere' } }
+                { id: 'amici',
+                  mark: '🍕',
+                  label: [
+                          'Con gli amici',
+                          'Siamo in tanti',
+                          'Un gruppo',
+                          'In compagnia'
+                      ],
+                  sub: ['Titoli leggeri e movimentati'],
+                  effect: { want: PICK_G.laugh.concat(PICK_G.rush), why: 'Regge le chiacchiere' } },
             ]
         },
         {
@@ -7116,413 +7141,894 @@
             fixed: true,
             format: 'cards',
             asks: [
-                'Quanto tempo hai davvero?',
+                'Quanto tempo hai?',
                 'Quanto dura la serata?',
-                'Fin dove arrivi stasera?',
-                'Quanto ti resta prima di crollare?',
-                'Quanta serata abbiamo?'
+                'Fino a che ora?',
+                'Quanto deve durare?',
+                'Che durata cerchi?',
+                'Quanto tempo a disposizione?'
             ],
-            hints: ['Sii onesto', 'Senza barare', 'Quello vero, non quello che speri'],
+            hints: [
+                'Filtra per durata',
+                'Una sola risposta'
+            ],
             options: [
-                { id: 'short', mark: '⏱️',
-                  label: ['Mezz’ora', 'Poco', 'Venti minuti scarsi'],
-                  sub: ['Un episodio e a letto', 'Giusto una puntata', 'Il tempo di una tisana'],
+                { id: 'short',
+                  mark: '⏱️',
+                  label: [
+                          'Mezz’ora',
+                          'Un episodio',
+                          'Meno di un’ora',
+                          'Poco tempo'
+                      ],
                   effect: { time: 'short', why: 'Sta in mezz’ora' } },
-                { id: 'film', mark: '🎬',
-                  label: ['Un film normale', 'Un film e via', 'Quanto basta per un film'],
-                  sub: ['Un’ora e mezza', 'Novanta minuti', 'Il tempo giusto'],
+                { id: 'film',
+                  mark: '🎬',
+                  label: [
+                          'Un film',
+                          'Novanta minuti',
+                          'Un’ora e mezza',
+                          'Un film intero'
+                      ],
+                  sub: ['Da un’ora e dieci'],
                   effect: { time: 'film' } },
-                { id: 'long', mark: '🌙',
-                  label: ['Tutta la sera', 'Ho tempo', 'Fino a tardi'],
-                  sub: ['Anche due ore e passa', 'Nessuna fretta', 'Si può esagerare'],
+                { id: 'long',
+                  mark: '🌙',
+                  label: [
+                          'Tutta la sera',
+                          'Anche un film lungo',
+                          'Fino a tardi',
+                          'Ho tempo'
+                      ],
+                  sub: ['Da un’ora e quaranta'],
                   effect: { time: 'long' } },
-                { id: 'any', mark: '🤷',
-                  label: ['Non ho limiti', 'Chi se ne importa', 'Vada come vada'],
-                  sub: ['Domani si vedrà', 'Nessun vincolo', 'Decidi tu la durata'],
-                  effect: { time: 'any' } }
+                { id: 'any',
+                  mark: '🤷',
+                  label: [
+                          'Indifferente',
+                          'Nessun limite',
+                          'Qualsiasi durata',
+                          'Nessun vincolo'
+                      ],
+                  sub: ['La durata non conta'],
+                  effect: { time: 'any' } },
             ]
         },
-
-        /* --- the ones that change ------------------------------------------- */
-
         {
             key: 'mood',
             weight: 4,
             format: 'cards',
             asks: [
                 'Che cosa vuoi sentire?',
-                'Come vuoi uscirne?',
-                'Che effetto ti serve?',
-                'Che cosa deve farti, stasera?',
-                'Cosa ti manca stasera?'
+                'Cosa cerchi stasera?',
+                'Che tono vuoi?',
+                'Come vuoi sentirti?',
+                'Che effetto cerchi?',
+                'Che cosa ti va?'
             ],
-            hints: ['Una sola: quella vera', 'D’istinto', 'La prima che ti viene'],
+            hints: [
+                'Una sola risposta',
+                'Scegli l’opzione più vicina'
+            ],
             options: [
-                { id: 'laugh', mark: '😂', label: ['Ridere', 'Farmi due risate', 'Sghignazzare'],
+                { id: 'laugh',
+                  mark: '😂',
+                  label: [
+                          'Ridere',
+                          'Una commedia',
+                          'Qualcosa di divertente',
+                          'Leggerezza'
+                      ],
                   effect: { love: PICK_G.laugh, clash: PICK_G.heavy.concat(PICK_G.fear), why: 'Ti fa ridere' } },
-                { id: 'rush', mark: '💥', label: ['Adrenalina', 'Correre', 'Non respirare'],
+                { id: 'rush',
+                  mark: '💥',
+                  label: [
+                          'Azione',
+                          'Ritmo alto',
+                          'Adrenalina',
+                          'Inseguimenti'
+                      ],
                   effect: { love: PICK_G.rush, clash: ['Documentario', 'Documentary', 'Romance', 'Romantico'], why: 'Ti tiene sveglio' } },
-                { id: 'fear', mark: '😱', label: ['Paura', 'Prendermi uno spavento', 'Tenere la luce accesa'],
+                { id: 'fear',
+                  mark: '😱',
+                  label: [
+                          'Paura',
+                          'Tensione',
+                          'Un horror',
+                          'Qualcosa che spaventa'
+                      ],
                   effect: { love: PICK_G.fear, clash: PICK_G.kids.concat(PICK_G.laugh), why: 'Fa paura' } },
-                { id: 'cry', mark: '💔', label: ['Commuovermi', 'Sentire qualcosa', 'Piangere un po’'],
+                { id: 'cry',
+                  mark: '💔',
+                  label: [
+                          'Commozione',
+                          'Un dramma',
+                          'Una storia intensa',
+                          'Emozionarmi'
+                      ],
                   effect: { love: PICK_G.cry, clash: ['Horror', 'Azione', 'Action'], why: 'Ti prende dentro' } },
-                { id: 'wonder', mark: '✨', label: ['Meraviglia', 'Restare a bocca aperta', 'Stupirmi'],
+                { id: 'wonder',
+                  mark: '✨',
+                  label: [
+                          'Meraviglia',
+                          'Fantascienza e fantasy',
+                          'Stupore',
+                          'Mondi immaginari'
+                      ],
                   effect: { love: PICK_G.wonder, clash: PICK_G.real.concat(['Crime']), why: 'Roba che stupisce' } },
-                { id: 'mystery', mark: '🕵️', label: ['Mistero', 'Capirci qualcosa', 'Un rompicapo'],
-                  effect: { love: PICK_G.mystery, clash: PICK_G.kids.concat(PICK_G.laugh), why: 'Da capire chi è stato' } }
+                { id: 'mystery',
+                  mark: '🕵️',
+                  label: [
+                          'Mistero',
+                          'Un giallo',
+                          'Un’indagine',
+                          'Un caso da risolvere'
+                      ],
+                  effect: { love: PICK_G.mystery, clash: PICK_G.kids.concat(PICK_G.laugh), why: 'Da capire chi è stato' } },
             ]
         },
-
-        /* Lines rather than labels. "Spegnere il cervello" is a category; "fammi
-         * solo ridere, non ho voglia di pensare" is something a person says on a
-         * Tuesday, and picking the one that sounds like you tonight is quicker
-         * and more honest than picking the right box. */
         {
             key: 'line',
             weight: 3,
             format: 'quote',
             asks: [
-                'Quale ti somiglia, stasera?',
-                'Cosa diresti a un amico che sceglie per te?',
-                'Quale di queste esce se te lo chiedono?',
-                'Completa: stasera…'
+                'Cosa vuoi da stasera?',
+                'Quale di queste quattro?',
+                'Che cosa ti serve?',
+                'Cosa preferisci adesso?',
+                'Da cosa partiamo?',
+                'Scegli la direzione'
             ],
-            hints: ['Quella che ti esce di bocca', 'Senza pensarci troppo'],
+            hints: [
+                'Una sola risposta',
+                'Orienta la selezione'
+            ],
             options: [
                 { id: 'laugh',
-                  label: ['«Fammi solo ridere, non ho voglia di pensare.»',
-                          '«Qualcosa di leggero, ti prego.»',
-                          '«Niente di impegnativo, per favore.»'],
+                  label: [
+                          'Solo ridere',
+                          'Qualcosa di leggero',
+                          'Niente di impegnativo',
+                          'Una commedia'
+                      ],
                   effect: { love: PICK_G.laugh, clash: PICK_G.heavy, want: PICK_G.easy, why: 'Ti fa ridere' } },
                 { id: 'grip',
-                  label: ['«Voglio stare sul bordo del divano.»',
-                          '«Qualcosa che non mi faccia guardare il telefono.»',
-                          '«Che non mi lasci respirare.»'],
+                  label: [
+                          'Stare in tensione',
+                          'Azione o paura',
+                          'Niente pause',
+                          'Ritmo alto'
+                      ],
                   effect: { love: PICK_G.rush.concat(PICK_G.fear), why: 'Non ti molla' } },
                 { id: 'cry',
-                  label: ['«Ho voglia di commuovermi, ma bene.»',
-                          '«Fammi sentire qualcosa.»',
-                          '«Una storia che mi resti addosso.»'],
+                  label: [
+                          'Commuovermi',
+                          'Dramma o amore',
+                          'Una storia che resta',
+                          'Sentire qualcosa'
+                      ],
                   effect: { love: PICK_G.cry, why: 'Ti prende dentro' } },
                 { id: 'think',
-                  label: ['«Voglio restare zitto dieci minuti dopo i titoli di coda.»',
-                          '«Qualcosa di cui parlare domani.»',
-                          '«Dammi roba seria.»'],
-                  effect: { love: PICK_G.heavy, ratingWeight: 0.6, why: 'Ha qualcosa da dire' } }
+                  label: [
+                          'Qualcosa di serio',
+                          'Un titolo impegnativo',
+                          'Voglio pensarci',
+                          'Temi seri'
+                      ],
+                  effect: { love: PICK_G.heavy, ratingWeight: 0.6, why: 'Ha qualcosa da dire' } },
             ]
         },
         {
             key: 'ending',
             weight: 2,
             format: 'quote',
-            asks: ['Come deve finire?', 'Che finale ti serve stasera?', 'E alla fine?'],
+            asks: [
+                'Come deve finire?',
+                'Che finale preferisci?',
+                'Quale finale vuoi?',
+                'Come vuoi che finisca?',
+                'E il finale?'
+            ],
             options: [
                 { id: 'up',
-                  label: ['«Voglio sorridere ai titoli di coda.»',
-                          '«Che finisca bene, per una volta.»',
-                          '«Voglio andare a letto contento.»'],
+                  label: [
+                          'Un finale felice',
+                          'Che finisca bene',
+                          'Lieto fine',
+                          'Niente amarezza'
+                      ],
                   effect: { want: PICK_G.laugh.concat(PICK_G.kids, PICK_G.rush), why: 'Finisce bene' } },
                 { id: 'down',
-                  label: ['«Anche un pugno nello stomaco va benissimo.»',
-                          '«Non mi serve il lieto fine.»',
-                          '«Che faccia male, se serve.»'],
+                  label: [
+                          'Anche un finale amaro',
+                          'Senza lieto fine',
+                          'Può finire male',
+                          'Finale duro'
+                      ],
                   effect: { love: PICK_G.heavy, why: 'Non fa sconti' } },
                 { id: 'twist',
-                  label: ['«Voglio non capirci niente fino all’ultimo.»',
-                          '«Sorprendimi negli ultimi dieci minuti.»',
-                          '«Che mi frega fino alla fine.»'],
-                  effect: { love: PICK_G.mystery, why: 'Non lo capisci prima della fine' } }
+                  label: [
+                          'Un colpo di scena',
+                          'Un finale a sorpresa',
+                          'Imprevedibile',
+                          'Da non prevedere'
+                      ],
+                  effect: { love: PICK_G.mystery, why: 'Non lo capisci prima della fine' } },
             ]
         },
-
-        /* The one that says what it does not want. Everything else here adds; a
-         * night is often decided by the one thing you are not in the mood for. */
         {
             key: 'avoid',
             weight: 3,
             format: 'quote',
-            asks: ['Cosa NON ti va, stasera?', 'Di cosa non hai proprio voglia?', 'Cosa togliamo dal tavolo?'],
-            hints: ['Una cosa sola, quella che non regge'],
+            asks: [
+                'Cosa non vuoi vedere?',
+                'Cosa escludiamo?',
+                'Di cosa non hai voglia?',
+                'Cosa togliamo stasera?',
+                'Cosa lasciamo fuori?'
+            ],
+            hints: [
+                'Una sola risposta',
+                'Viene escluso del tutto'
+            ],
             options: [
-                { id: 'tears', label: ['«Niente lacrime, per carità.»', '«Non mi va di stare male.»'],
+                { id: 'tears',
+                  label: [
+                          'Niente drammi',
+                          'Fuori i drammi',
+                          'Niente film drammatici',
+                          'Non voglio piangere'
+                      ],
                   effect: { banned: ['Dramma', 'Drama'], why: 'Niente lacrime' } },
-                { id: 'blood', label: ['«Niente sangue.»', '«Non voglio spaventarmi.»'],
+                { id: 'blood',
+                  label: [
+                          'Niente horror',
+                          'Fuori horror e thriller',
+                          'Niente paura',
+                          'Niente tensione'
+                      ],
                   effect: { banned: PICK_G.fear, why: 'Niente spaventi' } },
-                { id: 'slow', label: ['«Niente cose lente.»', '«Non ho la pazienza per roba lenta.»'],
+                { id: 'slow',
+                  label: [
+                          'Niente documentari',
+                          'Fuori documentari e biografie',
+                          'Niente di lento',
+                          'Niente storie vere'
+                      ],
                   effect: { banned: PICK_G.real, want: PICK_G.rush.concat(PICK_G.laugh), why: 'Non è lento' } },
-                { id: 'kids', label: ['«Niente roba da bambini.»', '«Non sono in vena di cartoni.»'],
-                  effect: { banned: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'], why: 'Roba da grandi' } }
+                { id: 'kids',
+                  label: [
+                          'Niente animazione',
+                          'Niente film per bambini',
+                          'Fuori cartoni e famiglia',
+                          'Niente titoli per famiglie'
+                      ],
+                  effect: { banned: ['Animazione', 'Animation', 'Famiglia', 'Family', 'Kids'], why: 'Roba da grandi' } },
             ]
         },
-
-        /* Two panels, no third way. The fastest question there is. */
         {
             key: 'bang',
             weight: 2,
             format: 'duo',
-            asks: ['Scegli:', 'Di cosa hai voglia?', 'Una delle due:'],
+            asks: [
+                'Azione o commedia?',
+                'Quale delle due?',
+                'Cosa preferisci stasera?',
+                'Scegli tra le due',
+                'Di cosa hai voglia?'
+            ],
             options: [
-                { id: 'boom', mark: '💥', label: ['Esplosioni', 'Roba che salta in aria'],
-                  sub: ['Rumore, corse, guai', 'Niente da capire, tutto da guardare'],
+                { id: 'boom',
+                  mark: '💥',
+                  label: [
+                          'Azione',
+                          'Scene d’azione',
+                          'Inseguimenti ed esplosioni',
+                          'Ritmo alto'
+                      ],
                   effect: { love: PICK_G.rush, clash: PICK_G.real, why: 'Roba grossa' } },
-                { id: 'jokes', mark: '😂', label: ['Battute', 'Gente che parla'],
-                  sub: ['Gente che parla veloce', 'Dialoghi, non esplosioni'],
-                  effect: { love: PICK_G.laugh, clash: PICK_G.heavy, why: 'Ti fa ridere' } }
+                { id: 'jokes',
+                  mark: '😂',
+                  label: [
+                          'Commedia',
+                          'Risate',
+                          'Battute',
+                          'Toni leggeri'
+                      ],
+                  sub: ['Dialoghi veloci'],
+                  effect: { love: PICK_G.laugh, clash: PICK_G.heavy, why: 'Ti fa ridere' } },
             ]
         },
         {
             key: 'place',
             weight: 2,
             format: 'duo',
-            asks: ['E poi:', 'Dove ti porto?', 'Che paesaggio?'],
+            asks: [
+                'Città o spazi aperti?',
+                'Quale ambientazione?',
+                'Dove si svolge?',
+                'Che ambientazione preferisci?',
+                'Quale dei due luoghi?'
+            ],
             options: [
-                { id: 'city', mark: '🌃', label: ['Città di notte', 'Asfalto bagnato'],
-                  sub: ['Insegne, guai, gente sveglia', 'Nessuno dorme'],
+                { id: 'city',
+                  mark: '🌃',
+                  label: [
+                          'Città di notte',
+                          'In città',
+                          'Strade e insegne',
+                          'Interni urbani'
+                      ],
                   effect: { love: PICK_G.mystery, why: 'Città di notte' } },
-                { id: 'wild', mark: '🏔️', label: ['Fuori, all’aperto', 'Spazi larghi'],
-                  sub: ['Orizzonti e polvere', 'Nessun palazzo in vista'],
-                  effect: { love: PICK_G.rush.concat(['Western', 'Avventura', 'Adventure']), why: 'Aria aperta' } }
+                { id: 'wild',
+                  mark: '🏔️',
+                  label: [
+                          'All’aperto',
+                          'Spazi aperti',
+                          'Fuori città',
+                          'Natura'
+                      ],
+                  sub: ['Azione all’aperto'],
+                  effect: { love: PICK_G.rush.concat(['Western', 'Avventura', 'Adventure']), why: 'Aria aperta' } },
             ]
         },
         {
             key: 'span',
             weight: 1,
             format: 'duo',
-            asks: ['Ancora una:', 'Ultima secca:', 'Scegli il decennio:'],
+            asks: [
+                'Recenti o classici?',
+                'Quale periodo?',
+                'Che anni preferisci?',
+                'Quanto indietro andiamo?',
+                'Scegli il periodo'
+            ],
             options: [
-                { id: 'now', mark: '📱', label: ['Roba di oggi', 'Cose recenti'],
-                  sub: ['Il mondo che conosci', 'Telefoni, non cabine'],
+                { id: 'now',
+                  mark: '📱',
+                  label: [
+                          'Dal 2010 in poi',
+                          'Titoli recenti',
+                          'Solo produzioni recenti',
+                          'Ultimi quindici anni'
+                      ],
                   effect: { years: [2010, 3000], why: 'Roba recente' } },
-                { id: 'then', mark: '📽️', label: ['Roba di prima', 'Cose di una volta'],
-                  sub: ['Quando si fumava al cinema', 'Grana e pellicola'],
-                  effect: { years: [0, 1999], why: 'Un classico' } }
+                { id: 'then',
+                  mark: '📽️',
+                  label: [
+                          'Prima del 2000',
+                          'Fino al 1999',
+                          'Titoli del Novecento',
+                          'Il secolo scorso'
+                      ],
+                  effect: { years: [0, 1999], why: 'Un classico' } },
             ]
         },
         {
             key: 'pair',
             weight: 2,
             format: 'duo',
-            asks: ['Che serata è?', 'Come stai messo?'],
+            asks: [
+                'Serata tranquilla o intensa?',
+                'Riposo o attenzione?',
+                'Come vuoi guardare?',
+                'Tranquilla o movimentata?',
+                'Che serata è?'
+            ],
             options: [
-                { id: 'blanket', mark: '🛌', label: ['Da coperta', 'Sotto il plaid'],
-                  sub: ['Niente che chieda troppo', 'Comfort puro'],
+                { id: 'blanket',
+                  mark: '🛌',
+                  label: [
+                          'Serata tranquilla',
+                          'Niente di impegnativo',
+                          'Visione rilassata',
+                          'Qualcosa di leggero'
+                      ],
+                  sub: ['Titoli leggeri e familiari'],
                   effect: { want: PICK_G.easy.concat(PICK_G.kids), ratingWeight: 0.45, why: 'Da coperta sul divano' } },
-                { id: 'awake', mark: '🔥', label: ['Dritti sul divano', 'Occhi aperti'],
-                  sub: ['Voglio starci dentro', 'Nessun sonnellino'],
-                  effect: { love: PICK_G.rush.concat(PICK_G.mystery), why: 'Ti tiene sveglio' } }
+                { id: 'awake',
+                  mark: '🔥',
+                  label: [
+                          'Attenzione alta',
+                          'Serata intensa',
+                          'Ritmo alto',
+                          'Niente di rilassante'
+                      ],
+                  sub: ['Titoli con ritmo alto'],
+                  effect: { love: PICK_G.rush.concat(PICK_G.mystery), why: 'Ti tiene sveglio' } },
             ]
         },
-
-        /* Stills off your own shelves, cropped, with no titles on them. Nobody
-         * can say what atmosphere they want; everybody can point at one. */
         {
             key: 'vibe',
             weight: 3,
             format: 'scene',
-            asks: ['Che aria tira stasera?', 'Quale di queste ti chiama?', 'Quale ti va addosso?'],
-            hints: ['Guarda, non leggere', 'Di pancia'],
+            asks: [
+                'Scegli un’immagine',
+                'Quale atmosfera?',
+                'Quale scena preferisci?',
+                'Quale ti attira di più?',
+                'Scegli l’atmosfera'
+            ],
+            hints: [
+                'Nessun titolo, solo immagini',
+                'Scegli dall’immagine'
+            ],
             options: [
-                { id: 'neon', label: ['Notte e neon', 'Buio e insegne'], find: PICK_G.mystery,
+                { id: 'neon',
+                  label: [
+                          'Notte e neon',
+                          'Città al buio',
+                          'Luci nella notte',
+                          'Insegne al neon'
+                      ],
+                  find: PICK_G.mystery,
                   effect: { love: PICK_G.mystery, why: 'Notte e neon' } },
-                { id: 'sun', label: ['Sole e polvere', 'Fuori, al caldo'],
+                { id: 'sun',
+                  label: [
+                          'Sole e polvere',
+                          'Luce piena',
+                          'All’aperto',
+                          'Deserto e sole'
+                      ],
                   find: ['Avventura', 'Adventure', 'Western', 'Azione', 'Action'],
                   effect: { love: PICK_G.rush, why: 'Sole e polvere' } },
-                { id: 'home', label: ['Casa e coperte', 'Dentro, al sicuro'],
+                { id: 'home',
+                  label: [
+                          'Casa e coperte',
+                          'Luce di casa',
+                          'Interni al caldo',
+                          'Dentro casa'
+                      ],
                   find: PICK_G.laugh.concat(PICK_G.kids),
                   effect: { love: PICK_G.laugh.concat(PICK_G.kids), why: 'Da coperta sul divano' } },
-                { id: 'stars', label: ['Fuori dal mondo', 'Da un’altra parte'], find: PICK_G.made,
-                  effect: { love: PICK_G.made, why: 'Ti porta lontano' } }
+                { id: 'stars',
+                  label: [
+                          'Cielo e spazio',
+                          'Fuori dal mondo',
+                          'Un altro pianeta',
+                          'Oltre l’atmosfera'
+                      ],
+                  find: PICK_G.made,
+                  effect: { love: PICK_G.made, why: 'Ti porta lontano' } },
             ]
         },
         {
             key: 'door',
             weight: 2,
             format: 'scene',
-            asks: ['Quale porta apri?', 'In quale di questi entri?'],
-            hints: ['Nessun titolo, solo l’immagine'],
+            asks: [
+                'Quale porta apri?',
+                'Dove entri?',
+                'Scegli una porta',
+                'In quale stanza entri?',
+                'Quale di queste apri?'
+            ],
+            hints: [
+                'Nessun titolo, solo l’immagine',
+                'Scegli dall’immagine'
+            ],
             options: [
-                { id: 'dark', label: ['Quella buia', 'Il corridoio scuro'], find: PICK_G.fear,
+                { id: 'dark',
+                  label: [
+                          'Quella buia',
+                          'Il corridoio scuro',
+                          'Al buio'
+                      ],
+                  find: PICK_G.fear,
                   effect: { love: PICK_G.fear, clash: PICK_G.kids, why: 'Fa paura' } },
-                { id: 'warm', label: ['Quella con la luce accesa', 'La cucina illuminata'],
+                { id: 'warm',
+                  label: [
+                          'La stanza illuminata',
+                          'Quella con la luce',
+                          'La cucina accesa',
+                          'Verso la luce'
+                      ],
                   find: PICK_G.cry.concat(PICK_G.laugh),
                   effect: { love: PICK_G.cry.concat(PICK_G.laugh), why: 'Storie di gente' } },
-                { id: 'wide', label: ['Quella che dà sull’altrove', 'La finestra sul cielo'],
+                { id: 'wide',
+                  label: [
+                          'La finestra sul cielo',
+                          'Verso il cielo',
+                          'Quella sull’esterno'
+                      ],
                   find: PICK_G.made,
-                  effect: { love: PICK_G.made, why: 'Ti porta lontano' } }
+                  effect: { love: PICK_G.made, why: 'Ti porta lontano' } },
             ]
         },
         {
             key: 'colour',
             weight: 2,
             format: 'swatch',
-            asks: ['Di che colore è la serata?', 'Scegli un colore, non chiedere perché', 'Che luce vuoi in casa?'],
-            hints: ['D’istinto', 'Non ragionarci'],
+            asks: [
+                'Scegli un colore',
+                'Quale colore?',
+                'Di che colore è la serata?',
+                'Che colore ti va?',
+                'Quale colore scegli?'
+            ],
+            hints: [
+                'Scegli d’istinto',
+                'Il primo che ti viene'
+            ],
             options: [
-                { id: 'red', tint: '#e50914', label: ['Rosso', 'Rosso acceso'], sub: ['Sangue e motori', 'Roba che corre'],
+                { id: 'red',
+                  tint: '#e50914',
+                  label: [
+                          'Rosso',
+                          'Rosso acceso',
+                          'Rosso pieno'
+                      ],
+                  sub: ['Ritmo alto'],
                   effect: { love: PICK_G.rush, why: 'Serata rossa' } },
-                { id: 'blue', tint: '#2b6cb0', label: ['Blu', 'Blu notte'], sub: ['Malinconia', 'Un po’ giù, ma bene'],
+                { id: 'blue',
+                  tint: '#2b6cb0',
+                  label: [
+                          'Blu',
+                          'Blu notte',
+                          'Blu profondo'
+                      ],
+                  sub: ['Toni malinconici'],
                   effect: { love: PICK_G.cry, why: 'Serata blu' } },
-                { id: 'yellow', tint: '#f2b705', label: ['Giallo', 'Giallo caldo'], sub: ['Buonumore', 'Luce accesa'],
+                { id: 'yellow',
+                  tint: '#f2b705',
+                  label: [
+                          'Giallo',
+                          'Giallo caldo',
+                          'Giallo chiaro'
+                      ],
+                  sub: ['Titoli leggeri'],
                   effect: { love: PICK_G.laugh, why: 'Serata gialla' } },
-                { id: 'violet', tint: '#7b2ff7', label: ['Viola', 'Viola strano'], sub: ['Roba strana', 'Fuori dal normale'],
+                { id: 'violet',
+                  tint: '#7b2ff7',
+                  label: [
+                          'Viola',
+                          'Viola scuro',
+                          'Viola acceso'
+                      ],
                   effect: { love: PICK_G.made, why: 'Serata viola' } },
-                { id: 'black', tint: '#1c1c1c', label: ['Nero', 'Buio pesto'],
-                  sub: ['Meglio non accendere la luce', 'Niente luci'],
-                  effect: { love: PICK_G.fear, why: 'Serata nera' } }
+                { id: 'black',
+                  tint: '#1c1c1c',
+                  label: [
+                          'Nero',
+                          'Nero pieno',
+                          'Buio'
+                      ],
+                  sub: [
+                        'Horror e thriller',
+                        'Titoli che spaventano'
+                    ],
+                  effect: { love: PICK_G.fear, why: 'Serata nera' } },
             ]
         },
         {
             key: 'snack',
             weight: 2,
             format: 'cards',
-            asks: ['Cosa c’è sul tavolino?', 'Che cosa stai per aprire?', 'Cosa si mangia?'],
-            hints: ['Dimmi cosa mangi e ti dico cosa guardi', 'Vale anche solo l’intenzione'],
+            asks: [
+                'Cosa hai davanti?',
+                'Cosa si mangia?',
+                'Cosa c’è sul tavolo?',
+                'Cosa porti sul divano?',
+                'Scegli cosa hai accanto'
+            ],
             options: [
-                { id: 'corn', mark: '🍿', label: ['Pop-corn', 'Patatine'], sub: ['Roba grossa', 'Si mangia rumoroso'],
+                { id: 'corn',
+                  mark: '🍿',
+                  label: [
+                          'Pop-corn',
+                          'Patatine',
+                          'Qualcosa di salato'
+                      ],
                   effect: { love: PICK_G.rush, clash: PICK_G.real, why: 'Da pop-corn' } },
-                { id: 'wine', mark: '🍷', label: ['Un bicchiere di rosso', 'Vino'], sub: ['Con calma', 'Serata lenta'],
+                { id: 'wine',
+                  mark: '🍷',
+                  label: [
+                          'Vino',
+                          'Un bicchiere di rosso',
+                          'Un amaro'
+                      ],
                   effect: { love: PICK_G.cry, clash: ['Horror', 'Azione', 'Action'], why: 'Da bicchiere di rosso' } },
-                { id: 'ice', mark: '🍦', label: ['Gelato dal barattolo', 'Cioccolata'], sub: ['Coccola', 'Serve conforto'],
+                { id: 'ice',
+                  mark: '🍦',
+                  label: [
+                          'Gelato',
+                          'Cioccolata',
+                          'Qualcosa di dolce'
+                      ],
+                  sub: ['Titoli leggeri e familiari'],
                   effect: { love: PICK_G.laugh.concat(PICK_G.kids), why: 'Da gelato e coperta' } },
-                { id: 'tea', mark: '🍵', label: ['Niente, sto per crollare', 'Solo una tisana'],
-                  sub: ['Poco impegno', 'Reggo poco'],
-                  effect: { want: PICK_G.easy, ratingWeight: 0.42, why: 'Non chiede niente' } }
+                { id: 'tea',
+                  mark: '🍵',
+                  label: [
+                          'Una tisana',
+                          'Niente',
+                          'Qualcosa di caldo'
+                      ],
+                  sub: ['Titoli che chiedono poco'],
+                  effect: { want: PICK_G.easy, ratingWeight: 0.42, why: 'Non chiede niente' } },
             ]
         },
         {
             key: 'truth',
             weight: 1,
             format: 'duo',
-            asks: ['Vero o inventato?', 'Storie vere o roba inventata?', 'È successo o se lo sono inventato?'],
+            asks: [
+                'Vero o inventato?',
+                'Realtà o finzione?',
+                'Storie vere o inventate?',
+                'Fatti o invenzione?',
+                'Deve essere successo davvero?'
+            ],
             options: [
-                { id: 'real', mark: '🎥', label: ['È successo davvero', 'Storie vere'],
-                  sub: ['Gente esistita', 'Roba di questo mondo'],
+                { id: 'real',
+                  mark: '🎥',
+                  label: [
+                          'Storie vere',
+                          'È successo davvero',
+                          'Fatti reali',
+                          'Persone esistite'
+                      ],
                   effect: { love: PICK_G.real, why: 'È successo davvero' } },
-                { id: 'made', mark: '✨', label: ['Inventato di sana pianta', 'Tutto finto'],
-                  sub: ['Il più lontano possibile', 'Nessun vincolo con la realtà'],
-                  effect: { love: PICK_G.made, why: 'Inventato di sana pianta' } }
+                { id: 'made',
+                  mark: '✨',
+                  label: [
+                          'Inventato',
+                          'Tutto inventato',
+                          'Finzione',
+                          'Mondi inventati'
+                      ],
+                  effect: { love: PICK_G.made, why: 'Inventato di sana pianta' } },
             ]
         },
         {
             key: 'era',
             weight: 2,
             format: 'cards',
-            asks: ['Di che annata?', 'Che anni ti vanno?', 'Quanto indietro andiamo?'],
+            asks: [
+                'Che anni preferisci?',
+                'Quale periodo scegli?',
+                'Quanto indietro andiamo?',
+                'Anno di uscita?',
+                'Che epoca ti va?'
+            ],
+            hints: [
+                'Conta l’anno di uscita',
+                'L’anno di uscita, non l’ambientazione'
+            ],
             options: [
-                { id: 'old', mark: '🎞️', label: ['Roba vecchia', 'Bianco e nero compreso'],
-                  sub: ['Prima del 1990', 'Roba di prima'],
+                { id: 'old',
+                  mark: '🎞️',
+                  label: [
+                          'Prima del 1990',
+                          'Fino agli anni 80',
+                          'Titoli d’epoca',
+                          'Solo classici'
+                      ],
+                  sub: ['Anche in bianco e nero'],
                   effect: { years: [0, 1989], why: 'Un classico' } },
-                { id: 'vhs', mark: '📼', label: ['Anni 90 e 2000', 'Da videoteca'],
-                  sub: ['Quelli lì', 'Quando c’erano le cassette'],
+                { id: 'vhs',
+                  mark: '📼',
+                  label: [
+                          'Anni 90 e 2000',
+                          'Dal 1990 al 2009',
+                          'I decenni di mezzo'
+                      ],
                   effect: { years: [1990, 2009], why: 'Sa di videoteca' } },
-                { id: 'new', mark: '🆕', label: ['Roba recente', 'Ultimi anni'],
-                  sub: ['Ultimi anni', 'Uscito da poco'],
+                { id: 'new',
+                  mark: '🆕',
+                  label: [
+                          'Titoli recenti',
+                          'Dal 2015 in poi',
+                          'Usciti da poco',
+                          'Ultimi anni'
+                      ],
                   effect: { years: [2015, 3000], why: 'Roba recente' } },
-                { id: 'any', mark: '🤷', label: ['Indifferente', 'Non guardo l’anno'], effect: {} }
+                { id: 'any',
+                  mark: '🤷',
+                  label: [
+                          'Indifferente',
+                          'Qualsiasi anno',
+                          'Non guardo l’anno'
+                      ],
+                  effect: {} },
             ]
         },
         {
             key: 'head',
             weight: 2,
             format: 'cards',
-            asks: ['Che testa hai stasera?', 'Quanta attenzione ti va di metterci?', 'Quanto vuoi lavorare, guardando?'],
+            asks: [
+                'Leggero o impegnativo?',
+                'Quanta attenzione vuoi metterci?',
+                'Quanto vuoi concentrarti?',
+                'Che tipo di visione?',
+                'Quanta attenzione stasera?'
+            ],
             options: [
-                { id: 'off', mark: '💤', label: ['Spegnere il cervello', 'Zero fatica'],
-                  sub: ['Zero sforzo', 'Non voglio pensare'],
+                { id: 'off',
+                  mark: '💤',
+                  label: [
+                          'Poca attenzione',
+                          'Qualcosa di leggero',
+                          'Niente di impegnativo',
+                          'Visione distratta'
+                      ],
+                  sub: ['Titoli leggeri'],
                   effect: { want: PICK_G.easy, why: 'Non chiede niente' } },
-                { id: 'on', mark: '🔍', label: ['Voglio pensarci su', 'Dammi qualcosa da masticare'],
-                  sub: ['Qualcosa che resta', 'Roba che chiede attenzione'],
+                { id: 'on',
+                  mark: '🔍',
+                  label: [
+                          'Massima attenzione',
+                          'Qualcosa di impegnativo',
+                          'Un titolo denso',
+                          'Voglio concentrarmi'
+                      ],
+                  sub: ['Titoli che chiedono attenzione'],
                   effect: { want: PICK_G.heavy, why: 'Ha qualcosa da dire' } },
-                { id: 'any', mark: '🎲', label: ['Decidi tu', 'Come viene'], effect: {} }
+                { id: 'any',
+                  mark: '🎲',
+                  label: [
+                          'Indifferente',
+                          'Non ho preferenze',
+                          'Va bene tutto'
+                      ],
+                  effect: {} },
             ]
         },
         {
             key: 'known',
             weight: 2,
             format: 'duo',
-            asks: ['Roba nuova o porto sicuro?', 'Scoprire o rivedere?', 'Rischio o certezza?'],
+            asks: [
+                'Nuovo o già visto?',
+                'Scoprire o rivedere?',
+                'Prima visione o replica?',
+                'Novità o certezza?',
+                'Titolo nuovo o conosciuto?'
+            ],
             options: [
-                { id: 'new', mark: '🆕', label: ['Mai visto', 'Qualcosa di nuovo'],
-                  sub: ['Voglio scoprire qualcosa', 'Prima volta'],
+                { id: 'new',
+                  mark: '🆕',
+                  label: [
+                          'Mai visto',
+                          'Prima visione',
+                          'Un titolo nuovo',
+                          'Qualcosa di nuovo'
+                      ],
                   effect: { seen: 'new', why: 'Non l’hai mai visto' } },
-                { id: 'safe', mark: '🧣', label: ['Porto sicuro', 'Uno che conosco'],
-                  sub: ['Uno che conosco a memoria', 'So già come va a finire'],
-                  effect: { seen: 'safe', why: 'Lo conosci già' } }
+                { id: 'safe',
+                  mark: '🧣',
+                  label: [
+                          'Già visto',
+                          'Rivedere qualcosa',
+                          'Un titolo conosciuto',
+                          'Sul sicuro'
+                      ],
+                  sub: ['Titoli che conosci'],
+                  effect: { seen: 'safe', why: 'Lo conosci già' } },
             ]
         },
         {
             key: 'risk',
             weight: 1,
             format: 'cards',
-            asks: ['Quanto ti fidi di me?', 'Andiamo sul sicuro?', 'Quanto rischiamo?'],
+            asks: [
+                'Quanto vuoi rischiare?',
+                'Sicuro o azzardato?',
+                'Certezze o sorprese?',
+                'Quanto conta il voto?',
+                'Titoli sicuri o inaspettati?'
+            ],
             options: [
-                { id: 'safe', mark: '🎯', label: ['Dammi un sicuro', 'Niente esperimenti'],
-                  sub: ['Quelli che piacciono a tutti', 'Voto alto e via'],
+                { id: 'safe',
+                  mark: '🎯',
+                  label: [
+                          'Vado sul sicuro',
+                          'Titoli molto votati',
+                          'Valutazioni alte',
+                          'Niente esperimenti'
+                      ],
                   effect: { ratingWeight: 0.72, why: 'Piace a tutti' } },
-                { id: 'gem', mark: '🃏', label: ['Rischiamo', 'Sorprendimi'],
-                  sub: ['Qualcosa che nessuno guarda', 'Anche una ciofeca, pazienza'],
+                { id: 'gem',
+                  mark: '🃏',
+                  label: [
+                          'Titoli poco visti',
+                          'Qualcosa di inaspettato',
+                          'Poco conosciuti',
+                          'Anche voti bassi'
+                      ],
                   effect: { ratingWeight: 0.08, seen: 'new', why: 'Un azzardo' } },
-                { id: 'mid', mark: '🤝', label: ['Via di mezzo', 'Nella norma'], effect: {} }
+                { id: 'mid',
+                  mark: '🤝',
+                  label: [
+                          'Via di mezzo',
+                          'Equilibrato',
+                          'Nella media',
+                          'Senza preferenze'
+                      ],
+                  effect: {} },
             ]
         },
         {
             key: 'late',
             weight: 3,
             format: 'cards',
-            /* Only when it is actually late: a question about whether you will
-             * make it to the end means nothing at four in the afternoon. */
             when: function () {
                 var hour = new Date().getHours();
                 return hour >= 22 || hour < 3;
             },
-            asks: ['È tardi. Che si fa?', 'Sono le ore piccole. Reggi?', 'A quest’ora?'],
+            asks: [
+                'Quanto guardiamo?',
+                'È tardi. Quanto dura?',
+                'Quanto vuoi andare avanti?',
+                'Che durata a quest’ora?',
+                'Quanto tempo resta?'
+            ],
+            hints: [
+                'Qui conta solo la durata',
+                'Vale la durata, non il genere'
+            ],
             options: [
-                { id: 'quick', mark: '😴', label: ['Qualcosa di corto', 'Poco e a letto'],
-                  sub: ['Poi si dorme', 'Domani ci si alza'],
+                { id: 'quick',
+                  mark: '😴',
+                  label: [
+                          'Qualcosa di corto',
+                          'Un episodio',
+                          'Mezz’ora',
+                          'Poco'
+                      ],
                   effect: { time: 'short', why: 'Corto, che è tardi' } },
-                { id: 'hold', mark: '☕', label: ['Reggo un film', 'Ce la faccio'],
-                  sub: ['Un’ora e mezza', 'Un caffè e via'],
+                { id: 'hold',
+                  mark: '☕',
+                  label: [
+                          'Un film intero',
+                          'Reggo un film',
+                          'Un’ora e mezza'
+                      ],
                   effect: { time: 'film' } },
-                { id: 'all', mark: '🌙', label: ['Tanto domani è domani', 'Nottata'],
-                  sub: ['Quello che viene', 'Si dorme un’altra volta'],
-                  effect: { time: 'any', why: 'Nottata' } }
+                { id: 'all',
+                  mark: '🌙',
+                  label: [
+                          'Nessun limite',
+                          'Quello che viene',
+                          'Anche lungo',
+                          'Fino a tardi'
+                      ],
+                  effect: { time: 'any', why: 'Nottata' } },
             ]
         }
     ];
 
     var PICK_OPENERS = [
-        'Cinque domande, nessuna sbagliata. Alla fine scegli tu, fra cinque titoli.',
-        'Non è un test: serve solo a togliere di mezzo le altre ottocento.',
-        'Rispondi d’istinto. Ci metti meno di un minuto.',
-        'Poche domande, una rosa di cinque, e si accende.',
-        'Nessuna risposta è sbagliata, e nessuna viene salvata da nessuna parte.',
-        'Cinque domande al volo, poi cinque titoli e la scelta è tua.',
-        'Ti faccio qualche domanda e ti tolgo di mezzo il resto della libreria.',
-        'Un minuto di domande contro venti di scrolling. Conviene.'
+        'Poche domande, cinque titoli scelti.',
+        'Rispondi alle domande, arrivano cinque proposte.',
+        'Un modo rapido per restringere il catalogo.',
+        'Cinque titoli, scelti in base alle risposte.',
+        'Poche domande per decidere cosa guardare.'
     ];
 
     var PICK_ROSE_TITLES = [
-        'Cinque. Uno è per stasera.',
-        'Ecco cosa ti terrei da parte.',
-        'Questi cinque, e non altri.',
-        'Ho tolto di mezzo tutto il resto.',
-        'Cinque titoli. Il resto può aspettare.',
-        'Fra questi cinque non sbagli.'
+        'I cinque titoli',
+        'Scelti per te',
+        'La tua selezione',
+        'Cinque proposte',
+        'I titoli scelti',
+        'I titoli che restano'
     ];
 
     var PICK_ROSE_HINTS = [
-        'Tocca quello che ti va. Se uno non ti convince, scartalo e ne arriva un altro.',
-        'Scegline uno. Quelli che non ti dicono niente si buttano con la ✕.',
-        'Uno vale la serata. Gli altri restano lì, o li scarti.',
-        'Prendi quello giusto. Per gli altri c’è la ✕.'
+        'Tocca un titolo per aprirlo. Scartalo per vedere il prossimo.',
+        'Tocca per aprire, scarta per passare al prossimo.',
+        'Apri un titolo o scartalo e passa avanti.',
+        'Tocca il titolo che ti convince, scarta gli altri.'
     ];
 
     var PICK_VERDICTS = [
         'La tua scelta',
-        'Si guarda questo',
-        'Deciso',
-        'Ecco la serata',
-        'È quello giusto'
+        'Il titolo scelto',
+        'Scelto per te',
+        'La selezione',
+        'Stasera guardi'
     ];
 
     var pickState = null;
@@ -8303,17 +8809,12 @@
         var shell = pickShell(page, 'is-five');
         pickProgress(page);
 
+        /* Above the artwork: a kicker and a title. Four stacked blocks of text -
+         * kicker, title, an explanation, and a line telling you to swipe - ate
+         * the fold on a phone, and everything they said the row says by itself
+         * once you can see it. */
         shell.appendChild(el('div', 'nf-pick-step', 'Ecco la rosa'));
         shell.appendChild(el('h2', null, pickPhrase(PICK_ROSE_TITLES, 'rose')));
-        shell.appendChild(el('p', 'nf-pick-hint', pickPhrase(PICK_ROSE_HINTS, 'rosehint')));
-
-        /* On a phone the five are a row you swipe, and a row that does not say
-         * so is a row nobody swipes: the hint and the dots are drawn always and
-         * shown only where the row actually moves. */
-        var swipe = el('div', 'nf-pick-swipe');
-        swipe.appendChild(svgIcon('back'));
-        swipe.appendChild(el('span', null, 'Scorri per vederli tutti'));
-        shell.appendChild(swipe);
 
         var row = el('div', 'nf-pick-five');
         shell.appendChild(row);
@@ -8321,15 +8822,24 @@
         var dots = el('div', 'nf-pick-dots');
         shell.appendChild(dots);
 
+        var swipe = el('div', 'nf-pick-swipe');
+        swipe.appendChild(el('span', null, pickPhrase(PICK_ROSE_HINTS, 'rosehint')));
+        shell.appendChild(swipe);
+
         var restart = el('button', 'nf-pick-restart');
         restart.type = 'button';
-        restart.textContent = 'Rifai il quiz da capo';
+        restart.textContent = 'Ricomincia';
         restart.addEventListener('click', function () {
             pickState = pickRun();
             pickState.step = 0;
             pickPaint(page);
         });
         shell.appendChild(restart);
+
+        /* The only screen in the run with no way back to the question before it.
+         * There is one now. */
+        pickState.step = pickState.asks.length;
+        pickBack(shell, page);
 
         Promise.all([tvLibraryLoad(), pickLoadSeen()]).then(function (parts) {
             var library = parts[0];
@@ -8354,11 +8864,16 @@
                 dots.appendChild(el('span', i === 0 ? 'is-here' : null));
             });
 
+            /* Which dot is lit is a fraction of the distance travelled, not a
+             * count of cards passed. Counting cards never lights the last one:
+             * two and a bit are on the screen at once, so the row runs out of
+             * scroll while three cards' worth of steps are still unspent, and the
+             * dot at the end sat there dark however far you swiped. */
             var mark = function () {
-                var card = row.firstChild;
-                if (!card) return;
-                var step = card.getBoundingClientRect().width + 12;
-                var at = Math.round(row.scrollLeft / step);
+                var span = row.scrollWidth - row.clientWidth;
+                var last = dots.children.length - 1;
+                var at = span > 4 ? Math.round((row.scrollLeft / span) * last) : 0;
+
                 Array.prototype.forEach.call(dots.children, function (dot, i) {
                     dot.classList.toggle('is-here', i === at);
                 });
@@ -8401,33 +8916,45 @@
                     candidate.rating >= 7.2 ? '★ ' + candidate.rating.toFixed(1) : null]
                     .filter(Boolean).join('  ·  ')));
 
+        /* One reason, not two. Two wrapped onto a second line on a phone and
+         * every card in the row ended up a different height, which is the
+         * "sparse" the screenshot showed. */
         var chips = el('div', 'nf-pick-chips');
-        (candidate.why || []).slice(0, 2).forEach(function (bit) {
-            chips.appendChild(el('span', null, bit));
-        });
-        if (!(candidate.why || []).length && (candidate.genres || []).length) {
-            chips.appendChild(el('span', null, candidate.genres[0]));
-        }
+        var reason = (candidate.why || [])[0] || (candidate.genres || [])[0];
+        if (reason) chips.appendChild(el('span', null, reason));
         copy.appendChild(chips);
         card.appendChild(copy);
 
-        /* Discarding one is a real answer - it is the only way to say "not that"
+        /* Discarding one is a real answer - the only way to say "not that"
          * without starting again - and what comes in its place is the next title
-         * the scoring had lined up behind it. */
+         * the scoring had lined up behind it.
+         *
+         * It used to be a dark disc on the poster. Five of those across a row of
+         * artwork is a row of delete buttons with the films behind them: the
+         * only visible thing to press was the destructive one, it was smaller
+         * than a fingertip, and it sat where a play button sits. It is a word
+         * under the card now, and the poster is one surface that means "this
+         * one". */
         var drop = el('button', 'nf-pick-five-drop');
         drop.type = 'button';
-        drop.title = 'Scarta';
         drop.setAttribute('aria-label', 'Scarta ' + pickName(candidate));
-        drop.appendChild(svgIcon('close'));
+        drop.appendChild(el('span', null, 'Non questo'));
         drop.addEventListener('click', function (event) {
             event.stopPropagation();
             pickDrop(page, candidate);
         });
-        card.appendChild(drop);
+        copy.appendChild(drop);
 
         return card;
     }
 
+    /* Throwing one back replaces that card and nothing else.
+     *
+     * It used to redraw the page, and redrawing the page scrolls it to the top,
+     * builds the row again - so the swipe goes back to the first card - and
+     * replays the entrance of all five. On a phone you threw back the fourth
+     * title and found yourself looking at the first one again, which is most of
+     * what "poco utilizzabile" meant. */
     function pickDrop(page, candidate) {
         var list = pickState.shortlist || [];
         var at = list.indexOf(candidate);
@@ -8440,10 +8967,29 @@
             return list.indexOf(other) < 0 && pickState.dropped.indexOf(other) < 0;
         })[0];
 
-        if (replacement) list.splice(at, 1, replacement);
-        else list.splice(at, 1);
+        var row = page.querySelector('.nf-pick-five');
+        var card = row && row.children[at];
+        var client = api();
 
-        pickPaint(page);
+        if (!row || !card || !client) {
+            if (replacement) list.splice(at, 1, replacement);
+            else list.splice(at, 1);
+            pickPaint(page);
+            return;
+        }
+
+        if (replacement) {
+            list.splice(at, 1, replacement);
+            var fresh = pickDrawCandidate(page, replacement, client, 0);
+            // No entrance animation: one card arriving, not five.
+            fresh.style.animation = 'none';
+            row.replaceChild(fresh, card);
+        } else {
+            list.splice(at, 1);
+            row.removeChild(card);
+            var dots = page.querySelector('.nf-pick-dots');
+            if (dots && dots.lastChild) dots.removeChild(dots.lastChild);
+        }
     }
 
     function pickPaintEmpty(page) {
