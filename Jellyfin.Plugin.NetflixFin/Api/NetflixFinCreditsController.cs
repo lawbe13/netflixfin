@@ -51,6 +51,24 @@ public class NetflixFinCreditsController : ControllerBase
 
     private static readonly MediaSegmentType[] OutroOnly = { MediaSegmentType.Outro };
 
+    /// <summary>
+    /// A chapter that names the closing credits, and only that. "Credits" on its own,
+    /// "Main Titles", "Opening Credits" and "Sigla Iniziale" are all in this library and
+    /// all sit at zero seconds - matching any of them would cut a film to nothing.
+    /// </summary>
+    private static readonly Regex EndCredits = new(
+        @"(?:\b(?:end|closing|final)\b[\s\-_,:]*(?:credits?|titles?)\b)"
+        + @"|\bend[-_]credits?\b|\bsigla\s+finale\b|\btitoli\s+di\s+coda\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// A chapter that names a scene as well as the credits - "Sunset and End Credits" -
+    /// starts at the scene, a minute or two before the roll. Refused.
+    /// </summary>
+    private static readonly Regex SceneAndCredits = new(
+        @"[,&]\s*end\s+(?:credits?|titles?)|\band\s+end\s+(?:credits?|titles?)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     /* filterByProvider: false never reads this, but the parameter is not nullable and a
        later patch might, so it gets a real empty object rather than a null. */
     private static readonly LibraryOptions NoOptions = new();
@@ -155,7 +173,7 @@ public class NetflixFinCreditsController : ControllerBase
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var start = await SegmentStartAsync(item).ConfigureAwait(false);
+                var start = await OwnMarkAsync(item).ConfigureAwait(false);
                 var twin = TwinOf(item);
 
                 found.Add((item, twin, start));
@@ -235,6 +253,67 @@ public class NetflixFinCreditsController : ControllerBase
     /// scene in the credits - which for an episode it never is, so an episode is held to
     /// the shape of the segment alone and to a much later start.
     /// </remarks>
+    private async Task<long> OwnMarkAsync(BaseItem item)
+    {
+        var fromFile = await SegmentStartAsync(item).ConfigureAwait(false);
+        if (fromFile > 0 && Allowed(item, fromFile))
+        {
+            return fromFile;
+        }
+
+        /* The segment provider has looked at all 677 films here and found the credits on
+         * 301 of them; on the rest it simply did not see them, and running it again finds
+         * nothing new. Where somebody has named a chapter, that name is the answer: of the
+         * 28 films that have both, 26 agree with the segment to the exact tick, and the
+         * two that do not are films whose segment is a two-second stub at the end of the
+         * file - Final Destination 2 and 3 - where the chapter is right and the segment is
+         * wrong. It is a second opinion, not a worse one. */
+        var fromChapter = ChapterMark(item);
+        return fromChapter > 0 && Allowed(item, fromChapter) ? fromChapter : 0;
+    }
+
+    /// <summary>
+    /// Where a named chapter says the closing credits begin, or zero.
+    /// </summary>
+    /// <remarks>
+    /// It must be the LAST chapter of the file. That one condition is what keeps a post-
+    /// credit scene: Pecore sotto copertura has End Credits as chapter 53 of 56, and the
+    /// three that follow it are the scenes after the roll.
+    /// </remarks>
+    private long ChapterMark(BaseItem item)
+    {
+        var runtime = item.RunTimeTicks ?? 0;
+        if (runtime <= 0)
+        {
+            return 0;
+        }
+
+        IReadOnlyList<MediaBrowser.Model.Entities.ChapterInfo> marked;
+        try
+        {
+            marked = _chapters.GetChapters(item.Id);
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+
+        if (marked is null || marked.Count == 0)
+        {
+            return 0;
+        }
+
+        var last = marked[marked.Count - 1];
+        var name = last.Name ?? string.Empty;
+
+        if (!EndCredits.IsMatch(name) || SceneAndCredits.IsMatch(name))
+        {
+            return 0;
+        }
+
+        return last.StartPositionTicks < (long)(runtime * 0.85) ? 0 : last.StartPositionTicks;
+    }
+
     private async Task<long> SegmentStartAsync(BaseItem item)
     {
         var runtime = item.RunTimeTicks ?? 0;
