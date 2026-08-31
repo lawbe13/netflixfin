@@ -6611,6 +6611,32 @@
             if (tvState.queueLeft <= 3) tvTopUpQueue();
         }
 
+        /* The stream can restart underneath the channel - after a seek, when the
+         * server changes its mind about the codec, at a segment it could not
+         * make - and it comes back at the beginning of the file. Nothing was
+         * watching for that: measured on a real evening, the picture went back
+         * to zero thirty-six seconds after tuning in and stayed there, so the
+         * channel spent the next quarter of an hour an hour and a half behind
+         * its own line-up, and the join at the end of the slot arrived while the
+         * film was still in its first act.
+         *
+         * A minute of drift is more than a seek is allowed to leave behind, so
+         * it is put back on the clock - through the same repair that lands the
+         * first seek, and no more than twice a minute so a player that refuses
+         * to move is not fought with. */
+        if (!tvState.pending && !tvState.heldForIdent && !on.inIdent && video.readyState >= 1) {
+            var drift = Math.abs(video.currentTime * 1000 - on.offset);
+            if (drift > 60000 && Date.now() - (tvState.reseekAt || 0) > 30000) {
+                tvState.reseekAt = Date.now();
+                log('tv: the picture is ' + Math.round(drift / 1000) + 's off the clock; putting it back');
+                tvState.pending = {
+                    channel: tvChannel(tvState.channel),
+                    slot: on.slot,
+                    offset: on.offset
+                };
+            }
+        }
+
         /* Held still behind the card - but only once the player has actually
          * taken the next programme.
          *

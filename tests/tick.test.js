@@ -214,4 +214,116 @@ for (const c of cases) {
     if (!ok) failed++;
     console.log((ok ? 'ok   ' : 'FAIL ') + c.what + '  ->  ' + (r.calls.join(', ') || 'nothing'));
 }
-console.log(JSON.stringify({ failed, of: cases.length, tailMinutes: TV_TAIL_MS / MIN }));
+/* ---------------------------------------------------------------- the queue
+
+   tvQueueTick is what watches the player walk its own line-up: it notices when
+   the next programme has been taken, holds it behind the ident, and puts the
+   picture back on the clock when the stream restarts underneath it. Two of the
+   three were wrong the first time and only a recording of a real join showed
+   it, which is what these are for. */
+
+function runQueue(scene) {
+    const calls = [];
+    const state = Object.assign({
+        channel: 'uno', queueId: 'q1', slotId: 'a', srcMark: 'src-a',
+        heldForIdent: false, ended: false, queueLeft: 8, pending: null, reseekAt: 0
+    }, scene.state);
+
+    const scope = {
+        tvState: state,
+        Date: { now: () => now },
+        log: (m) => calls.push('log:' + m),
+        tvChannel: () => ({ id: 'uno', name: 'Uno' }),
+        tvName: (slot) => slot.item.id,
+        tvBorrow: (id) => calls.push('borrow:' + id),
+        tvTopUpQueue: () => calls.push('topup')
+    };
+
+    const names = Object.keys(scope);
+    // eslint-disable-next-line no-new-func
+    const call = 'tvQueueTick(arguments[' + names.length + '], arguments[' +
+        (names.length + 1) + ']);';
+    // eslint-disable-next-line no-new-func
+    new Function(...names, slice('tvQueueTick') + String.fromCharCode(10) + call)(
+        ...names.map((n) => scope[n]), scene.on, scene.video);
+
+    return { calls, state, video: scene.video };
+}
+
+const player = (over) => Object.assign(
+    { currentSrc: 'src-a', paused: false, readyState: 4, currentTime: 3600, ended: false,
+      pause() { this.paused = true; }, play() { this.paused = false; return null; } }, over);
+
+const queueCases = [
+    {
+        what: 'the film ending is left alone to end',
+        scene: {
+            on: Object.assign(slot('a', -3000), { inIdent: true, next: { item: { id: 'b' }, start: now } }),
+            video: player({}),
+            state: { slotId: 'a' }
+        },
+        // Pausing it here is what stopped the queue moving at all.
+        want: (r) => r.video.paused === false
+    },
+    {
+        what: 'the one that has arrived is held behind the card',
+        scene: {
+            on: Object.assign(slot('a', -3000), { inIdent: true, next: { item: { id: 'b' }, start: now } }),
+            video: player({}),
+            state: { slotId: 'b' }
+        },
+        want: (r) => r.video.paused === true && r.state.heldForIdent === true
+    },
+    {
+        what: 'and let go when the card comes down',
+        scene: {
+            on: slot('a', 40 * MIN),
+            video: player({ paused: true }),
+            state: { heldForIdent: true }
+        },
+        want: (r) => r.video.paused === false && r.state.heldForIdent === false
+    },
+    {
+        what: 'the queue moved on by itself',
+        scene: {
+            on: Object.assign(slot('a', -3000), { inIdent: true, next: { item: { id: 'b' }, start: now } }),
+            video: player({ currentSrc: 'src-b' }),
+            state: { slotId: 'a' }
+        },
+        want: (r) => r.state.slotId === 'b' && r.calls.includes('borrow:b') &&
+            r.calls.some((c) => /moved on/.test(c))
+    },
+    {
+        what: 'the stream restarted at the beginning and nobody noticed',
+        scene: {
+            on: slot('a', 40 * MIN),
+            video: player({ currentTime: 4 }),
+            state: {}
+        },
+        // offset in the fixture is an hour; four seconds in is an hour adrift.
+        want: (r) => !!r.state.pending && r.calls.some((c) => /off the clock/.test(c))
+    },
+    {
+        what: 'a picture where the clock says it should be is left alone',
+        scene: { on: slot('a', 40 * MIN), video: player({ currentTime: 3605 }), state: {} },
+        want: (r) => !r.state.pending
+    },
+    {
+        what: 'and it is not put back twice in the same half minute',
+        scene: {
+            on: slot('a', 40 * MIN),
+            video: player({ currentTime: 4 }),
+            state: { reseekAt: now - 5000 }
+        },
+        want: (r) => !r.state.pending
+    }
+];
+
+queueCases.forEach((c) => {
+    const r = runQueue(c.scene);
+    const ok = c.want(r);
+    if (!ok) failed++;
+    console.log((ok ? 'ok  ' : 'FAIL') + ' ' + c.what + '  ->  ' + (r.calls.join(', ') || 'nothing'));
+});
+
+console.log(JSON.stringify({ failed, of: cases.length + queueCases.length, tailMinutes: TV_TAIL_MS / MIN }));
