@@ -3821,6 +3821,8 @@
                   '  ' +
                   item.Name
                 : item.Name;
+
+            nfRatingFlash(item);
         };
 
         player.label = label;
@@ -9774,6 +9776,167 @@
         });
     }
 
+    /* ======================================================================
+       What the other plugin used to do
+
+       Its settings for this server are still on disk, and they say plainly
+       which of its features were in use: the wordmark, the dice - both above -
+       and the four below. Everything else it offered was switched off, so
+       nothing else here is missing, only unused.
+       ====================================================================== */
+
+    /* How far in you are.
+     *
+     * Jellyfin draws the bar under a half-watched card; the number beside it
+     * was the other plugin's, and both accounts had it on. It is read off the
+     * bar rather than asked for, so it costs nothing and cannot disagree with
+     * what is drawn. */
+    function nfProgressLabels() {
+        document.querySelectorAll('.card[data-id] .itemProgressBar').forEach(function (bar) {
+            var fill = bar.querySelector('.itemProgressBarForeground');
+            var box = bar.closest('.cardBox') || bar.parentElement;
+            if (!box) return;
+
+            var pct = fill ? Math.round(parseFloat(fill.style.width) || 0) : 0;
+            var chip = box.querySelector('.nf-left');
+
+            if (!pct || pct >= 100) {
+                if (chip) chip.remove();
+                return;
+            }
+
+            var says = pct + '%';
+            if (chip) {
+                if (chip.textContent !== says) chip.textContent = says;
+                return;
+            }
+
+            var over = box.querySelector('.cardImageContainer, .cardScalable') || box;
+            over.appendChild(el('span', 'nf-left', says));
+        });
+    }
+
+    /* The corner window.
+     *
+     * Both accounts had this on: look away from the tab and what is playing
+     * follows you into a corner of the screen rather than carrying on unseen.
+     * The channel already does this for its ambient mode and would fight over
+     * it, so it is left alone.
+     *
+     * Browsers guard this - Chrome wants either recent interaction or the
+     * page's own permission - so a refusal is written down, not retried. */
+    var nfPipMine = false;
+
+    function nfAutoPip() {
+        if (!document.pictureInPictureEnabled) return;
+
+        document.addEventListener('visibilitychange', function () {
+            var video = document.querySelector('.videoPlayerContainer video, video.htmlvideoplayer');
+
+            if (document.hidden) {
+                if (!video || video.paused || video.readyState < 2) return;
+                if (tvState.ambient || document.pictureInPictureElement) return;
+                if (video.disablePictureInPicture) return;
+
+                video.requestPictureInPicture().then(function () {
+                    nfPipMine = true;
+                }).catch(function (err) {
+                    log('the corner window was refused', err);
+                });
+                return;
+            }
+
+            if (nfPipMine && document.pictureInPictureElement) {
+                nfPipMine = false;
+                document.exitPictureInPicture().catch(function () {});
+            }
+        });
+
+        document.addEventListener('leavepictureinpicture', function () {
+            nfPipMine = false;
+        }, true);
+    }
+
+    /* The rating, at the start.
+     *
+     * Netflix puts the age rating in the corner for the first few seconds of a
+     * title and then takes it away; the other plugin did the same, and both
+     * accounts had it on. Once per title, not once per seek. */
+    function nfRatingFlash(item) {
+        if (!player || !player.node || !item || !item.OfficialRating) return;
+        if (player.ratingShown === item.Id) return;
+        player.ratingShown = item.Id;
+
+        var old = player.node.querySelector('.nf-rating-flash');
+        if (old) old.remove();
+
+        var chip = el('div', 'nf-rating-flash');
+        chip.appendChild(el('span', 'nf-rating-mark', item.OfficialRating));
+        chip.appendChild(el('span', 'nf-rating-word', 'Classificazione'));
+        player.node.appendChild(chip);
+
+        setTimeout(function () { chip.classList.add('is-out'); }, 5200);
+        setTimeout(function () { if (chip.parentElement) chip.remove(); }, 6200);
+    }
+
+    /* In which languages.
+     *
+     * The other plugin listed the audio tracks on a title's own page, which is
+     * the one place the answer matters before you press play. It joins the rest
+     * of that line - year, runtime, rating - and is asked for again only when
+     * the page changes title. */
+    var nfAudioFor = null;
+
+    function nfAudioLanguages() {
+        var id = currentDetailId();
+        if (!id) {
+            nfAudioFor = null;
+            return;
+        }
+
+        var line = document.querySelector('.itemMiscInfo-primary, .itemMiscInfo');
+        if (!line) return;
+
+        var already = line.querySelector('.nf-audio');
+        if (already && nfAudioFor === id) return;
+        if (already) already.remove();
+
+        var client = api();
+        if (!client) return;
+
+        nfAudioFor = id;
+        client
+            .getItem(client.getCurrentUserId(), id)
+            .then(function (item) {
+                if (nfAudioFor !== id) return;
+                var here = document.querySelector('.itemMiscInfo-primary, .itemMiscInfo');
+                if (!here || here.querySelector('.nf-audio')) return;
+
+                var said = {};
+                var names = (item.MediaStreams || [])
+                    .filter(function (stream) { return stream.Type === 'Audio'; })
+                    .map(function (stream) {
+                        return stream.DisplayLanguage || stream.Language || '';
+                    })
+                    .filter(function (name) {
+                        if (!name || said[name]) return false;
+                        said[name] = true;
+                        return true;
+                    })
+                    .map(function (name) {
+                        return name.charAt(0).toUpperCase() + name.slice(1);
+                    });
+
+                if (!names.length) return;
+                here.appendChild(
+                    el('div', 'mediaInfoItem nf-audio', 'Audio: ' + names.slice(0, 4).join(', ')));
+            })
+            .catch(function (err) {
+                log('could not read the audio tracks', err);
+                nfAudioFor = null;
+            });
+    }
+
     function refresh() {
         applyTileCount();
         applyBodyFlags();
@@ -9791,11 +9954,13 @@
         buildNav();
         buildTabBar();
         decorateDetail();
+        nfAudioLanguages();
         mountHero();
         decorateTop10();
         decorateRows();
         nfProviders();
         nfFreshBadges();
+        nfProgressLabels();
         paintSagaRow();
         managePlayer();
         widenCards();
@@ -9824,6 +9989,7 @@
             },
             { passive: true });
         applyBodyFlags();
+        nfAutoPip();
         bindScrollState();
         bindPreview();
         bindModal();
