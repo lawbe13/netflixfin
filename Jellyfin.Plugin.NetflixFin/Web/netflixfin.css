@@ -7367,7 +7367,7 @@ body.nf-pick .docspinner {
         content: "";
         flex: 1 1 auto;
         height: 1px;
-        background: rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.22);
     }
 
     .nf-pick-quote {
