@@ -7108,6 +7108,31 @@ body.nf-pick .docspinner {
 /* Among the tools on the right rather than in the row of words on the left. No
    box: every other button up there is a glyph and nothing else, and a frame
    around one of them read as a badge that had failed to load its label. */
+/* Il dado, che sta accanto al ciak e si comporta come lui. */
+.nf-dice {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0.92;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.2s var(--nf-ease), transform 0.2s var(--nf-ease);
+}
+
+.nf-dice svg {
+    display: block;
+    width: 23px;
+    height: 23px;
+    fill: currentColor;
+}
+
+.nf-dice:hover {
+    opacity: 1;
+    transform: translateY(-1px) rotate(-8deg);
+}
+
 .nf-pick-btn {
     display: inline-flex;
     align-items: center;
@@ -7568,7 +7593,8 @@ body.nf-pick .docspinner {
         flex: 1 1 100%;
     }
 
-    .headerRight .nf-pick-btn svg {
+    .headerRight .nf-pick-btn svg,
+    .headerRight .nf-dice svg {
         width: 22px;
         height: 22px;
     }

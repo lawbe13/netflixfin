@@ -266,6 +266,48 @@
         });
     }
 
+    /* The dice.
+     *
+     * It was another plugin's, and it went with it. It is the shortest question
+     * this server can be asked - "put something on" - and the answer costs one
+     * request: a single item, taken at random by the server itself. */
+    function nfDice() {
+        var right = document.querySelector('.headerRight');
+        if (!right) return;
+        if (right.querySelector('.nf-dice')) return;
+
+        var dice = el('button', 'paper-icon-button-light headerButton headerButtonRight nf-dice');
+        dice.type = 'button';
+        dice.title = 'Un titolo a caso';
+        dice.setAttribute('aria-label', 'Un titolo a caso');
+        dice.appendChild(svgIcon('dice'));
+
+        dice.addEventListener('click', function () {
+            var client = api();
+            if (!client) return;
+
+            client
+                .getItems(client.getCurrentUserId(), {
+                    IncludeItemTypes: 'Movie,Series',
+                    Recursive: true,
+                    SortBy: 'Random',
+                    Limit: 1,
+                    EnableImages: false
+                })
+                .then(function (result) {
+                    var item = (result.Items || [])[0];
+                    if (!item) return;
+                    window.location.hash = '#/details?id=' + item.Id +
+                        '&serverId=' + client.serverId();
+                })
+                .catch(function (err) {
+                    log('dice: nothing came back', err);
+                });
+        });
+
+        right.insertBefore(dice, right.firstChild);
+    }
+
     /* The quiz is a tool, not a place: it belongs on the right of the header
      * with the other things you press - the dice above all, which is the same
      * question asked without any of the thinking - and not in the row of words
@@ -294,19 +336,52 @@
          * belongs to another plugin, which puts itself at the head of the row
          * whenever it likes - inserting before it at build time left the board
          * stranded on the far side of the notifications bell. */
-        var dice = right.querySelector('#randomItemButtonContainer, #randomItemButton');
+        var dice = right.querySelector('.nf-dice, #randomItemButtonContainer, #randomItemButton');
         var anchor = dice && dice.parentElement === right ? dice : right.firstChild;
         if (anchor && button.nextSibling !== anchor) right.insertBefore(button, anchor);
 
         button.classList.toggle('is-on', pickOnPage());
     }
 
+    /* The wordmark, and the icons a browser asks for.
+     *
+     * This used to belong to another plugin, and the theme read the wordmark
+     * off whatever was on the page rather than owning one - which was fine
+     * until that plugin was removed and the header went back to saying
+     * "Jellyfin". The mark is carried by this plugin now and served from it;
+     * the setting still wins if it is filled in. */
+    var NF_BRAND = '/NetflixFin/brand/';
+
     function applyLogo() {
-        if (!cfg.logoUrl) return;
+        var mark = cfg.logoUrl || (NF_BRAND + 'banner');
         document.querySelectorAll('.pageTitleWithDefaultLogo, .pageTitleWithLogo').forEach(function (node) {
-            node.style.backgroundImage = 'url("' + cfg.logoUrl + '")';
+            node.style.backgroundImage = 'url("' + mark + '")';
         });
 
+        applyIcons();
+    }
+
+    function applyIcons() {
+        if (cfg.logoUrl) return;
+
+        var wanted = [
+            { rel: 'icon', href: NF_BRAND + 'favicon' },
+            { rel: 'apple-touch-icon', href: NF_BRAND + 'touch-icon' }
+        ];
+
+        wanted.forEach(function (want) {
+            var link = document.head.querySelector('link[rel="' + want.rel + '"][data-nf-brand]');
+            if (!link) {
+                document.head.querySelectorAll('link[rel="' + want.rel + '"]').forEach(function (old) {
+                    old.remove();
+                });
+                link = document.createElement('link');
+                link.rel = want.rel;
+                link.setAttribute('data-nf-brand', '1');
+                document.head.appendChild(link);
+            }
+            if (link.getAttribute('href') !== want.href) link.href = want.href;
+        });
     }
 
     var brandLogo = null;
@@ -2679,6 +2754,7 @@
         channels: 'M21 3H3a2 2 0 00-2 2v11a2 2 0 002 2h5l-1.6 2.4 1.6 1.1L11 18h2l2 3.5 1.6-1.1L15 18h6a2 2 0 002-2V5a2 2 0 00-2-2zm0 13H3V5h18v11z',
         close: 'M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z',
         info: 'M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM11 7h2v2h-2V7zm0 4h2v6h-2v-6z',
+        dice: 'M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zm0 2v14h14V5H5zm3 2.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm8 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm-4 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm-4 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm8 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3z',
         search: 'M10 2a8 8 0 105 14.3l5.3 5.3 1.4-1.4-5.3-5.3A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z',
         /* Netflix's award call-out uses a laurel wreath, not a trophy: two branches
          * curving up and open at the top, in gold. */
@@ -9710,6 +9786,7 @@
         applyLogo();
         publishBrandLogo();
         netflixHeaderIcons();
+        nfDice();
         pickHeaderButton();
         buildNav();
         buildTabBar();

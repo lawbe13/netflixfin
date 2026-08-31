@@ -254,6 +254,52 @@ public class NetflixFinController : ControllerBase
     }
 
     /// <summary>
+    /// Gets a piece of the server's own branding.
+    /// </summary>
+    /// <param name="name">
+    /// Which piece: the wordmark for the header, the mark on its own, or the
+    /// icons a browser asks for. These used to belong to another plugin, which
+    /// is why the theme could read the wordmark off the page and never had to
+    /// own one. It owns them now.
+    /// </param>
+    [HttpGet("brand/{name}")]
+    public ActionResult GetBrand(string name)
+    {
+        // Matched rather than trusted: the name goes into a resource path.
+        if (string.IsNullOrEmpty(name) || !Brands.ContainsKey(name))
+        {
+            return NotFound();
+        }
+
+        var file = Brands[name];
+        var assembly = typeof(NetflixFinController).Assembly;
+        var stream = assembly.GetManifestResourceStream(
+            typeof(Plugin).Namespace + ".Web.brand." + file);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = "public, max-age=604800, immutable";
+        return File(stream, file.EndsWith(".ico", StringComparison.Ordinal)
+            ? "image/x-icon"
+            : "image/png");
+    }
+
+    /// <summary>
+    /// The pieces of branding the plugin carries, by the name the theme asks
+    /// for, so that a request cannot reach an arbitrary embedded resource.
+    /// </summary>
+    private static readonly Dictionary<string, string> Brands = new(StringComparer.Ordinal)
+    {
+        { "banner", "banner-dark.png" },
+        { "banner-light", "banner-light.png" },
+        { "mark", "icon-transparent.png" },
+        { "favicon", "favicon.ico" },
+        { "touch-icon", "apple-touch-icon.png" }
+    };
+
+    /// <summary>
     /// The channels the theme defines, mirrored here only so that a request for
     /// an ident or a lockup cannot ask for an arbitrary embedded resource.
     /// </summary>

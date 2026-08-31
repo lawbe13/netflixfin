@@ -32,6 +32,11 @@
     <!-- One lockup per channel, drawn rather than set: the F and the
          channel's own tag, as vector. -->
     <EmbeddedResource Include="Web\tv\logos\*.svg" />
+    <!-- The server's own wordmark and icons. They used to belong to another
+         plugin, which is why the theme read the wordmark off the page rather
+         than owning one; when that plugin went, so did the branding. -->
+    <EmbeddedResource Include="Web\brand\*.png" />
+    <EmbeddedResource Include="Web\brand\*.ico" />
   </ItemGroup>
 
 </Project>
