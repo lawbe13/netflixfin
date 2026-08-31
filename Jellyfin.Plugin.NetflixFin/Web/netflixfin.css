@@ -1822,6 +1822,17 @@ body.nf-detail .backdropImage {
         background-color: #2a2a2a;
     }
 
+    /* Nessuna immagine per questo titolo: meglio una sfumatura che una lastra
+       grigia. Capita soprattutto col dado, che pesca a caso. */
+    .nf-detail-art.nf-art-none {
+        background-image: radial-gradient(
+            120% 100% at 20% 0%,
+            #2f2f33 0%,
+            #17171a 55%,
+            #0d0d0f 100%
+        );
+    }
+
     .nf-detail-art::after {
         content: "";
         position: absolute;
@@ -7758,27 +7769,25 @@ body.nf-pick .docspinner {
     padding: 0 var(--nf-gutter);
 }
 
+/* I marchi si dividono la riga, come nell'originale (`flex: 1 1 0`, alto 110px).
+   Portandoli qui erano diventati sette scatole fisse da 132x66: a 1920 occupano
+   996px su 1800 di riga, con 800px di vuoto a destra e il logo dipinto a 78x30
+   invece che a 109x42. Da qui la riga "minuscola". */
 .nf-prov-marks {
     display: flex;
     gap: 12px;
-    overflow-x: auto;
     padding: 4px 0 8px;
-    scrollbar-width: none;
-}
-
-.nf-prov-marks::-webkit-scrollbar {
-    display: none;
 }
 
 .nf-prov-mark {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
     display: grid;
     place-items: center;
-    width: 132px;
-    height: 66px;
-    padding: 0 16px;
+    height: 110px;
+    padding: 0 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: 12px;
     background-size: cover;
     cursor: pointer;
     -webkit-appearance: none;
@@ -7790,7 +7799,7 @@ body.nf-pick .docspinner {
 
 .nf-prov-logo {
     max-width: 100%;
-    max-height: 30px;
+    height: 42px;
     width: auto;
     object-fit: contain;
     opacity: 0.92;
@@ -7909,15 +7918,38 @@ body.nf-pick .docspinner {
     pointer-events: none;
 }
 
-@media (max-width: 719px) {
+@media (max-width: 1099px) {
+    /* Sotto i 1100 sette marchi divisi non sono piu' leggibili: la riga torna a
+       scorrere, con marchi di larghezza fissa abbastanza grandi da leggersi. */
+    .nf-prov-marks {
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .nf-prov-marks::-webkit-scrollbar {
+        display: none;
+    }
+
     .nf-prov-mark {
-        width: 108px;
-        height: 56px;
-        padding: 0 12px;
+        flex: 0 0 auto;
+        width: 168px;
+        height: 88px;
     }
 
     .nf-prov-logo {
-        max-height: 24px;
+        height: 34px;
+    }
+}
+
+@media (max-width: 719px) {
+    .nf-prov-mark {
+        width: 132px;
+        height: 72px;
+        padding: 0 14px;
+    }
+
+    .nf-prov-logo {
+        height: 28px;
     }
 
     .nf-prov-title {

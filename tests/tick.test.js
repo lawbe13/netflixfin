@@ -236,6 +236,8 @@ function runQueue(scene) {
         tvChannel: () => ({ id: 'uno', name: 'Uno' }),
         tvName: (slot) => slot.item.id,
         tvBorrow: (id) => calls.push('borrow:' + id),
+        // What the channel hands back the moment the queue has passed it.
+        tvGiveBackLater: (id) => calls.push('giveback:' + id),
         tvTopUpQueue: () => calls.push('topup')
     };
 
@@ -255,6 +257,38 @@ const player = (over) => Object.assign(
       pause() { this.paused = true; }, play() { this.paused = false; return null; } }, over);
 
 const queueCases = [
+    {
+        what: 'the programme the queue has left behind is handed back',
+        scene: {
+            on: {
+                slot: { item: { id: 'b' }, start: now - 1000, end: now + 40 * MIN },
+                next: { item: { id: 'c' } },
+                offset: 1000,
+                inIdent: false
+            },
+            video: { currentSrc: 'src-b', paused: false, readyState: 4, currentTime: 1,
+                ended: false, pause() { this.paused = true; },
+                play() { this.paused = false; return null; } },
+            state: { slotId: 'a', srcMark: 'src-a' }
+        },
+        want: (r) => r.calls.includes('giveback:a') && r.calls.includes('borrow:b')
+    },
+    {
+        what: 'nothing is handed back while the same programme runs',
+        scene: {
+            on: {
+                slot: { item: { id: 'a' }, start: now - 1000, end: now + 40 * MIN },
+                next: { item: { id: 'b' } },
+                offset: 1000,
+                inIdent: false
+            },
+            video: { currentSrc: 'src-a', paused: false, readyState: 4, currentTime: 1,
+                ended: false, pause() { this.paused = true; },
+                play() { this.paused = false; return null; } },
+            state: { slotId: 'a', srcMark: 'src-a' }
+        },
+        want: (r) => !r.calls.some((c) => c.indexOf('giveback:') === 0)
+    },
     {
         what: 'the film ending is left alone to end',
         scene: {

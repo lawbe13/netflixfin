@@ -21,6 +21,15 @@ function slice(name) {
 
 const NF_BRAND = /var NF_BRAND = '([^']+)';/.exec(text)[1];
 
+/* The list applyIcons walks, taken from the source rather than restated here,
+ * so a rel added there is covered here without anyone remembering to. */
+const NF_ICONS = (() => {
+    const at = text.indexOf('var NF_ICONS = [');
+    const to = text.indexOf('\n    ];', at);
+    // eslint-disable-next-line no-eval
+    return eval(text.slice(text.indexOf('[', at), to + 7).replace(/NF_BRAND/g, JSON.stringify(NF_BRAND)));
+})();
+
 /* Enough of a document to be lied to: nodes that remember their class, their
  * children and the two or three attributes these functions set. */
 function node(tag, cls) {
@@ -41,6 +50,10 @@ function node(tag, cls) {
         },
         setAttribute(k, v) { self.attrs[k] = String(v); },
         getAttribute(k) { return k in self.attrs ? self.attrs[k] : null; },
+        hasAttribute(k) { return k in self.attrs; },
+        classList: {
+            contains: (name) => (' ' + self.className + ' ').includes(' ' + name + ' ')
+        },
         addEventListener(kind, fn) { (self.on = self.on || {})[kind] = fn; },
         all() {
             return self.children.reduce((acc, kid) => acc.concat([kid], kid.all()), []);
@@ -54,10 +67,15 @@ function node(tag, cls) {
                 if (bit[0] === '.') return (' ' + self.className + ' ').includes(' ' + bit.slice(1) + ' ');
                 if (bit[0] === '#') return self.attrs.id === bit.slice(1);
                 if (bit[0] === '[') {
-                    const pair = /^\[([\w-]+)(?:="([^"]*)")?\]$/.exec(bit);
+                    const pair = /^\[([\w-]+)(~?)(?:="([^"]*)")?\]$/.exec(bit);
                     if (!pair) return false;
                     const held = pair[1] === 'rel' ? self.rel : self.attrs[pair[1]];
-                    return pair[2] === undefined ? held !== undefined && held !== '' : held === pair[2];
+                    if (pair[3] === undefined) return held !== undefined && held !== '';
+                    // [rel~="icon"] matches a whitespace-separated token, which is
+                    // how a browser reads rel - and the reason the first go missed
+                    // Jellyfin's rel="shortcut icon".
+                    if (pair[2]) return String(held || '').split(/\s+/).indexOf(pair[3]) > -1;
+                    return held === pair[3];
                 }
                 return self.tagName === bit;
             });
@@ -111,6 +129,7 @@ function page() {
 function scoped(fns, extra) {
     const scope = Object.assign({
         NF_BRAND,
+        NF_ICONS,
         el: (tag, cls, words) => { const n = node(tag, cls); if (words) n.textContent = words; return n; },
         svgIcon: (name) => { const n = node('svg'); n.attrs.icon = name; return n; },
         log: () => {}
@@ -161,6 +180,34 @@ check('the icons replace the ones jellyfin ships, once', () => {
         !theirs.isConnected;
 });
 
+check('jellyfin ships rel="shortcut icon", and that is the one that must go', () => {
+    const doc = page();
+    const theirs = node('link');
+    theirs.rel = 'shortcut icon';
+    theirs.href = '/web/favicon.bc8d51405ec040305a87.ico';
+    doc.head.appendChild(theirs);
+
+    const brand = scoped(['applyLogo', 'applyIcons'], { document: doc, cfg: {} });
+    brand.applyIcons();
+    brand.applyIcons();
+
+    return !theirs.isConnected &&
+        doc.head.children.length === 2 &&
+        doc.head.querySelectorAll('link[rel~="icon"]').length === 1 &&
+        doc.head.querySelectorAll('link[rel~="icon"]')[0].href === NF_BRAND + 'favicon';
+});
+
+check('a precomposed touch icon goes too', () => {
+    const doc = page();
+    const theirs = node('link');
+    theirs.rel = 'apple-touch-icon-precomposed';
+    theirs.href = '/web/touch.png';
+    doc.head.appendChild(theirs);
+
+    scoped(['applyLogo', 'applyIcons'], { document: doc, cfg: {} }).applyIcons();
+    return !theirs.isConnected && doc.head.children.length === 2;
+});
+
 check('a configured logo leaves the icons alone', () => {
     const doc = page();
     scoped(['applyLogo', 'applyIcons'], { document: doc, cfg: { logoUrl: '/mine.png' } }).applyIcons();
@@ -189,12 +236,13 @@ check('no header, no dice, no complaint', () => {
     return doc.body.children.length === 0;
 });
 
-check('a press asks for one title at random and opens it', () => {
+check('a press asks for one title at random and opens the same card a poster does', () => {
     const doc = page();
     const right = node('div', 'headerRight');
     doc.body.appendChild(right);
 
     let asked = null;
+    const opened = [];
     const client = {
         getCurrentUserId: () => 'u1',
         serverId: () => 's1',
@@ -204,7 +252,10 @@ check('a press asks for one title at random and opens it', () => {
         }
     };
     const win = { location: { hash: '#/home.html' } };
-    scoped(['nfDice'], { document: doc, api: () => client, window: win }).nfDice();
+    scoped(['nfDice'], {
+        document: doc, api: () => client, window: win,
+        openModal: (id) => opened.push(id)
+    }).nfDice();
     right.querySelector('.nf-dice').on.click();
 
     return Promise.resolve().then(() => Promise.resolve()).then(() =>
@@ -213,22 +264,28 @@ check('a press asks for one title at random and opens it', () => {
         asked.query.Limit === 1 &&
         asked.query.Recursive === true &&
         asked.query.IncludeItemTypes === 'Movie,Series' &&
-        win.location.hash === '#/details?id=film-7&serverId=s1');
+        opened.join() === 'film-7' &&
+        // and the page it was pressed on is left where it was
+        win.location.hash === '#/home.html');
 });
 
-check('an empty library does not move the page', () => {
+check('an empty library opens nothing', () => {
     const doc = page();
     const right = node('div', 'headerRight');
     doc.body.appendChild(right);
     const win = { location: { hash: '#/home.html' } };
+    const opened = [];
     const client = {
         getCurrentUserId: () => 'u1',
         serverId: () => 's1',
         getItems: () => Promise.resolve({ Items: [] })
     };
-    scoped(['nfDice'], { document: doc, api: () => client, window: win }).nfDice();
+    scoped(['nfDice'], {
+        document: doc, api: () => client, window: win,
+        openModal: (id) => opened.push(id)
+    }).nfDice();
     right.querySelector('.nf-dice').on.click();
-    return Promise.resolve().then(() => win.location.hash === '#/home.html');
+    return Promise.resolve().then(() => !opened.length && win.location.hash === '#/home.html');
 });
 
 check('a request that fails is written down, not thrown', () => {
@@ -243,6 +300,7 @@ check('a request that fails is written down, not thrown', () => {
     };
     scoped(['nfDice'], {
         document: doc, api: () => client, window: { location: {} },
+        openModal: () => {},
         log: (m) => said.push(m)
     }).nfDice();
     right.querySelector('.nf-dice').on.click();
@@ -309,6 +367,28 @@ check('an untouched card is left alone', () => {
     doc.body.appendChild(card(null).one);
     scoped(['nfProgressLabels'], { document: doc }).nfProgressLabels();
     return labelled(doc).length === 0;
+});
+
+/* --- the page in front of the viewer -------------------------------------- */
+
+check('the visible title page is the one found, not the first one built', () => {
+    const doc = page();
+    const stale = node('div', 'page libraryPage itemDetailPage hide');
+    stale.attrs.id = 'old';
+    const live = node('div', 'page libraryPage itemDetailPage');
+    live.attrs.id = 'new';
+    doc.body.appendChild(stale);
+    doc.body.appendChild(live);
+
+    const found = scoped(['detailPage'], { document: doc }).detailPage();
+    return found === live;
+});
+
+check('with every page hidden, nothing is touched', () => {
+    const doc = page();
+    const stale = node('div', 'itemDetailPage hide');
+    doc.body.appendChild(stale);
+    return scoped(['detailPage'], { document: doc }).detailPage() === null;
 });
 
 (async () => {

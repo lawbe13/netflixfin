@@ -297,8 +297,10 @@
                 .then(function (result) {
                     var item = (result.Items || [])[0];
                     if (!item) return;
-                    window.location.hash = '#/details?id=' + item.Id +
-                        '&serverId=' + client.serverId();
+                    /* The same card a poster opens. Sending the viewer to
+                     * Jellyfin's own title page instead made the dice the one
+                     * control in the theme that left it. */
+                    openModal(item.Id);
                 })
                 .catch(function (err) {
                     log('dice: nothing came back', err);
@@ -361,25 +363,42 @@
         applyIcons();
     }
 
+    /* Matched on the token, not on the whole attribute.
+     *
+     * The first go asked for link[rel="icon"] and found nothing to remove,
+     * because what Jellyfin ships is rel="shortcut icon" - two tokens, one
+     * attribute, and an exact-match selector is blind to it. So the plugin's
+     * link went in beside Jellyfin's, Jellyfin's kept the tab, and a check
+     * written with the same blind selector said the head held only ours.
+     * [rel~="icon"] matches any whitespace-separated token, which is how a
+     * browser reads rel in the first place. */
+    var NF_ICONS = [
+        { rel: 'icon', sweep: ['icon', 'shortcut', 'mask-icon'], href: NF_BRAND + 'favicon' },
+        {
+            rel: 'apple-touch-icon',
+            sweep: ['apple-touch-icon', 'apple-touch-icon-precomposed'],
+            href: NF_BRAND + 'touch-icon'
+        }
+    ];
+
     function applyIcons() {
         if (cfg.logoUrl) return;
 
-        var wanted = [
-            { rel: 'icon', href: NF_BRAND + 'favicon' },
-            { rel: 'apple-touch-icon', href: NF_BRAND + 'touch-icon' }
-        ];
+        NF_ICONS.forEach(function (want) {
+            var link = document.head.querySelector('link[rel~="' + want.rel + '"][data-nf-brand]');
 
-        wanted.forEach(function (want) {
-            var link = document.head.querySelector('link[rel="' + want.rel + '"][data-nf-brand]');
             if (!link) {
-                document.head.querySelectorAll('link[rel="' + want.rel + '"]').forEach(function (old) {
-                    old.remove();
+                want.sweep.forEach(function (token) {
+                    document.head.querySelectorAll('link[rel~="' + token + '"]').forEach(function (old) {
+                        if (!old.hasAttribute('data-nf-brand')) old.remove();
+                    });
                 });
                 link = document.createElement('link');
                 link.rel = want.rel;
                 link.setAttribute('data-nf-brand', '1');
                 document.head.appendChild(link);
             }
+
             if (link.getAttribute('href') !== want.href) link.href = want.href;
         });
     }
@@ -1282,8 +1301,41 @@
      * on a fixed, full-viewport layer instead, so the art is rebuilt inside the
      * card - and the logo, which Jellyfin parks outside the container, is moved
      * in so it can be positioned against it. */
+    /* The card is only drawn where it is styled.
+     *
+     * The branch was taken on isPhone(), which is 820, while every rule for the
+     * card is written inside min-width 1000 - so between 821 and 999 the card
+     * was built and then left unstyled, an unstyled div with the title and the
+     * buttons moved inside it. One number, asked once. */
+    function wideDetail() {
+        return window.matchMedia('(min-width: 1000px)').matches;
+    }
+
+    /* Where a node was before the card borrowed it, so it can go back to the
+     * same place rather than to the end of the container. */
+    function detailBorrow(node, art) {
+        if (!node || node.parentElement === art) return;
+        if (!node.nfHome) node.nfHome = { parent: node.parentElement, next: node.nextSibling };
+        art.appendChild(node);
+    }
+
+    function detailGiveBack(art) {
+        if (!art) return;
+        art.querySelectorAll('.detailRibbon, .detailLogo').forEach(function (node) {
+            var home = node.nfHome;
+            if (home && home.parent && home.parent.isConnected) {
+                home.parent.insertBefore(node, home.next && home.next.isConnected ? home.next : null);
+            } else if (art.parentElement) {
+                art.parentElement.appendChild(node);
+            }
+        });
+    }
+
     function mountDetailArt() {
-        var container = document.querySelector('.detailPagePrimaryContainer');
+        var page = detailPage();
+        if (!page) return;
+
+        var container = page.querySelector('.detailPagePrimaryContainer');
         if (!container) return;
 
         var id = currentDetailId();
@@ -1292,24 +1344,21 @@
         var client = api();
         if (!client) return;
 
-        // The logo is worth painting at any width; the card is not.
-        paintDetailLogo(id, client);
-
         /* Netflix's title card - 16:9 art with the logo and the actions laid on
          * it - is a wide-screen shape, and the app gives the phone a different
          * page entirely. Building the card there anyway left a 107pt black band
          * above Jellyfin's own layout with the action row overlapping it. Until
          * that page is drawn properly the phone keeps Jellyfin's, which at least
          * holds together. */
-        if (isPhone()) {
+        if (!wideDetail()) {
             var stale = container.querySelector('.nf-detail-art');
             if (stale) {
-                var oldRibbon = stale.querySelector('.detailRibbon');
-                if (oldRibbon) container.appendChild(oldRibbon);
-                var oldLogo = stale.querySelector('.detailLogo');
-                if (oldLogo) container.appendChild(oldLogo);
+                detailGiveBack(stale);
                 stale.remove();
             }
+
+            // The logo is worth painting at any width; the card is not.
+            paintDetailLogo(id, client);
 
             /* In Jellyfin's mobile layout .itemBackdrop is an empty div - the art
              * goes into the fixed .backdropContainer behind the page, which this
@@ -1318,8 +1367,8 @@
             /* The app's title page carries no logo on the art - the name is set
              * in text underneath it, left aligned with everything else. Leaving
              * the logo where Jellyfin put it keeps that simple. */
-            var backdrop = document.querySelector('.itemBackdrop');
-            var mark = document.querySelector('.detailLogo');
+            var backdrop = page.querySelector('.itemBackdrop');
+            var mark = page.querySelector('.detailLogo');
             if (backdrop && mark && mark.parentElement === backdrop) {
                 container.appendChild(mark);
             }
@@ -1328,26 +1377,53 @@
 
         var art = container.querySelector('.nf-detail-art');
         if (!art || art.dataset.nfId !== id) {
-            if (art) art.remove();
+            if (art) {
+                /* Whatever the card had borrowed goes home first. Removing the
+                 * card with the title, the metadata line and the play button
+                 * still inside it deleted them, and the page was left with a
+                 * grey slab and nothing under it. */
+                detailGiveBack(art);
+                art.remove();
+            }
             art = el('div', 'nf-detail-art');
             art.dataset.nfId = id;
-            art.style.backgroundImage =
-                'url("' + client.getImageUrl(id, { type: 'Backdrop', maxWidth: 1280 }) + '")';
             container.insertBefore(art, container.firstChild);
         }
 
         // Logo and action row live on the art, so they have to be inside it -
         // absolute offsets resolve against the nearest positioned ancestor, and
         // the container wraps the whole card, copy included.
-        var logo = document.querySelector('.detailLogo');
-        if (logo && logo.parentElement !== art) {
-            art.appendChild(logo);
+        detailBorrow(page.querySelector('.detailLogo'), art);
+        detailBorrow(page.querySelector('.detailRibbon'), art);
+
+        // Painted from the item, once it is known - see paintDetailLogo.
+        paintDetailLogo(id, client);
+    }
+
+    /* Which picture the card should carry.
+     *
+     * It used to ask for a Backdrop without saying which one, and an item that
+     * has no backdrop answers that with a 404 - so the card was a grey slab.
+     * On a title somebody chose deliberately that is rare; on a title drawn at
+     * random by the dice it is common, which is why the dice looked broken and
+     * clicking a poster did not. A series' own backdrop, then its parent's,
+     * then the thumbnail, then the poster; and if there is none of that, the
+     * card says so and stands down. */
+    function detailArtUrl(item, client) {
+        var id = item.Id;
+        var wide = (item.BackdropImageTags || [])[0];
+        if (wide) return client.getImageUrl(id, { type: 'Backdrop', maxWidth: 1280, tag: wide });
+
+        var handed = (item.ParentBackdropImageTags || [])[0];
+        if (handed && item.ParentBackdropItemId) {
+            return client.getImageUrl(item.ParentBackdropItemId,
+                { type: 'Backdrop', maxWidth: 1280, tag: handed });
         }
 
-        var ribbon = document.querySelector('.detailRibbon');
-        if (ribbon && ribbon.parentElement !== art) {
-            art.appendChild(ribbon);
-        }
+        var tags = item.ImageTags || {};
+        if (tags.Thumb) return client.getImageUrl(id, { type: 'Thumb', maxWidth: 1280, tag: tags.Thumb });
+        if (tags.Primary) return client.getImageUrl(id, { type: 'Primary', maxWidth: 1280, tag: tags.Primary });
+        return null;
     }
 
     var detailItems = {};
@@ -1361,8 +1437,11 @@
         var apply = function (item) {
             if (currentDetailId() !== id) return;
 
+            var page = detailPage();
+            if (!page) return;
+
             if (isPhone()) {
-                var backdrop = document.querySelector('.itemBackdrop');
+                var backdrop = page.querySelector('.itemBackdrop');
                 var wide = item && item.BackdropImageTags && item.BackdropImageTags[0];
                 if (backdrop && wide) {
                     var art = client.getImageUrl(id, { type: 'Backdrop', maxWidth: 900, tag: wide });
@@ -1373,7 +1452,17 @@
                 }
             }
 
-            var logo = document.querySelector('.detailLogo');
+            var art = page.querySelector('.nf-detail-art');
+            if (art && item) {
+                var wide = detailArtUrl(item, client);
+                art.classList.toggle('nf-art-none', !wide);
+                if (wide && art.dataset.nfArt !== wide) {
+                    art.dataset.nfArt = wide;
+                    art.style.backgroundImage = 'url("' + wide + '")';
+                }
+            }
+
+            var logo = page.querySelector('.detailLogo');
             var tag = item && item.ImageTags && item.ImageTags.Logo;
             if (logo && tag) {
                 var url = client.getImageUrl(id, { type: 'Logo', maxWidth: 640, tag: tag });
@@ -1407,6 +1496,23 @@
         return match ? match[1] : null;
     }
 
+    /* The title page in front of the viewer.
+     *
+     * Jellyfin keeps up to three pages alive at once and hides the ones that
+     * are not in front rather than removing them, so document.querySelector
+     * for anything on a title page answers with whichever was built first -
+     * usually a hidden one. Everything here used to ask that way, and from the
+     * second title page onward it was rearranging the wrong page and taking
+     * the visible page's title, buttons and artwork with it: a page with a
+     * black top and nothing on it. */
+    function detailPage() {
+        var pages = document.querySelectorAll('.itemDetailPage');
+        for (var i = 0; i < pages.length; i++) {
+            if (!pages[i].classList.contains('hide')) return pages[i];
+        }
+        return null;
+    }
+
     function decorateDetail() {
         var onDetail = /#\/details/.test(window.location.hash);
         document.body.classList.toggle('nf-detail', onDetail);
@@ -1418,7 +1524,10 @@
         // mountDetailArt paints the logo and sets nf-detail-logo with it.
         mountDetailArt();
 
-        document.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
+        var page = detailPage();
+        if (!page) return;
+
+        page.querySelectorAll('.mainDetailButtons .btnPlay, .mainDetailButtons .btnResume')
             .forEach(function (button) {
                 var content = button.querySelector('.detailButton-content');
                 var label = button.getAttribute('title');
@@ -5621,24 +5730,39 @@
      */
     var tvBorrowed = {};
     var tvReturnTimer = null;
+    var tvGiveBackTimers = {};
 
+    /* The date is in here for a reason. Position and count were being put back
+     * correctly and titles were still turning up - in Prossimo rather than in
+     * Continua a guardare, which is a different row driven by a different
+     * field. The server writes LastPlayedDate the moment playback starts, and
+     * that report is the one thing the shadow deliberately lets through, because
+     * without it there is no session and the player has nothing to talk to. So
+     * the date is noted and put back like the rest.
+     *
+     * Read from the library rather than trusted: the count on disk is what it
+     * was before this channel touched the title, provided this is called before
+     * a note goes out - which is why the whole line-up is noted at tune-in and
+     * not one programme at a time as the queue reaches it. Noted late, the count
+     * is already one higher and putting it "back" writes the inflation in. */
     function tvBorrow(id) {
-        if (!id || tvBorrowed[id]) return;
+        if (!id || tvBorrowed[id]) return Promise.resolve();
 
         var client = api();
-        if (!client) return;
+        if (!client) return Promise.resolve();
 
         // Reserved before the answer arrives, so a second pass does not ask again.
         tvBorrowed[id] = true;
 
-        client
+        return client
             .getItem(client.getCurrentUserId(), id)
             .then(function (item) {
                 var data = item.UserData || {};
                 tvBorrowed[id] = {
                     Played: !!data.Played,
                     PlaybackPositionTicks: data.PlaybackPositionTicks || 0,
-                    PlayCount: data.PlayCount || 0
+                    PlayCount: data.PlayCount || 0,
+                    LastPlayedDate: data.LastPlayedDate || null
                 };
             })
             .catch(function (err) {
@@ -5646,34 +5770,139 @@
             });
     }
 
-    function tvReturn(keep) {
-        var client = api();
-        var ids = Object.keys(tvBorrowed);
-        if (!client || !ids.length) {
-            tvBorrowed = {};
-            return;
-        }
+    /* A whole line-up at once, before any of it plays. */
+    function tvBorrowRun(slots) {
+        return Promise.all((slots || []).map(function (slot) {
+            return tvBorrow(slot.item.id);
+        }));
+    }
 
-        ids.forEach(function (id) {
-            if (keep && keep === id) return;
+    /* One programme handed back while the channel carries on.
+     *
+     * Waiting for the viewer to leave meant a title sat in Continua a guardare
+     * for as long as the channel stayed on. It is put back as the queue passes
+     * it instead - but not at once: the player's last report for a programme
+     * goes out after the next one has already started, and restoring in front
+     * of it would simply be overwritten. */
+    var TV_GIVE_BACK_MS = 25000;
 
+    function tvGiveBackLater(id) {
+        if (!id || !tvBorrowed[id] || tvGiveBackTimers[id]) return;
+
+        tvGiveBackTimers[id] = setTimeout(function () {
+            delete tvGiveBackTimers[id];
             var was = tvBorrowed[id];
-            // Reserved but never answered: nothing was known, so nothing is the
-            // safest thing to put back.
-            if (!was || was === true) {
-                was = { Played: false, PlaybackPositionTicks: 0, PlayCount: 0 };
-            }
+            if (!was) return;
+            delete tvBorrowed[id];
+            tvPutBack(id, was);
+        }, TV_GIVE_BACK_MS);
+    }
 
-            client
-                .ajax({
+    /* The blank state of a title, for one that was never watched. */
+    function tvUntouched() {
+        return { Played: false, PlaybackPositionTicks: 0, PlayCount: 0, LastPlayedDate: null };
+    }
+
+    /* Only the fields that were actually held. */
+    function tvBody(was) {
+        var body = {
+            Played: was.Played,
+            PlaybackPositionTicks: was.PlaybackPositionTicks,
+            PlayCount: was.PlayCount
+        };
+        if (was.LastPlayedDate) body.LastPlayedDate = was.LastPlayedDate;
+        return body;
+    }
+
+    function tvPutBack(id, was) {
+        var client = api();
+        if (!client) return;
+
+        // Reserved but never answered: nothing was known, so nothing is the
+        // safest thing to put back.
+        if (!was || was === true) was = tvUntouched();
+
+        /* Posting a null does not clear a date.
+         *
+         * The server merges this body field by field and skips every one that
+         * has no value, so LastPlayedDate: null asked for nothing and got it -
+         * which is why titles kept turning up in Prossimo even though the
+         * position and the count went back correctly. Prossimo is built from
+         * that date alone; Played is never consulted.
+         *
+         * Marking the title unplayed is the one call that writes null into it.
+         * It also zeroes the count and the position, so where there was
+         * something to keep the snapshot goes back on top of it. */
+        var cleared = was.LastPlayedDate
+            ? Promise.resolve()
+            : client.ajax({
+                type: 'DELETE',
+                url: client.getUrl('UserPlayedItems/' + id, { userId: client.getCurrentUserId() })
+            });
+
+        cleared
+            .then(function () {
+                return client.ajax({
                     type: 'POST',
                     url: client.getUrl('UserItems/' + id + '/UserData'),
-                    data: JSON.stringify(was),
+                    data: JSON.stringify(tvBody(was)),
                     contentType: 'application/json'
-                })
-                .catch(function (err) {
-                    log('tv: could not put this title back as it was', err);
                 });
+            })
+            .catch(function (err) {
+                log('tv: could not put this title back as it was', err);
+            });
+    }
+
+    /* The tab closing is the one exit nothing covers.
+     *
+     * tvStop never runs, so nothing is put back, and the next morning the
+     * evening's line-up is sitting in Continua a guardare. Only a keepalive
+     * request outlives the document - the client's own ajax is an XHR and is
+     * cancelled with it - so this is written by hand, with the client's own
+     * headers so it carries the token. */
+    function tvGuardUnload() {
+        window.addEventListener('pagehide', function () {
+            var client = api();
+            var ids = Object.keys(tvBorrowed);
+            if (!client || !ids.length) return;
+
+            var headers = { 'Content-Type': 'application/json' };
+            client.setRequestHeaders(headers);
+
+            ids.forEach(function (id) {
+                var was = tvBorrowed[id];
+                if (!was || was === true) was = tvUntouched();
+
+                if (!was.LastPlayedDate) {
+                    // The whole restore, in one call, for a title never watched.
+                    fetch(
+                        client.getUrl('UserPlayedItems/' + id, { userId: client.getCurrentUserId() }),
+                        { method: 'DELETE', headers: headers, keepalive: true }
+                    ).catch(function () {});
+                    return;
+                }
+
+                fetch(client.getUrl('UserItems/' + id + '/UserData'), {
+                    method: 'POST',
+                    headers: headers,
+                    keepalive: true,
+                    body: JSON.stringify(tvBody(was))
+                }).catch(function () {});
+            });
+        });
+    }
+
+    function tvReturn(keep) {
+        Object.keys(tvGiveBackTimers).forEach(function (id) {
+            clearTimeout(tvGiveBackTimers[id]);
+        });
+        tvGiveBackTimers = {};
+
+        var ids = Object.keys(tvBorrowed);
+        ids.forEach(function (id) {
+            if (keep && keep === id) return;
+            tvPutBack(id, tvBorrowed[id]);
         });
 
         tvBorrowed = {};
@@ -5689,9 +5918,11 @@
                 ownProgress: Object.prototype.hasOwnProperty.call(client, 'reportPlaybackProgress'),
                 ownStopped: Object.prototype.hasOwnProperty.call(client, 'reportPlaybackStopped'),
                 ownPlayed: Object.prototype.hasOwnProperty.call(client, 'markPlayed'),
+                ownStart: Object.prototype.hasOwnProperty.call(client, 'reportPlaybackStart'),
                 progress: client.reportPlaybackProgress,
                 stopped: client.reportPlaybackStopped,
-                played: client.markPlayed
+                played: client.markPlayed,
+                start: client.reportPlaybackStart
             };
 
             client.reportPlaybackProgress = function () {
@@ -5709,6 +5940,22 @@
                 quiet.PositionTicks = 0;
                 return tvState.guard.stopped.call(client, quiet);
             };
+            /* Held, not silenced.
+             *
+             * The server needs this one: without it there is no session, and
+             * nothing tears the transcode down at the end. But the moment it
+             * lands the server stamps the date and adds one to the count - so a
+             * note taken after it records the damage rather than the state
+             * before it, which is how play counts of five and six were written
+             * into titles nobody had chosen. The note is taken first and this
+             * waits for it. */
+            client.reportPlaybackStart = function (info) {
+                var self = this;
+                var args = arguments;
+                return tvBorrow(info && info.ItemId).then(function () {
+                    return tvState.guard.start.apply(self, args);
+                });
+            };
             return;
         }
 
@@ -5720,6 +5967,8 @@
         else delete client.reportPlaybackStopped;
         if (saved.ownPlayed) client.markPlayed = saved.played;
         else delete client.markPlayed;
+        if (saved.ownStart) client.reportPlaybackStart = saved.start;
+        else delete client.reportPlaybackStart;
         tvState.guard = null;
     }
 
@@ -6596,7 +6845,14 @@
         var client = api();
         if (!client || !slots.length) return Promise.resolve(null);
 
-        return tvDropQueue()
+        /* Noted before a single frame of any of it plays. The player walks this
+         * list by itself, and which programme it is on drifts from what the
+         * line-up says the moment a file turns out not to be the length its
+         * metadata claims - so noting them one at a time, as the schedule
+         * believes the queue reaches them, notes the wrong titles and leaves the
+         * right ones in Continua a guardare. */
+        return tvBorrowRun(slots)
+            .then(tvDropQueue)
             .then(function () {
                 return client.ajax({
                     type: 'POST',
@@ -6635,6 +6891,7 @@
         if (!more.length) return;
 
         tvState.toppingUp = true;
+        tvBorrowRun(more).then(function () {
         client
             .ajax({
                 type: 'POST',
@@ -6651,6 +6908,7 @@
             .catch(function () {
                 tvState.toppingUp = false;
             });
+        });
     }
 
     /* What the player does between one programme and the next, watched from
@@ -6672,6 +6930,7 @@
             tvState.queueLeft = Math.max(0, (tvState.queueLeft || 0) - 1);
 
             if (playing.item.id !== tvState.slotId) {
+                tvGiveBackLater(tvState.slotId);
                 tvState.slotId = playing.item.id;
                 tvState.ended = false;
                 tvBorrow(playing.item.id);
@@ -9894,7 +10153,10 @@
             return;
         }
 
-        var line = document.querySelector('.itemMiscInfo-primary, .itemMiscInfo');
+        var page = detailPage();
+        if (!page) return;
+
+        var line = page.querySelector('.itemMiscInfo-primary, .itemMiscInfo');
         if (!line) return;
 
         var already = line.querySelector('.nf-audio');
@@ -9909,7 +10171,8 @@
             .getItem(client.getCurrentUserId(), id)
             .then(function (item) {
                 if (nfAudioFor !== id) return;
-                var here = document.querySelector('.itemMiscInfo-primary, .itemMiscInfo');
+                var still = detailPage();
+                var here = still && still.querySelector('.itemMiscInfo-primary, .itemMiscInfo');
                 if (!here || here.querySelector('.nf-audio')) return;
 
                 var said = {};
@@ -9989,6 +10252,7 @@
             },
             { passive: true });
         applyBodyFlags();
+        tvGuardUnload();
         nfAutoPip();
         bindScrollState();
         bindPreview();
